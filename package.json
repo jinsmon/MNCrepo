@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "application to imporve maternal health care in rural areas",
   "main": "src/server/app.js",
-  “script” : {
+  “script”: {
         “start”:  “node src/server/app.js”
   },
   "jest": {
