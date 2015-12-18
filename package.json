@@ -3,9 +3,11 @@
   "version": "0.0.1",
   "description": "application to imporve maternal health care in rural areas",
   "main": "src/server/app.js",
-  “script”: {
-        “start”:  “node src/server/app.js”
+    "scripts": {
+    “start”:  “node src/server/app.js”,
+    "test": "jest"
   },
+
   "jest": {
     "collectCoverage": true,
     "scriptPreprocessor": "<rootDir>/node_modules/babel-jest",
