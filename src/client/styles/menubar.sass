@@ -1,0 +1,189 @@
+/* Custom code*/  
+
+/* Top main navigation Starts here*/       
+.dropDown
+    position: absolute;
+    margin-left: 402px;
+    margin-top: -29px;
+    color: black;
+    background-color: #000;
+    
+.dropdown-menu >li
+	&:hover
+	background-color: #F8F8F8;	 
+     
+.dropDown .dropdown-toggle
+    &:hover
+     background-color: #000;
+     
+.dropDown .open .dropdown-toggle
+    background-color: #000;
+    
+li.dropDown.open.dropdown a.dropdown-toggle
+    background-color: #000;
+
+.dropdown-menu-right
+
+    left: auto;
+    top: 29px;
+    right: -16px;
+    
+.dropdown-menu>li>a
+  padding: 10px 17px 0px 13px;
+  height: 39px;
+
+.nav>li>a:focus, .nav>li>a:hover
+  background-color: #000;
+  
+span.caret
+  color: #8D8D8D;
+  margin-top: -15px;
+  border-top: 8px dashed;
+  border-right: 5px solid transparent;
+  border-left: 5px solid transparent
+
+ul.dropdown-menu.dropdown-menu-right
+  border: solid 2px #d4d4d4;
+    
+/*Top menu navigation ends here*/   
+
+  
+.menubar ul  
+    list-style-type: none;
+    padding: 0px;
+  
+  
+.menubar ul li   
+    margin: 2px; 
+    cursor: pointer;
+
+  
+.menubar ul li a   
+    text-decoration: none;
+    padding-top: 15px;
+    padding-bottom: 15px;
+    padding: 20px 20px;
+    display: block;
+    background-color: white;
+    font: GEInspira;
+    font-size: 16px;
+    color: #000000;
+  
+.menubar ul li a:hover   
+    text-decoration: none;
+    background-color: #D4CDCD;  
+    
+  
+.menubar ul li.active
+    background-color: #fff;
+    color: #fff;
+    border-left: 5px solid #62beff;
+  
+.menubar ul li.active a
+    color: black; 
+  
+.menubar + div  
+    height: 100%;
+    display: inline-block;
+    background-color: #fff;
+  
+.burger
+    width: 20px;
+    height: 20px;
+    background-image: url("./common/burger-menu-icon.svg");
+   
+@media (min-width: 1000px) 
+    .menubar
+        float: left;
+        width: 20%;
+        margin-left: 1%;
+    
+  
+    .menubar ul li
+        clear: both;
+        
+    .menubar ul li.active
+        width: 100%;
+        position: relative;
+        width: 102% !important;
+        left: -6px;  
+    
+  
+    .menubar + div
+        width: 78%;
+    
+
+    .menubar ul
+        display: block;
+    
+
+    .menubar .burger
+        display: none;
+    
+  
+  
+@media (max-width: 1000px) 
+    .menubar
+        clear: both;
+        width: 100%;
+    
+  
+    .menubar ul li
+        float: left;
+    
+  
+    .menubar + div
+        width: 100%;
+    
+
+    .menubar ul
+        display: block;
+    
+
+    .menubar .burger
+        display: none;
+  
+@media (max-width: 400px) 
+    .menubar
+        width: 20px;
+        z-index: 1000;
+        position: absolute;
+    
+  
+    .menubar ul li
+        clear: both;
+    
+  
+    .menubar + div
+        width: 100%;
+    
+  
+    .menubar ul
+        display: none;
+    
+
+    .menubar .burger
+        display: block;
+    
+ 
+    .menubar .burger
+        opacity: .4;
+     
+  
+    .menubar .burger:hover
+        opacity: 1;
+		
+    .burgerExpand
+        width: 40%;	
+
+    .burgerExpand ul
+        display: block;
+        list-style-type: none;
+        padding: 0px;
+
+    .burgerExpand ul li a
+        text-decoration: none;
+        padding-top: 15px;
+        padding-bottom: 15px;
+        padding: 10px 15px;
+        display: block;
