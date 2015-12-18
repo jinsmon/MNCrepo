@@ -4,7 +4,7 @@
   "description": "application to imporve maternal health care in rural areas",
   "main": "src/server/app.js",
     "scripts": {
-    “start”:  “node src/server/app.js”,
+    "start": "node src/server/app.js",
     "test": "jest"
   },
 
