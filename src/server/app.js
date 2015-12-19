@@ -14,7 +14,8 @@ app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 
 app.get('/', function(request, response) {
-    response.sendFile(path.join(__dirname + '../../../dist/index2.html'));
+	Console.log(__dirname+"%%%%%%%%%%");
+    response.sendFile(path.join(__dirname + '../../../../dist/index.html'));
 });
 
 
