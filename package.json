@@ -2,9 +2,9 @@
   "name": "maternal-health-care",
   "version": "0.0.1",
   "description": "application to imporve maternal health care in rural areas",
-  "main": "src/server/app.js",
+  "main": "dist/bundle.js",
   "scripts": {
-    "start": "node src/server/app.js"
+    "start": "node dist/bundle.js"
   },
 
   "jest": {
