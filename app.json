@@ -1,0 +1,36 @@
+{
+  "name": "Mother and Child",
+  "description": "A Maternal health care application",
+  "keywords": [
+    "productivity",
+    "HTML5",
+    "scalpel"
+  ],
+  "website": "https://motherandchild.com/",
+  "repository": "https://github.com/jinsmon/MNCrepo.git",
+  "logo": "",
+  "success_url": "/index.html",
+  "scripts": {
+    "postdeploy": ""
+  },
+  "env": {
+    "SECRET_TOKEN": {
+      "description": "cls",
+      "generator": "cls"
+    },
+    "WEB_CONCURRENCY": {
+      "description": "The number of processes to run.",
+      "value": "5"
+    }
+  },
+  "image": "",
+  "addons": [
+    "openredis",
+    "mongolab:shared-single-small"
+  ],
+  "buildpacks": [
+    {
+      "url": "https://github.com/stomita/heroku-buildpack-phantomjs"
+    }
+  ]
+}
