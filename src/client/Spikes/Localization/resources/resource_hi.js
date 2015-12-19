@@ -1,0 +1,1 @@
+module.exports = ({BP: 'रक्त चाप'});
