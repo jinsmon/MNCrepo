@@ -6,7 +6,6 @@
   "scripts": {
     "start": "node app.js"
   },
-
   "jest": {
     "collectCoverage": true,
     "scriptPreprocessor": "<rootDir>/node_modules/babel-jest",
