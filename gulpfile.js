@@ -49,7 +49,7 @@ gulp.task('connect', function() {
 
 
 gulp.task('open', ['connect'], function() {
-    gulp.src('dist/index.html')
+    gulp.src('app/dist/index.html')
         .pipe(gopen({ uri: config.devBaseUrl + ':' + config.port + '/'}));
 });
 

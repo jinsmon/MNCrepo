@@ -9,7 +9,7 @@
   "website": "https://motherandchild.com/",
   "repository": "https://github.com/jinsmon/MNCrepo.git",
   "logo": "",
-  "success_url": "/index.html",
+  "success_url": "dist/index.html",
   "scripts": {
     "postdeploy": ""
   },
