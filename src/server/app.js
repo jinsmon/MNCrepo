@@ -13,9 +13,13 @@ app.use(express.static(__dirname + '/public'));
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 
+
+
 app.get('/', function(request, response) {
-    response.sendFile(path.join(__dirname + '../../../dist/index.html');
+	response.sendFile('dist/index.html' , { root : __dirname});
+    
 });
+
 
 
 app.listen(app.get('port'), function() {

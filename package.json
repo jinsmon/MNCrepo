@@ -2,10 +2,11 @@
   "name": "maternal-health-care",
   "version": "0.0.1",
   "description": "application to imporve maternal health care in rural areas",
-  "main": "app.js",
+  "main": "src/server/app.js",
   "scripts": {
-    "start": "node app.js"
+    "start": "node src/server/app.js"
   },
+
   "jest": {
     "collectCoverage": true,
     "scriptPreprocessor": "<rootDir>/node_modules/babel-jest",
