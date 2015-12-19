@@ -13,7 +13,7 @@ app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 
 app.get('/', function(request, response) {
-	response.sendFile('dist/index.html' , { root : __dirname});
+    response.sendFile(path.join(__dirname + '../../../dist/index.html'));
     
 });
 
