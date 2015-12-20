@@ -29,9 +29,7 @@
       "toast": true,
       "locale": true,
       "bool": true,
-      "str": true,
-      "Route": true,
-      "lm": true
+      "str": true
     }
   },
   "author": "",
@@ -42,7 +40,6 @@
     "babel-preset-react": "^6.1.18",
     "babelify": "^7.2.0",
     "browserify": "^12.0.1",
-    "csvtojson": "^0.4.8",
     "eslint-plugin-react": "^3.10.0",
     "gulp": "^3.9.0",
     "gulp-concat": "^2.6.0",
@@ -58,28 +55,20 @@
     "react-selectize": "^0.3.7",
     "vinyl-source-stream": "^1.1.0"
   },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/jinsmon/MNCrepo.git"
-  },
   "dependencies": {
-    "ejs": "^2.3.1",
     "bootstrap": "^3.3.5",
     "express": "^4.13.3",
     "flux": "^2.1.1",
     "history": "^1.13.1",
     "jquery": "*",
     "object-assign": "^4.0.1",
-    "rc-datepicker": "^3.0.0",
     "react": "^0.14.3",
     "react-bootstrap": "^0.28.1",
-    "react-bootstrap-datetimepicker": "0.0.22",
     "react-bootstrap-switch": "^3.4.0",
     "react-deep-link-state": "0.0.2",
     "react-dom": "^0.14.3",
     "react-router": "^1.0.0"
   },
-  
   "engines": {
     "node": "5.1.0"
   }
