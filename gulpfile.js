@@ -12,7 +12,6 @@ var concat = require('gulp-concat');
 var lint = require('gulp-eslint');
 var sass = require('gulp-sass');
 
-
 var config = {
     production: false,
     port: 3000,
@@ -29,6 +28,7 @@ var config = {
             'node_modules/bootstrap/dist/css/bootstrap.min.css',
             'node_modules/bootstrap/dist/css/bootstrap-theme.min.css',
             'node_modules/react-bootstrap-switch/dist/css/bootstrap3/react-bootstrap-switch.min.css',
+            'node_modules/rc-datepicker/examples/example.css',
             '.tmp/**/*.css'
         ],
         images: './src/client/images/**/*.*',
@@ -49,7 +49,7 @@ gulp.task('connect', function() {
 
 
 gulp.task('open', ['connect'], function() {
-    gulp.src('app/dist/index.html')
+    gulp.src('dist/index.html')
         .pipe(gopen({ uri: config.devBaseUrl + ':' + config.port + '/'}));
 });
 

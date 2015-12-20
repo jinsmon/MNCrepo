@@ -1,23 +1,20 @@
-
 var express = require('express');
 var path    = require('path');
 var app     = express();
 
 
-app.set('port', (process.env.PORT || 5000));
+var port = process.env.PORT || 5000;
 
-app.use(express.static(__dirname + '/public'));
-
-// views is directory for all template files
-app.set('views', __dirname + '/dist');
 app.set('view engine', 'ejs');
 
-app.get('/', function(request, response) {
-  response.render('index.html');
-    
-});
+app.use(express.static(__dirname + '/dist'));
 
+app.get('/', function(req, res) {
+    //res.sendFile(path.join(__dirname + '../../../dist/index.html'));
+    res.render('index');
+}
+);
 
-app.listen(app.get('port'), function() {
-  console.log('Node app is running on port', app.get('port'));
+app.listen(port, function() {
+    console.log('app is listening in port *heroku*..!.');
 });
