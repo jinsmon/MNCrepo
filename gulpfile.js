@@ -7,7 +7,7 @@ var connect = require('gulp-connect');
 var gopen = require('gulp-open');
 var browserify = require('browserify');
 var babelify = require('babelify');
-var source = require('vinyl-source-stream'); 
+var source = require('vinyl-source-stream');
 var concat = require('gulp-concat');
 var lint = require('gulp-eslint');
 var sass = require('gulp-sass');
@@ -71,7 +71,7 @@ gulp.task('bundlejs', function() {
 
 //compiling sass files to css
 gulp.task('sass', function (){
-      
+
     gulp.src(config.paths.sass)
     .on('error', console.error.bind(console))
 	.pipe(sass())
@@ -89,13 +89,10 @@ gulp.task('bundleimages', function () {
         .pipe(gulp.dest(config.paths.dist))
         .pipe(connect.reload());
 
-    //publish favicon
-        //gulp.src('./src/favicon.ico')
-        //.pipe(gulp.dest(config.paths.dist));
 });
 
 gulp.task('bundlefonts', function() {
-    gulp.src(config.paths.fonts)	
+    gulp.src(config.paths.fonts)
 		.pipe(gulp.dest(config.paths.dist+'/fonts'));
 });
 
@@ -117,7 +114,7 @@ gulp.task('set-prod', function() {
     config.production = true;
 });
 
-gulp.task('assets', ['html', 
+gulp.task('assets', ['html',
                      'lint',
                      'bundlejs',
 					 'sass',
@@ -128,5 +125,3 @@ gulp.task('assets', ['html',
 gulp.task('build', ['set-prod', 'assets']);
 
 gulp.task('default', ['assets', 'open', 'watch']);
-
- 
