@@ -4,6 +4,7 @@
   "description": "application to imporve maternal health care in rural areas",
   "main": "app.js",
   "scripts": {
+    "test": "jest",
     "start": "node app.js"
   },
   "jest": {
@@ -72,7 +73,7 @@
     "bootstrap": "^3.3.5",
     "express": "^4.13.3",
     "flux": "^2.1.1",
-    "history": "^1.13.1",
+    "history": "^1.17.0",
     "jquery": "*",
     "object-assign": "^4.0.1",
     "rc-datepicker": "^3.0.0",
@@ -82,8 +83,7 @@
     "react-bootstrap-switch": "^3.4.0",
     "react-deep-link-state": "0.0.2",
     "react-dom": "^0.14.3",
-    "react-router": "^1.0.0",
-    "history": "^1.17.0"
+    "react-router": "^1.0.0"
   },
   "engines": {
     "node": "5.1.0"

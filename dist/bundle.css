@@ -634,8 +634,7 @@ ul.dropdown-menu.dropdown-menu-right {
 .btn-breadcrumb .btn:nth-child(4) {
   background-color: #f8f8f8; }
   .btn-breadcrumb .btn:nth-child(4):after {
-    border-left: 40px solid #f8f8f8;
-    margin-top: -36px !important; }
+    border-left: 40px solid #f8f8f8; }
 
 .btn-breadcrumb .btn:nth-child(5) {
   background-color: white; }
@@ -658,7 +657,8 @@ a.btn.trimisterBtn.btn-breadcrumb {
   padding-top: 21px; }
 
 a.btn.trimisterBtn.breadcrumbSelect {
-  padding-top: 21px; }
+  padding-top: 21px;
+  /*background: url("./patient/selectedCheck.png") no-repeat 92px 21px;*/ }
 
 .trimisterBtn .glyphicon-ok-sign:before {
   padding: 15px; }
@@ -723,6 +723,84 @@ a.btn.trimisterBtn.breadcrumbSelect {
 
 td .btnToolBar {
   margin-left: 0px; }
+
+svg .c3-chart-arcs-title {
+  font-size: 35px; }
+
+.content-body #row > span {
+  width: 5px !important; }
+
+.dataTables_wrapper {
+  overflow: auto; }
+
+.dataTable thead {
+  background-color: #dcdcdc;
+  font-size: 15px;
+  color: #1c1c1c; }
+
+@media (max-width: 500px) {
+  .grid-wrapper {
+    width: 413px !important; } }
+
+@media (max-width: 570px) {
+  .tabs-menu-item {
+    width: 93px; } }
+
+@media (max-width: 565px) {
+  .headerSection {
+    width: 533px !important; } }
+
+@media (max-width: 650px) {
+  .dataTable {
+    margin-left: 9px !important; } }
+
+@media (max-width: 650px) {
+  .dataTable thead {
+    font-size: 10px !important; } }
+
+@media (max-width: 650px) {
+  .dataTable tbody {
+    font-size: 10px !important; } }
+
+@media (max-width: 570px) {
+  .tabAcnchor {
+    padding: 0px !important;
+    font-size: 12px !important; } }
+
+@media (max-width: 570px) {
+  .tabs-menu-item > i {
+    color: red;
+    width: 24px !important;
+    padding: 17px 8px !important; } }
+
+.chart-legend li span {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 5px;
+  margin-top: 30px;
+  border-radius: 100%; }
+
+.ul {
+  list-style-type: none; }
+
+.chart-legend ul {
+  list-style-type: none;
+  font-weight: bold;
+  font-size: 16px;
+  padding-top: 48px;
+  padding-left: 57px; }
+
+.chart-legend ul li {
+  margin-top: -20px; }
+
+.chart-legend ul li span {
+  width: 15px;
+  height: 15px; }
+
+.canvas-style {
+  width: 300px;
+  height: 154px; }
 
 .required {
   color: red;
@@ -897,17 +975,17 @@ body {
   border-top: solid 1px #03B6FF;
   background: #E2F4FF; }
 
-.panel-heading {
-  background: #E2F4FF; }
+.Panel_custom_head > .panel-heading > .panel-title {
+  width: 1800px; }
 
-.panel-title > a {
-  padding-right: 1231px;
+.Panel_custom_head > .panel-heading > .panel-title > a {
+  padding-right: 1392px;
   font-family: GEInspira;
   font-weight: bold;
   font-size: 18px;
   z-index: 100; }
 
-.panel-heading::after {
+.Panel_custom_head > .panel-heading::after {
   float: right;
   margin-top: -23px;
   content: url(./../common/arrowDown.png); }
@@ -991,6 +1069,60 @@ body {
   font-family: Arial Black;
   font-size: 20px; }
 
+/*Loading data*/
+.glyphicon-refresh-animate {
+  -animation: spin .5s infinite linear;
+  -webkit-animation: spin2 .5s infinite linear; }
+
+@-webkit-keyframes spin2 {
+  from {
+    -webkit-transform: rotate(0deg); }
+  to {
+    -webkit-transform: rotate(360deg); } }
+
+@keyframes spin {
+  from {
+    transform: scale(1) rotate(0deg); }
+  to {
+    transform: scale(1) rotate(360deg); } }
+
+.dot_one {
+  opacity: 0;
+  -webkit-animation: dot 1.3s infinite;
+  -webkit-animation-delay: 0.0s;
+  animation: dot 1.3s infinite;
+  animation-delay: 0.0s; }
+
+.dot_two {
+  opacity: 0;
+  -webkit-animation: dot 1.3s infinite;
+  -webkit-animation-delay: 0.2s;
+  animation: dot 1.3s infinite;
+  animation-delay: 0.2s; }
+
+.dot_three {
+  opacity: 0;
+  -webkit-animation: dot 1.3s infinite;
+  -webkit-animation-delay: 0.3s;
+  animation: dot 1.3s infinite;
+  animation-delay: 0.3s; }
+
+@-webkit-keyframes dot {
+  0% { }
+  opacity: 0; }
+  .dot_three 50% {
+    opacity: 0; }
+  .dot_three 100% {
+    opacity: 1; }
+
+@keyframes dot {
+  0% {
+    opacity: 0; }
+  50% {
+    opacity: 0; }
+  100% {
+    opacity: 1; } }
+
 /** The Magic **/
 .btn-breadcrumb .btn {
   width: 23.5%;
@@ -1053,8 +1185,7 @@ body {
 .btn-breadcrumb .btn:nth-child(4) {
   background-color: #f8f8f8; }
   .btn-breadcrumb .btn:nth-child(4):after {
-    border-left: 40px solid #f8f8f8;
-    margin-top: -36px !important; }
+    border-left: 40px solid #f8f8f8; }
 
 .btn-breadcrumb .btn:nth-child(5) {
   background-color: white; }
@@ -1077,7 +1208,8 @@ a.btn.trimisterBtn.btn-breadcrumb {
   padding-top: 21px; }
 
 a.btn.trimisterBtn.breadcrumbSelect {
-  padding-top: 21px; }
+  padding-top: 21px;
+  /*background: url("./patient/selectedCheck.png") no-repeat 92px 21px;*/ }
 
 .trimisterBtn .glyphicon-ok-sign:before {
   padding: 15px; }
@@ -1097,6 +1229,35 @@ a.btn.trimisterBtn.breadcrumbSelect {
   background-image: url("./patient/defaultCheck.png");
   background-repeat: none;
   background-position: 3px 0px; }
+
+.chart-legend li span {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 5px;
+  margin-top: 30px;
+  border-radius: 100%; }
+
+.ul {
+  list-style-type: none; }
+
+.chart-legend ul {
+  list-style-type: none;
+  font-weight: bold;
+  font-size: 16px;
+  padding-top: 48px;
+  padding-left: 57px; }
+
+.chart-legend ul li {
+  margin-top: -20px; }
+
+.chart-legend ul li span {
+  width: 15px;
+  height: 15px; }
+
+.canvas-style {
+  width: 300px;
+  height: 154px; }
 
 /* Custom code*/
 /* Top main navigation Starts here*/
@@ -1249,7 +1410,8 @@ ul.dropdown-menu.dropdown-menu-right {
 /*Media query starts here*/
 @media (max-width: 100%) {
   .patient-banner {
-    width: 100%; } }
+    width: 100%;
+    height: 100%; } }
 
 @media (max-width: 768px) {
   .patient-info-bx1 {
@@ -1269,12 +1431,18 @@ ul.dropdown-menu.dropdown-menu-right {
 
 @media (max-width: 768px) {
   .content-body {
-    padding-top: 18px;
-    top: 0px; } }
+    padding-top: 5px;
+    top: 0px !important; } }
 
-@media (max-height: 300px) {
-  .patient-banner {
-    height: auto; } }
+@media (min-width: 100%) {
+  .SPContainer {
+    margin-top: 45%;
+    font-family: GEInspira;
+    border: solid 1px;
+    position: relative; } }
+
+@media (min-width: 768px) {
+  height: 505px; }
 
 /*Media query ends here*/
 .patient-info-bx1, .patient-info-bx2, .patient-info-bx3 {
@@ -1287,8 +1455,7 @@ ul.dropdown-menu.dropdown-menu-right {
 
 .patient-banner {
   background-color: #D4EFF8;
-  border: solid 10px #F5F6F7;
-  height: auto; }
+  border: solid 10px #F5F6F7; }
 
 .patient-avatar {
   width: 110px;
@@ -1606,3 +1773,52 @@ button.toast-close-button {
 
 td .btnToolBar {
   margin-left: 0px; }
+
+svg .c3-chart-arcs-title {
+  font-size: 35px; }
+
+.content-body #row > span {
+  width: 5px !important; }
+
+.dataTables_wrapper {
+  overflow: auto; }
+
+.dataTable thead {
+  background-color: #dcdcdc;
+  font-size: 15px;
+  color: #1c1c1c; }
+
+@media (max-width: 500px) {
+  .grid-wrapper {
+    width: 413px !important; } }
+
+@media (max-width: 570px) {
+  .tabs-menu-item {
+    width: 93px; } }
+
+@media (max-width: 565px) {
+  .headerSection {
+    width: 533px !important; } }
+
+@media (max-width: 650px) {
+  .dataTable {
+    margin-left: 9px !important; } }
+
+@media (max-width: 650px) {
+  .dataTable thead {
+    font-size: 10px !important; } }
+
+@media (max-width: 650px) {
+  .dataTable tbody {
+    font-size: 10px !important; } }
+
+@media (max-width: 570px) {
+  .tabAcnchor {
+    padding: 0px !important;
+    font-size: 12px !important; } }
+
+@media (max-width: 570px) {
+  .tabs-menu-item > i {
+    color: red;
+    width: 24px !important;
+    padding: 17px 8px !important; } }
