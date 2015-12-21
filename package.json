@@ -29,7 +29,9 @@
       "toast": true,
       "locale": true,
       "bool": true,
-      "str": true
+      "str": true,
+      "Route": true,
+      "lm": true
     }
   },
   "author": "",
@@ -73,13 +75,15 @@
     "history": "^1.13.1",
     "jquery": "*",
     "object-assign": "^4.0.1",
+    "rc-datepicker": "^3.0.0",
     "react": "^0.14.3",
     "react-bootstrap": "^0.28.1",
     "react-bootstrap-datetimepicker": "0.0.22",
     "react-bootstrap-switch": "^3.4.0",
     "react-deep-link-state": "0.0.2",
     "react-dom": "^0.14.3",
-    "react-router": "^1.0.0"
+    "react-router": "^1.0.0",
+    "history": "^1.17.0"
   },
   "engines": {
     "node": "5.1.0"
