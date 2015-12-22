@@ -483,7 +483,7 @@ ul.dropdown-menu.dropdown-menu-right {
   padding: 20px 20px;
   display: block;
   background-color: white;
-  font: GEInspira;
+  font-family: GEInspira;
   font-size: 16px;
   font-weight: bold;
   color: #000000; }
@@ -684,8 +684,8 @@ a.btn.trimisterBtn.breadcrumbSelect {
 
 .tabs-navigation {
   padding: 0 0px;
-  max-height: 50px;
-  border-bottom: 1px solid #DDD;
+  max-height: 52px;
+  border-bottom: 0px solid #DDD;
   margin-top: 18px; }
 
 .tabs-menu {
@@ -696,7 +696,11 @@ a.btn.trimisterBtn.breadcrumbSelect {
   background-color: white; }
 
 .tabs-menu-item {
-  float: left; }
+  float: left;
+  margin-right: 0px;
+  border-right: 1px solid;
+  border-top: 1px solid;
+  border-color: #DDD; }
 
 .tabs-menu-item a {
   display: block;
@@ -704,7 +708,12 @@ a.btn.trimisterBtn.breadcrumbSelect {
   height: 50px;
   line-height: 50px;
   border-bottom: 0;
-  color: #A9A9A9; }
+  color: #A9A9A9;
+  text-decoration: none; }
+
+.tabs-menu-item:not(.is-active) {
+  border-bottom: 1px solid;
+  border-color: #DDD; }
 
 .tabs-menu-item:not(.is-active) a:hover {
   color: #3498db; }
@@ -714,7 +723,9 @@ a.btn.trimisterBtn.breadcrumbSelect {
   border: 1px solid #DDD;
   border-top: 2px solid #3498db;
   border-bottom: 0;
-  color: #333; }
+  color: #373737;
+  font-size: 15px;
+  font-family: GE-Inspira; }
 
 .btnGroup button {
   height: 19px;
@@ -878,6 +889,9 @@ body {
 
 .alignLeft {
   text-align: left !important; }
+
+.alignLeftPast {
+  padding-left: 29px; }
 
 .regHeader, .cancelHeaderBtn, .saveHeaderBtn {
   text-shadow: none;
@@ -1123,6 +1137,26 @@ body {
   100% {
     opacity: 1; } }
 
+/*Remove Page scroll applying content scroll*/
+@media (min-height: 0px) {
+  html, body {
+    overflow: hidden; } }
+
+@media (max-height: 600px) {
+  .Yscroll {
+    height: 350px;
+    overflow-y: scroll; } }
+
+.labelComments {
+  margin-bottom: -13px !important; }
+
+.textareaComments {
+  background: #FFFFFF;
+  border: 1px solid #dddddd; }
+
+.menuIcon {
+  padding-right: 5px; }
+
 /** The Magic **/
 .btn-breadcrumb .btn {
   width: 23.5%;
@@ -1318,7 +1352,7 @@ ul.dropdown-menu.dropdown-menu-right {
   padding: 20px 20px;
   display: block;
   background-color: white;
-  font: GEInspira;
+  font-family: GEInspira;
   font-size: 16px;
   font-weight: bold;
   color: #000000; }
@@ -1460,7 +1494,7 @@ ul.dropdown-menu.dropdown-menu-right {
 .patient-avatar {
   width: 110px;
   height: 125px;
-  padding: 7px 0px 0px 0px; }
+  padding: 7px 0px 6px 0px; }
 
 .divider {
   border-right: solid 2px;
@@ -1520,8 +1554,8 @@ ul.dropdown-menu.dropdown-menu-right {
 
 .tabs-navigation {
   padding: 0 0px;
-  max-height: 50px;
-  border-bottom: 1px solid #DDD;
+  max-height: 52px;
+  border-bottom: 0px solid #DDD;
   margin-top: 18px; }
 
 .tabs-menu {
@@ -1532,7 +1566,11 @@ ul.dropdown-menu.dropdown-menu-right {
   background-color: white; }
 
 .tabs-menu-item {
-  float: left; }
+  float: left;
+  margin-right: 0px;
+  border-right: 1px solid;
+  border-top: 1px solid;
+  border-color: #DDD; }
 
 .tabs-menu-item a {
   display: block;
@@ -1540,7 +1578,12 @@ ul.dropdown-menu.dropdown-menu-right {
   height: 50px;
   line-height: 50px;
   border-bottom: 0;
-  color: #A9A9A9; }
+  color: #A9A9A9;
+  text-decoration: none; }
+
+.tabs-menu-item:not(.is-active) {
+  border-bottom: 1px solid;
+  border-color: #DDD; }
 
 .tabs-menu-item:not(.is-active) a:hover {
   color: #3498db; }
@@ -1550,7 +1593,9 @@ ul.dropdown-menu.dropdown-menu-right {
   border: 1px solid #DDD;
   border-top: 2px solid #3498db;
   border-bottom: 0;
-  color: #333; }
+  color: #373737;
+  font-size: 15px;
+  font-family: GE-Inspira; }
 
 .toast-title {
   font-weight: bold; }
@@ -1751,7 +1796,8 @@ button.toast-close-button {
   background-color: #FFECA9;
   border-radius: 5px;
   padding: 0.5%;
-  font-weight: bold; }
+  font-weight: bold;
+  font-family: GEInspira; }
 
 .wholeVisitIndicatorLabel {
   padding: 6px 6px 6px 6px; }
@@ -1765,6 +1811,22 @@ button.toast-close-button {
 
 .wholeVisitIndicatorLabel font {
   margin-left: 6px; }
+
+.visitDetailLabel {
+  padding: 6px 6px 2px 2px; }
+  .visitDetailLabel:not(:last-child):after {
+    content: '|';
+    color: white;
+    margin-left: 10px;
+    font-family: GEInspira; }
+
+.visitDetailLabel font {
+  margin-left: 6px;
+  font-family: GEInspira; }
+
+.visitDetailIndicator {
+  margin-top: 15px;
+  font-family: GEInspira; }
 
 .btnGroup button {
   height: 19px;
