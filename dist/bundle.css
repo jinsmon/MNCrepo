@@ -1138,10 +1138,6 @@ body {
     opacity: 1; } }
 
 /*Remove Page scroll applying content scroll*/
-@media (min-height: 0px) {
-  html, body {
-    overflow: hidden; } }
-
 @media (max-height: 600px) {
   .Yscroll {
     height: 350px;
@@ -1156,6 +1152,10 @@ body {
 
 .menuIcon {
   padding-right: 5px; }
+
+.calendar {
+  content: url(./../registration/calendar.png);
+  background: #F5F6F7; }
 
 /** The Magic **/
 .btn-breadcrumb .btn {
