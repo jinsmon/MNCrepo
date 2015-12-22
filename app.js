@@ -6,6 +6,7 @@ var express = require('express');
 var path    = require('path');
 var app     = express();
 var request=require('request');
+var port = process.env.PORT || 3000;
 
 app.use(express.static(__dirname + '../../../dist/'));
 
@@ -42,6 +43,6 @@ app.get('/api/worklists', function(req, res) {
     });
 });
 
-app.listen(3000, function() {
-    console.log('app is listening in port 3000..!.');
+app.listen(port, function() {
+    console.log('app is listening in port ..!.');
 });
