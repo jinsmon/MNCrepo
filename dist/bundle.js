@@ -512,7 +512,7 @@
     };
 
     async.auto = function (tasks, concurrency, callback) {
-        if (!callback) {
+        if (typeof arguments[1] === 'function') {
             // concurrency is optional, shift the args.
             callback = concurrency;
             concurrency = null;
@@ -529,6 +529,8 @@
 
         var results = {};
         var runningTasks = 0;
+
+        var hasError = false;
 
         var listeners = [];
         function addListener(fn) {
@@ -552,6 +554,7 @@
         });
 
         _arrayEach(keys, function (k) {
+            if (hasError) return;
             var task = _isArray(tasks[k]) ? tasks[k]: [tasks[k]];
             var taskCallback = _restParam(function(err, args) {
                 runningTasks--;
@@ -564,6 +567,8 @@
                         safeResults[rkey] = val;
                     });
                     safeResults[k] = args;
+                    hasError = true;
+
                     callback(err, safeResults);
                 }
                 else {
@@ -783,7 +788,7 @@
                 } else if (test.apply(this, args)) {
                     iterator(next);
                 } else {
-                    callback(null);
+                    callback.apply(null, [null].concat(args));
                 }
             });
             iterator(next);
@@ -931,24 +936,23 @@
                 _insert(q, data, true, callback);
             },
             process: function () {
-                if (!q.paused && workers < q.concurrency && q.tasks.length) {
-                    while(workers < q.concurrency && q.tasks.length){
-                        var tasks = q.payload ?
-                            q.tasks.splice(0, q.payload) :
-                            q.tasks.splice(0, q.tasks.length);
+                while(!q.paused && workers < q.concurrency && q.tasks.length){
 
-                        var data = _map(tasks, function (task) {
-                            return task.data;
-                        });
+                    var tasks = q.payload ?
+                        q.tasks.splice(0, q.payload) :
+                        q.tasks.splice(0, q.tasks.length);
 
-                        if (q.tasks.length === 0) {
-                            q.empty();
-                        }
-                        workers += 1;
-                        workersList.push(tasks[0]);
-                        var cb = only_once(_next(q, tasks));
-                        worker(data, cb);
+                    var data = _map(tasks, function (task) {
+                        return task.data;
+                    });
+
+                    if (q.tasks.length === 0) {
+                        q.empty();
                     }
+                    workers += 1;
+                    workersList.push(tasks[0]);
+                    var cb = only_once(_next(q, tasks));
+                    worker(data, cb);
                 }
             },
             length: function () {
@@ -1511,6 +1515,8 @@ arguments[4][13][0].apply(exports,arguments)
  */
 /* eslint-disable no-proto */
 
+'use strict'
+
 var base64 = require('base64-js')
 var ieee754 = require('ieee754')
 var isArray = require('isarray')
@@ -1593,8 +1599,10 @@ function Buffer (arg) {
     return new Buffer(arg)
   }
 
-  this.length = 0
-  this.parent = undefined
+  if (!Buffer.TYPED_ARRAY_SUPPORT) {
+    this.length = 0
+    this.parent = undefined
+  }
 
   // Common case.
   if (typeof arg === 'number') {
@@ -1725,6 +1733,10 @@ function fromJsonObject (that, object) {
 if (Buffer.TYPED_ARRAY_SUPPORT) {
   Buffer.prototype.__proto__ = Uint8Array.prototype
   Buffer.__proto__ = Uint8Array
+} else {
+  // pre-set for values that may exist in the future
+  Buffer.prototype.length = undefined
+  Buffer.prototype.parent = undefined
 }
 
 function allocate (that, length) {
@@ -1874,10 +1886,6 @@ function byteLength (string, encoding) {
   }
 }
 Buffer.byteLength = byteLength
-
-// pre-set for values that may exist in the future
-Buffer.prototype.length = undefined
-Buffer.prototype.parent = undefined
 
 function slowToString (encoding, start, end) {
   var loweredCase = false
@@ -3613,7 +3621,7 @@ CSVLine.prototype._isToogleQuote = function(segment) {
   return utils.isToogleQuote(segment, this.param.quote);
 };
 
-},{"./utils.js":59,"os":262,"stream":610,"util":624}],46:[function(require,module,exports){
+},{"./utils.js":59,"os":262,"stream":612,"util":626}],46:[function(require,module,exports){
 (function (process,Buffer,__dirname){
 var util = require("util");
 var Transform = require("stream").Transform;
@@ -3880,7 +3888,7 @@ Converter.prototype.wrapCallback = function(cb,clean) {
 module.exports = Converter;
 
 }).call(this,require('_process'),require("buffer").Buffer,"/node_modules\\csvtojson\\libs\\core")
-},{"./CSVLine.js":45,"./Processor.js":47,"./Result":48,"./Worker.js":49,"_process":264,"buffer":15,"child_process":14,"fs":14,"os":262,"stream":610,"util":624}],47:[function(require,module,exports){
+},{"./CSVLine.js":45,"./Processor.js":47,"./Result":48,"./Worker.js":49,"_process":264,"buffer":15,"child_process":14,"fs":14,"os":262,"stream":612,"util":626}],47:[function(require,module,exports){
 /**
  * Processor processes a line of csv data.
  * Upstream: csv line
@@ -4042,7 +4050,7 @@ Processor.prototype._flush = function(cb) {
   this.checkAndFlush();
 }
 
-},{"./parserMgr.js":58,"./utils.js":59,"async":1,"stream":610,"util":624}],48:[function(require,module,exports){
+},{"./parserMgr.js":58,"./utils.js":59,"async":1,"stream":612,"util":626}],48:[function(require,module,exports){
 var Writable = require("stream").Writable;
 var util = require("util");
 
@@ -4090,7 +4098,7 @@ Result.prototype.disableConstruct = function() {
 
 module.exports = Result;
 
-},{"stream":610,"util":624}],49:[function(require,module,exports){
+},{"stream":612,"util":626}],49:[function(require,module,exports){
 (function (__dirname){
 /**
  * Async or sync worker
@@ -4715,7 +4723,7 @@ function startWebServer (args) {
 }
 module.exports.startWebServer = startWebServer;
 
-},{"../../core/Converter.js":46,"http":611}],67:[function(require,module,exports){
+},{"../../core/Converter.js":46,"http":613}],67:[function(require,module,exports){
 var pSlice = Array.prototype.slice;
 var objectKeys = require('./lib/keys.js');
 var isArguments = require('./lib/is_arguments.js');
@@ -6135,7 +6143,7 @@ function readState(key) {
   return null;
 }
 }).call(this,require('_process'))
-},{"_process":264,"warning":625}],106:[function(require,module,exports){
+},{"_process":264,"warning":627}],106:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -6516,7 +6524,7 @@ function createHashHistory() {
 exports['default'] = createHashHistory;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"./Actions":103,"./DOMStateStorage":105,"./DOMUtils":106,"./ExecutionEnvironment":107,"./createDOMHistory":108,"./parsePath":115,"_process":264,"invariant":121,"warning":625}],110:[function(require,module,exports){
+},{"./Actions":103,"./DOMStateStorage":105,"./DOMUtils":106,"./ExecutionEnvironment":107,"./createDOMHistory":108,"./parsePath":115,"_process":264,"invariant":121,"warning":627}],110:[function(require,module,exports){
 //import warning from 'warning'
 'use strict';
 
@@ -7021,7 +7029,7 @@ function createMemoryHistory() {
 exports['default'] = createMemoryHistory;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"./Actions":103,"./createHistory":110,"./parsePath":115,"_process":264,"invariant":121,"warning":625}],113:[function(require,module,exports){
+},{"./Actions":103,"./createHistory":110,"./parsePath":115,"_process":264,"invariant":121,"warning":627}],113:[function(require,module,exports){
 //import warning from 'warning'
 
 "use strict";
@@ -7098,7 +7106,7 @@ function parsePath(path) {
 exports['default'] = parsePath;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"./extractPath":114,"_process":264,"warning":625}],116:[function(require,module,exports){
+},{"./extractPath":114,"_process":264,"warning":627}],116:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -7125,7 +7133,7 @@ function runTransitionHook(hook, location, callback) {
 exports['default'] = runTransitionHook;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"_process":264,"warning":625}],117:[function(require,module,exports){
+},{"_process":264,"warning":627}],117:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -7441,7 +7449,7 @@ function useQueries(createHistory) {
 exports['default'] = useQueries;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"./deprecate":113,"./parsePath":115,"./runTransitionHook":116,"_process":264,"query-string":266,"warning":625}],119:[function(require,module,exports){
+},{"./deprecate":113,"./parsePath":115,"./runTransitionHook":116,"_process":264,"query-string":266,"warning":627}],119:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = nBytes * 8 - mLen - 1
@@ -21150,12 +21158,12 @@ module.exports = range;
 
 },{"../internal/isIterateeCall":236}],261:[function(require,module,exports){
 //! moment.js
-//! version : 2.10.6
+//! version : 2.11.0
 //! authors : Tim Wood, Iskren Chernev, Moment.js contributors
 //! license : MIT
 //! momentjs.com
 
-(function (global, factory) {
+;(function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
     typeof define === 'function' && define.amd ? define(factory) :
     global.moment = factory()
@@ -21272,39 +21280,45 @@ module.exports = range;
         return m;
     }
 
+    function isUndefined(input) {
+        return input === void 0;
+    }
+
+    // Plugins that add properties should also add the key here (null value),
+    // so we can properly clone ourselves.
     var momentProperties = utils_hooks__hooks.momentProperties = [];
 
     function copyConfig(to, from) {
         var i, prop, val;
 
-        if (typeof from._isAMomentObject !== 'undefined') {
+        if (!isUndefined(from._isAMomentObject)) {
             to._isAMomentObject = from._isAMomentObject;
         }
-        if (typeof from._i !== 'undefined') {
+        if (!isUndefined(from._i)) {
             to._i = from._i;
         }
-        if (typeof from._f !== 'undefined') {
+        if (!isUndefined(from._f)) {
             to._f = from._f;
         }
-        if (typeof from._l !== 'undefined') {
+        if (!isUndefined(from._l)) {
             to._l = from._l;
         }
-        if (typeof from._strict !== 'undefined') {
+        if (!isUndefined(from._strict)) {
             to._strict = from._strict;
         }
-        if (typeof from._tzm !== 'undefined') {
+        if (!isUndefined(from._tzm)) {
             to._tzm = from._tzm;
         }
-        if (typeof from._isUTC !== 'undefined') {
+        if (!isUndefined(from._isUTC)) {
             to._isUTC = from._isUTC;
         }
-        if (typeof from._offset !== 'undefined') {
+        if (!isUndefined(from._offset)) {
             to._offset = from._offset;
         }
-        if (typeof from._pf !== 'undefined') {
+        if (!isUndefined(from._pf)) {
             to._pf = getParsingFlags(from);
         }
-        if (typeof from._locale !== 'undefined') {
+        if (!isUndefined(from._locale)) {
             to._locale = from._locale;
         }
 
@@ -21312,7 +21326,7 @@ module.exports = range;
             for (i in momentProperties) {
                 prop = momentProperties[i];
                 val = from[prop];
-                if (typeof val !== 'undefined') {
+                if (!isUndefined(val)) {
                     to[prop] = val;
                 }
             }
@@ -21359,6 +21373,7 @@ module.exports = range;
         return value;
     }
 
+    // compare two arrays, return the number of differences
     function compareArrays(array1, array2, dontConvert) {
         var len = Math.min(array1.length, array2.length),
             lengthDiff = Math.abs(array1.length - array2.length),
@@ -21376,6 +21391,7 @@ module.exports = range;
     function Locale() {
     }
 
+    // internal storage for locale config files
     var locales = {};
     var globalLocale;
 
@@ -21413,7 +21429,7 @@ module.exports = range;
     function loadLocale(name) {
         var oldLocale = null;
         // TODO: Find a better way to register and load all the locales in Node
-        if (!locales[name] && typeof module !== 'undefined' &&
+        if (!locales[name] && !isUndefined(module) &&
                 module && module.exports) {
             try {
                 oldLocale = globalLocale._abbr;
@@ -21432,7 +21448,7 @@ module.exports = range;
     function locale_locales__getSetGlobalLocale (key, values) {
         var data;
         if (key) {
-            if (typeof values === 'undefined') {
+            if (isUndefined(values)) {
                 data = locale_locales__getLocale(key);
             }
             else {
@@ -21517,6 +21533,10 @@ module.exports = range;
         return normalizedInput;
     }
 
+    function isFunction(input) {
+        return input instanceof Function || Object.prototype.toString.call(input) === '[object Function]';
+    }
+
     function makeGetSet (unit, keepTime) {
         return function (value) {
             if (value != null) {
@@ -21530,11 +21550,14 @@ module.exports = range;
     }
 
     function get_set__get (mom, unit) {
-        return mom._d['get' + (mom._isUTC ? 'UTC' : '') + unit]();
+        return mom.isValid() ?
+            mom._d['get' + (mom._isUTC ? 'UTC' : '') + unit]() : NaN;
     }
 
     function get_set__set (mom, unit, value) {
-        return mom._d['set' + (mom._isUTC ? 'UTC' : '') + unit](value);
+        if (mom.isValid()) {
+            mom._d['set' + (mom._isUTC ? 'UTC' : '') + unit](value);
+        }
     }
 
     // MOMENTS
@@ -21547,7 +21570,7 @@ module.exports = range;
             }
         } else {
             units = normalizeUnits(units);
-            if (typeof this[units] === 'function') {
+            if (isFunction(this[units])) {
                 return this[units](value);
             }
         }
@@ -21562,7 +21585,7 @@ module.exports = range;
             Math.pow(10, Math.max(0, zerosToFill)).toString().substr(1) + absNumber;
     }
 
-    var formattingTokens = /(\[[^\[]*\])|(\\)?(Mo|MM?M?M?|Do|DDDo|DD?D?D?|ddd?d?|do?|w[o|w]?|W[o|W]?|Q|YYYYYY|YYYYY|YYYY|YY|gg(ggg?)?|GG(GGG?)?|e|E|a|A|hh?|HH?|mm?|ss?|S{1,9}|x|X|zz?|ZZ?|.)/g;
+    var formattingTokens = /(\[[^\[]*\])|(\\)?([Hh]mm(ss)?|Mo|MM?M?M?|Do|DDDo|DD?D?D?|ddd?d?|do?|w[o|w]?|W[o|W]?|Qo?|YYYYYY|YYYYY|YYYY|YY|gg(ggg?)?|GG(GGG?)?|e|E|a|A|hh?|HH?|mm?|ss?|S{1,9}|x|X|zz?|ZZ?|.)/g;
 
     var localFormattingTokens = /(\[[^\[]*\])|(\\)?(LTS|LT|LL?L?L?|l{1,4})/g;
 
@@ -21658,6 +21681,8 @@ module.exports = range;
     var match4         = /\d{4}/;         //    0000 - 9999
     var match6         = /[+-]?\d{6}/;    // -999999 - 999999
     var match1to2      = /\d\d?/;         //       0 - 99
+    var match3to4      = /\d\d\d\d?/;     //     999 - 9999
+    var match5to6      = /\d\d\d\d\d\d?/; //   99999 - 999999
     var match1to3      = /\d{1,3}/;       //       0 - 999
     var match1to4      = /\d{1,4}/;       //       0 - 9999
     var match1to6      = /[+-]?\d{1,6}/;  // -999999 - 999999
@@ -21666,20 +21691,16 @@ module.exports = range;
     var matchSigned    = /[+-]?\d+/;      //    -inf - inf
 
     var matchOffset    = /Z|[+-]\d\d:?\d\d/gi; // +00:00 -00:00 +0000 -0000 or Z
+    var matchShortOffset = /Z|[+-]\d\d(?::?\d\d)?/gi; // +00 -00 +00:00 -00:00 +0000 -0000 or Z
 
     var matchTimestamp = /[+-]?\d+(\.\d{1,3})?/; // 123456789 123456789.123
 
     // any word (or two) characters or numbers including two/three word month in arabic.
-    var matchWord = /[0-9]*['a-z\u00A0-\u05FF\u0700-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]+|[\u0600-\u06FF\/]+(\s*?[\u0600-\u06FF]+){1,2}/i;
+    // includes scottish gaelic two word and hyphenated months
+    var matchWord = /[0-9]*(a[mn]\s?)?['a-z\u00A0-\u05FF\u0700-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF\-]+|[\u0600-\u06FF\/]+(\s*?[\u0600-\u06FF]+){1,2}/i;
+
 
     var regexes = {};
-
-    function isFunction (sth) {
-        // https://github.com/moment/moment/issues/2325
-        return typeof sth === 'function' &&
-            Object.prototype.toString.call(sth) === '[object Function]';
-    }
-
 
     function addRegexToken (token, regex, strictRegex) {
         regexes[token] = isFunction(regex) ? regex : function (isStrict) {
@@ -21739,6 +21760,8 @@ module.exports = range;
     var MINUTE = 4;
     var SECOND = 5;
     var MILLISECOND = 6;
+    var WEEK = 7;
+    var WEEKDAY = 8;
 
     function daysInMonth(year, month) {
         return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
@@ -21785,14 +21808,17 @@ module.exports = range;
 
     // LOCALES
 
+    var MONTHS_IN_FORMAT = /D[oD]?(\[[^\[\]]*\]|\s+)+MMMM?/;
     var defaultLocaleMonths = 'January_February_March_April_May_June_July_August_September_October_November_December'.split('_');
-    function localeMonths (m) {
-        return this._months[m.month()];
+    function localeMonths (m, format) {
+        return isArray(this._months) ? this._months[m.month()] :
+            this._months[MONTHS_IN_FORMAT.test(format) ? 'format' : 'standalone'][m.month()];
     }
 
-    var defaultLocaleMonthsShort = 'Jan_Feb_Mar_Apr_May_Jun_Jul_Aug_Sep_Oct_Nov_Dec'.split('_');
-    function localeMonthsShort (m) {
-        return this._monthsShort[m.month()];
+    var defaultLocaleMonthsShort = 'Jan_Feb_Mar_Apr_May_Jun_Jul_Aug_Sept_Oct_Nov_Dec'.split('_');
+    function localeMonthsShort (m, format) {
+        return isArray(this._monthsShort) ? this._monthsShort[m.month()] :
+            this._monthsShort[MONTHS_IN_FORMAT.test(format) ? 'format' : 'standalone'][m.month()];
     }
 
     function localeMonthsParse (monthName, format, strict) {
@@ -21830,6 +21856,11 @@ module.exports = range;
 
     function setMonth (mom, value) {
         var dayOfMonth;
+
+        if (!mom.isValid()) {
+            // No op
+            return mom;
+        }
 
         // TODO: Move this out of here!
         if (typeof value === 'string') {
@@ -21876,6 +21907,12 @@ module.exports = range;
             if (getParsingFlags(m)._overflowDayOfYear && (overflow < YEAR || overflow > DATE)) {
                 overflow = DATE;
             }
+            if (getParsingFlags(m)._overflowWeeks && overflow === -1) {
+                overflow = WEEK;
+            }
+            if (getParsingFlags(m)._overflowWeekday && overflow === -1) {
+                overflow = WEEKDAY;
+            }
 
             getParsingFlags(m).overflow = overflow;
         }
@@ -21884,7 +21921,7 @@ module.exports = range;
     }
 
     function warn(msg) {
-        if (utils_hooks__hooks.suppressDeprecationWarnings === false && typeof console !== 'undefined' && console.warn) {
+        if (utils_hooks__hooks.suppressDeprecationWarnings === false && !isUndefined(console) && console.warn) {
             console.warn('Deprecation warning: ' + msg);
         }
     }
@@ -21894,7 +21931,7 @@ module.exports = range;
 
         return extend(function () {
             if (firstTime) {
-                warn(msg + '\n' + (new Error()).stack);
+                warn(msg + '\nArguments: ' + Array.prototype.slice.call(arguments).join(', ') + '\n' + (new Error()).stack);
                 firstTime = false;
             }
             return fn.apply(this, arguments);
@@ -21912,22 +21949,39 @@ module.exports = range;
 
     utils_hooks__hooks.suppressDeprecationWarnings = false;
 
-    var from_string__isoRegex = /^\s*(?:[+-]\d{6}|\d{4})-(?:(\d\d-\d\d)|(W\d\d$)|(W\d\d-\d)|(\d\d\d))((T| )(\d\d(:\d\d(:\d\d(\.\d+)?)?)?)?([\+\-]\d\d(?::?\d\d)?|\s*Z)?)?$/;
+    // iso 8601 regex
+    // 0000-00-00 0000-W00 or 0000-W00-0 + T + 00 or 00:00 or 00:00:00 or 00:00:00.000 + +00:00 or +0000 or +00)
+    var extendedIsoRegex = /^\s*((?:[+-]\d{6}|\d{4})-(?:\d\d-\d\d|W\d\d-\d|W\d\d|\d\d\d|\d\d))(?:(T| )(\d\d(?::\d\d(?::\d\d(?:[.,]\d+)?)?)?)([\+\-]\d\d(?::?\d\d)?|\s*Z)?)?/;
+    var basicIsoRegex = /^\s*((?:[+-]\d{6}|\d{4})(?:\d\d\d\d|W\d\d\d|W\d\d|\d\d\d|\d\d))(?:(T| )(\d\d(?:\d\d(?:\d\d(?:[.,]\d+)?)?)?)([\+\-]\d\d(?::?\d\d)?|\s*Z)?)?/;
+
+    var tzRegex = /Z|[+-]\d\d(?::?\d\d)?/;
 
     var isoDates = [
-        ['YYYYYY-MM-DD', /[+-]\d{6}-\d{2}-\d{2}/],
-        ['YYYY-MM-DD', /\d{4}-\d{2}-\d{2}/],
-        ['GGGG-[W]WW-E', /\d{4}-W\d{2}-\d/],
-        ['GGGG-[W]WW', /\d{4}-W\d{2}/],
-        ['YYYY-DDD', /\d{4}-\d{3}/]
+        ['YYYYYY-MM-DD', /[+-]\d{6}-\d\d-\d\d/],
+        ['YYYY-MM-DD', /\d{4}-\d\d-\d\d/],
+        ['GGGG-[W]WW-E', /\d{4}-W\d\d-\d/],
+        ['GGGG-[W]WW', /\d{4}-W\d\d/, false],
+        ['YYYY-DDD', /\d{4}-\d{3}/],
+        ['YYYY-MM', /\d{4}-\d\d/, false],
+        ['YYYYYYMMDD', /[+-]\d{10}/],
+        ['YYYYMMDD', /\d{8}/],
+        // YYYYMM is NOT allowed by the standard
+        ['GGGG[W]WWE', /\d{4}W\d{3}/],
+        ['GGGG[W]WW', /\d{4}W\d{2}/, false],
+        ['YYYYDDD', /\d{7}/]
     ];
 
     // iso time formats and regexes
     var isoTimes = [
-        ['HH:mm:ss.SSSS', /(T| )\d\d:\d\d:\d\d\.\d+/],
-        ['HH:mm:ss', /(T| )\d\d:\d\d:\d\d/],
-        ['HH:mm', /(T| )\d\d:\d\d/],
-        ['HH', /(T| )\d\d/]
+        ['HH:mm:ss.SSSS', /\d\d:\d\d:\d\d\.\d+/],
+        ['HH:mm:ss,SSSS', /\d\d:\d\d:\d\d,\d+/],
+        ['HH:mm:ss', /\d\d:\d\d:\d\d/],
+        ['HH:mm', /\d\d:\d\d/],
+        ['HHmmss.SSSS', /\d\d\d\d\d\d\.\d+/],
+        ['HHmmss,SSSS', /\d\d\d\d\d\d,\d+/],
+        ['HHmmss', /\d\d\d\d\d\d/],
+        ['HHmm', /\d\d\d\d/],
+        ['HH', /\d\d/]
     ];
 
     var aspNetJsonRegex = /^\/?Date\((\-?\d+)/i;
@@ -21936,26 +21990,49 @@ module.exports = range;
     function configFromISO(config) {
         var i, l,
             string = config._i,
-            match = from_string__isoRegex.exec(string);
+            match = extendedIsoRegex.exec(string) || basicIsoRegex.exec(string),
+            allowTime, dateFormat, timeFormat, tzFormat;
 
         if (match) {
             getParsingFlags(config).iso = true;
+
             for (i = 0, l = isoDates.length; i < l; i++) {
-                if (isoDates[i][1].exec(string)) {
-                    config._f = isoDates[i][0];
+                if (isoDates[i][1].exec(match[1])) {
+                    dateFormat = isoDates[i][0];
+                    allowTime = isoDates[i][2] !== false;
                     break;
                 }
             }
-            for (i = 0, l = isoTimes.length; i < l; i++) {
-                if (isoTimes[i][1].exec(string)) {
-                    // match[6] should be 'T' or space
-                    config._f += (match[6] || ' ') + isoTimes[i][0];
-                    break;
+            if (dateFormat == null) {
+                config._isValid = false;
+                return;
+            }
+            if (match[3]) {
+                for (i = 0, l = isoTimes.length; i < l; i++) {
+                    if (isoTimes[i][1].exec(match[3])) {
+                        // match[2] should be 'T' or space
+                        timeFormat = (match[2] || ' ') + isoTimes[i][0];
+                        break;
+                    }
+                }
+                if (timeFormat == null) {
+                    config._isValid = false;
+                    return;
                 }
             }
-            if (string.match(matchOffset)) {
-                config._f += 'Z';
+            if (!allowTime && timeFormat != null) {
+                config._isValid = false;
+                return;
             }
+            if (match[4]) {
+                if (tzRegex.exec(match[4])) {
+                    tzFormat = 'Z';
+                } else {
+                    config._isValid = false;
+                    return;
+                }
+            }
+            config._f = dateFormat + (timeFormat || '') + (tzFormat || '');
             configFromStringAndFormat(config);
         } else {
             config._isValid = false;
@@ -21993,8 +22070,8 @@ module.exports = range;
         //http://stackoverflow.com/questions/181348/instantiating-a-javascript-object-by-calling-prototype-constructor-apply
         var date = new Date(y, m, d, h, M, s, ms);
 
-        //the date constructor doesn't accept years < 1970
-        if (y < 1970) {
+        //the date constructor remaps years 0-99 to 1900-1999
+        if (y < 100 && y >= 0 && isFinite(date.getFullYear())) {
             date.setFullYear(y);
         }
         return date;
@@ -22002,11 +22079,15 @@ module.exports = range;
 
     function createUTCDate (y) {
         var date = new Date(Date.UTC.apply(null, arguments));
-        if (y < 1970) {
+
+        //the Date.UTC function remaps years 0-99 to 1900-1999
+        if (y < 100 && y >= 0 && isFinite(date.getUTCFullYear())) {
             date.setUTCFullYear(y);
         }
         return date;
     }
+
+    // FORMATTING
 
     addFormatToken(0, ['YY', 2], 0, function () {
         return this.year() % 100;
@@ -22060,124 +22141,66 @@ module.exports = range;
         return isLeapYear(this.year());
     }
 
-    addFormatToken('w', ['ww', 2], 'wo', 'week');
-    addFormatToken('W', ['WW', 2], 'Wo', 'isoWeek');
+    // start-of-first-week - start-of-year
+    function firstWeekOffset(year, dow, doy) {
+        var // first-week day -- which january is always in the first week (4 for iso, 1 for other)
+            fwd = 7 + dow - doy,
+            // first-week day local weekday -- which local weekday is fwd
+            fwdlw = (7 + createUTCDate(year, 0, fwd).getUTCDay() - dow) % 7;
 
-    // ALIASES
-
-    addUnitAlias('week', 'w');
-    addUnitAlias('isoWeek', 'W');
-
-    // PARSING
-
-    addRegexToken('w',  match1to2);
-    addRegexToken('ww', match1to2, match2);
-    addRegexToken('W',  match1to2);
-    addRegexToken('WW', match1to2, match2);
-
-    addWeekParseToken(['w', 'ww', 'W', 'WW'], function (input, week, config, token) {
-        week[token.substr(0, 1)] = toInt(input);
-    });
-
-    // HELPERS
-
-    // firstDayOfWeek       0 = sun, 6 = sat
-    //                      the day of the week that starts the week
-    //                      (usually sunday or monday)
-    // firstDayOfWeekOfYear 0 = sun, 6 = sat
-    //                      the first week is the week that contains the first
-    //                      of this day of the week
-    //                      (eg. ISO weeks use thursday (4))
-    function weekOfYear(mom, firstDayOfWeek, firstDayOfWeekOfYear) {
-        var end = firstDayOfWeekOfYear - firstDayOfWeek,
-            daysToDayOfWeek = firstDayOfWeekOfYear - mom.day(),
-            adjustedMoment;
-
-
-        if (daysToDayOfWeek > end) {
-            daysToDayOfWeek -= 7;
-        }
-
-        if (daysToDayOfWeek < end - 7) {
-            daysToDayOfWeek += 7;
-        }
-
-        adjustedMoment = local__createLocal(mom).add(daysToDayOfWeek, 'd');
-        return {
-            week: Math.ceil(adjustedMoment.dayOfYear() / 7),
-            year: adjustedMoment.year()
-        };
+        return -fwdlw + fwd - 1;
     }
-
-    // LOCALES
-
-    function localeWeek (mom) {
-        return weekOfYear(mom, this._week.dow, this._week.doy).week;
-    }
-
-    var defaultLocaleWeek = {
-        dow : 0, // Sunday is the first day of the week.
-        doy : 6  // The week that contains Jan 1st is the first week of the year.
-    };
-
-    function localeFirstDayOfWeek () {
-        return this._week.dow;
-    }
-
-    function localeFirstDayOfYear () {
-        return this._week.doy;
-    }
-
-    // MOMENTS
-
-    function getSetWeek (input) {
-        var week = this.localeData().week(this);
-        return input == null ? week : this.add((input - week) * 7, 'd');
-    }
-
-    function getSetISOWeek (input) {
-        var week = weekOfYear(this, 1, 4).week;
-        return input == null ? week : this.add((input - week) * 7, 'd');
-    }
-
-    addFormatToken('DDD', ['DDDD', 3], 'DDDo', 'dayOfYear');
-
-    // ALIASES
-
-    addUnitAlias('dayOfYear', 'DDD');
-
-    // PARSING
-
-    addRegexToken('DDD',  match1to3);
-    addRegexToken('DDDD', match3);
-    addParseToken(['DDD', 'DDDD'], function (input, array, config) {
-        config._dayOfYear = toInt(input);
-    });
-
-    // HELPERS
 
     //http://en.wikipedia.org/wiki/ISO_week_date#Calculating_a_date_given_the_year.2C_week_number_and_weekday
-    function dayOfYearFromWeeks(year, week, weekday, firstDayOfWeekOfYear, firstDayOfWeek) {
-        var week1Jan = 6 + firstDayOfWeek - firstDayOfWeekOfYear, janX = createUTCDate(year, 0, 1 + week1Jan), d = janX.getUTCDay(), dayOfYear;
-        if (d < firstDayOfWeek) {
-            d += 7;
+    function dayOfYearFromWeeks(year, week, weekday, dow, doy) {
+        var localWeekday = (7 + weekday - dow) % 7,
+            weekOffset = firstWeekOffset(year, dow, doy),
+            dayOfYear = 1 + 7 * (week - 1) + localWeekday + weekOffset,
+            resYear, resDayOfYear;
+
+        if (dayOfYear <= 0) {
+            resYear = year - 1;
+            resDayOfYear = daysInYear(resYear) + dayOfYear;
+        } else if (dayOfYear > daysInYear(year)) {
+            resYear = year + 1;
+            resDayOfYear = dayOfYear - daysInYear(year);
+        } else {
+            resYear = year;
+            resDayOfYear = dayOfYear;
         }
 
-        weekday = weekday != null ? 1 * weekday : firstDayOfWeek;
-
-        dayOfYear = 1 + week1Jan + 7 * (week - 1) - d + weekday;
-
         return {
-            year: dayOfYear > 0 ? year : year - 1,
-            dayOfYear: dayOfYear > 0 ?  dayOfYear : daysInYear(year - 1) + dayOfYear
+            year: resYear,
+            dayOfYear: resDayOfYear
         };
     }
 
-    // MOMENTS
+    function weekOfYear(mom, dow, doy) {
+        var weekOffset = firstWeekOffset(mom.year(), dow, doy),
+            week = Math.floor((mom.dayOfYear() - weekOffset - 1) / 7) + 1,
+            resWeek, resYear;
 
-    function getSetDayOfYear (input) {
-        var dayOfYear = Math.round((this.clone().startOf('day') - this.clone().startOf('year')) / 864e5) + 1;
-        return input == null ? dayOfYear : this.add((input - dayOfYear), 'd');
+        if (week < 1) {
+            resYear = mom.year() - 1;
+            resWeek = week + weeksInYear(resYear, dow, doy);
+        } else if (week > weeksInYear(mom.year(), dow, doy)) {
+            resWeek = week - weeksInYear(mom.year(), dow, doy);
+            resYear = mom.year() + 1;
+        } else {
+            resYear = mom.year();
+            resWeek = week;
+        }
+
+        return {
+            week: resWeek,
+            year: resYear
+        };
+    }
+
+    function weeksInYear(year, dow, doy) {
+        var weekOffset = firstWeekOffset(year, dow, doy),
+            weekOffsetNext = firstWeekOffset(year + 1, dow, doy);
+        return (daysInYear(year) - weekOffset + weekOffsetNext) / 7;
     }
 
     // Pick the first defined of two or three arguments.
@@ -22192,11 +22215,12 @@ module.exports = range;
     }
 
     function currentDateArray(config) {
-        var now = new Date();
+        // hooks is actually the exported moment object
+        var nowValue = new Date(utils_hooks__hooks.now());
         if (config._useUTC) {
-            return [now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()];
+            return [nowValue.getUTCFullYear(), nowValue.getUTCMonth(), nowValue.getUTCDate()];
         }
-        return [now.getFullYear(), now.getMonth(), now.getDate()];
+        return [nowValue.getFullYear(), nowValue.getMonth(), nowValue.getDate()];
     }
 
     // convert an array to a date.
@@ -22266,7 +22290,7 @@ module.exports = range;
     }
 
     function dayOfYearFromWeekInfo(config) {
-        var w, weekYear, week, weekday, dow, doy, temp;
+        var w, weekYear, week, weekday, dow, doy, temp, weekdayOverflow;
 
         w = config._w;
         if (w.GG != null || w.W != null || w.E != null) {
@@ -22280,6 +22304,9 @@ module.exports = range;
             weekYear = defaults(w.GG, config._a[YEAR], weekOfYear(local__createLocal(), 1, 4).year);
             week = defaults(w.W, 1);
             weekday = defaults(w.E, 1);
+            if (weekday < 1 || weekday > 7) {
+                weekdayOverflow = true;
+            }
         } else {
             dow = config._locale._week.dow;
             doy = config._locale._week.doy;
@@ -22290,23 +22317,32 @@ module.exports = range;
             if (w.d != null) {
                 // weekday -- low day numbers are considered next week
                 weekday = w.d;
-                if (weekday < dow) {
-                    ++week;
+                if (weekday < 0 || weekday > 6) {
+                    weekdayOverflow = true;
                 }
             } else if (w.e != null) {
                 // local weekday -- counting starts from begining of week
                 weekday = w.e + dow;
+                if (w.e < 0 || w.e > 6) {
+                    weekdayOverflow = true;
+                }
             } else {
                 // default to begining of week
                 weekday = dow;
             }
         }
-        temp = dayOfYearFromWeeks(weekYear, week, weekday, doy, dow);
-
-        config._a[YEAR] = temp.year;
-        config._dayOfYear = temp.dayOfYear;
+        if (week < 1 || week > weeksInYear(weekYear, dow, doy)) {
+            getParsingFlags(config)._overflowWeeks = true;
+        } else if (weekdayOverflow != null) {
+            getParsingFlags(config)._overflowWeekday = true;
+        } else {
+            temp = dayOfYearFromWeeks(weekYear, week, weekday, dow, doy);
+            config._a[YEAR] = temp.year;
+            config._dayOfYear = temp.dayOfYear;
+        }
     }
 
+    // constant that refers to the ISO standard
     utils_hooks__hooks.ISO_8601 = function () {};
 
     // date from string and format string
@@ -22399,6 +22435,7 @@ module.exports = range;
         }
     }
 
+    // date from string and array of format strings
     function configFromStringAndArray(config) {
         var tempConfig,
             bestMoment,
@@ -22449,7 +22486,9 @@ module.exports = range;
         }
 
         var i = normalizeObjectUnits(config._i);
-        config._a = [i.year, i.month, i.day || i.date, i.hour, i.minute, i.second, i.millisecond];
+        config._a = map([i.year, i.month, i.day || i.date, i.hour, i.minute, i.second, i.millisecond], function (obj) {
+            return obj && parseInt(obj, 10);
+        });
 
         configFromArray(config);
     }
@@ -22491,13 +22530,17 @@ module.exports = range;
             configFromInput(config);
         }
 
+        if (!valid__isValid(config)) {
+            config._d = null;
+        }
+
         return config;
     }
 
     function configFromInput(config) {
         var input = config._i;
         if (input === undefined) {
-            config._d = new Date();
+            config._d = new Date(utils_hooks__hooks.now());
         } else if (isDate(input)) {
             config._d = new Date(+input);
         } else if (typeof input === 'string') {
@@ -22544,7 +22587,11 @@ module.exports = range;
          'moment().min is deprecated, use moment.min instead. https://github.com/moment/moment/issues/1548',
          function () {
              var other = local__createLocal.apply(null, arguments);
-             return other < this ? this : other;
+             if (this.isValid() && other.isValid()) {
+                 return other < this ? this : other;
+             } else {
+                 return valid__createInvalid();
+             }
          }
      );
 
@@ -22552,7 +22599,11 @@ module.exports = range;
         'moment().max is deprecated, use moment.max instead. https://github.com/moment/moment/issues/1548',
         function () {
             var other = local__createLocal.apply(null, arguments);
-            return other > this ? this : other;
+            if (this.isValid() && other.isValid()) {
+                return other > this ? this : other;
+            } else {
+                return valid__createInvalid();
+            }
         }
     );
 
@@ -22590,6 +22641,10 @@ module.exports = range;
 
         return pickBy('isAfter', args);
     }
+
+    var now = Date.now || function () {
+        return +(new Date());
+    };
 
     function Duration (duration) {
         var normalizedInput = normalizeObjectUnits(duration),
@@ -22630,6 +22685,8 @@ module.exports = range;
         return obj instanceof Duration;
     }
 
+    // FORMATTING
+
     function offset (token, separator) {
         addFormatToken(token, 0, 0, function () {
             var offset = this.utcOffset();
@@ -22647,11 +22704,11 @@ module.exports = range;
 
     // PARSING
 
-    addRegexToken('Z',  matchOffset);
-    addRegexToken('ZZ', matchOffset);
+    addRegexToken('Z',  matchShortOffset);
+    addRegexToken('ZZ', matchShortOffset);
     addParseToken(['Z', 'ZZ'], function (input, array, config) {
         config._useUTC = true;
-        config._tzm = offsetFromString(input);
+        config._tzm = offsetFromString(matchShortOffset, input);
     });
 
     // HELPERS
@@ -22661,8 +22718,8 @@ module.exports = range;
     // '-1530'  > ['-15', '30']
     var chunkOffset = /([\+\-]|\d\d)/gi;
 
-    function offsetFromString(string) {
-        var matches = ((string || '').match(matchOffset) || []);
+    function offsetFromString(matcher, string) {
+        var matches = ((string || '').match(matcher) || []);
         var chunk   = matches[matches.length - 1] || [];
         var parts   = (chunk + '').match(chunkOffset) || ['-', 0, 0];
         var minutes = +(parts[1] * 60) + toInt(parts[2]);
@@ -22712,11 +22769,13 @@ module.exports = range;
     function getSetOffset (input, keepLocalTime) {
         var offset = this._offset || 0,
             localAdjust;
+        if (!this.isValid()) {
+            return input != null ? this : NaN;
+        }
         if (input != null) {
             if (typeof input === 'string') {
-                input = offsetFromString(input);
-            }
-            if (Math.abs(input) < 16) {
+                input = offsetFromString(matchShortOffset, input);
+            } else if (Math.abs(input) < 16) {
                 input = input * 60;
             }
             if (!this._isUTC && keepLocalTime) {
@@ -22776,12 +22835,15 @@ module.exports = range;
         if (this._tzm) {
             this.utcOffset(this._tzm);
         } else if (typeof this._i === 'string') {
-            this.utcOffset(offsetFromString(this._i));
+            this.utcOffset(offsetFromString(matchOffset, this._i));
         }
         return this;
     }
 
     function hasAlignedHourOffset (input) {
+        if (!this.isValid()) {
+            return false;
+        }
         input = input ? local__createLocal(input).utcOffset() : 0;
 
         return (this.utcOffset() - input) % 60 === 0;
@@ -22795,7 +22857,7 @@ module.exports = range;
     }
 
     function isDaylightSavingTimeShifted () {
-        if (typeof this._isDSTShifted !== 'undefined') {
+        if (!isUndefined(this._isDSTShifted)) {
             return this._isDSTShifted;
         }
 
@@ -22816,22 +22878,23 @@ module.exports = range;
     }
 
     function isLocal () {
-        return !this._isUTC;
+        return this.isValid() ? !this._isUTC : false;
     }
 
     function isUtcOffset () {
-        return this._isUTC;
+        return this.isValid() ? this._isUTC : false;
     }
 
     function isUtc () {
-        return this._isUTC && this._offset === 0;
+        return this.isValid() ? this._isUTC && this._offset === 0 : false;
     }
 
-    var aspNetRegex = /(\-)?(?:(\d*)\.)?(\d+)\:(\d+)(?:\:(\d+)\.?(\d{3})?)?/;
+    // ASP.NET json date format regex
+    var aspNetRegex = /(\-)?(?:(\d*)[. ])?(\d+)\:(\d+)(?:\:(\d+)\.?(\d{3})?)?/;
 
     // from http://docs.closure-library.googlecode.com/git/closure_goog_date_date.js.source.html
     // somewhat more in line with 4.4.3.2 2004 spec, but allows decimal anywhere
-    var create__isoRegex = /^(-)?P(?:(?:([0-9,.]*)Y)?(?:([0-9,.]*)M)?(?:([0-9,.]*)D)?(?:T(?:([0-9,.]*)H)?(?:([0-9,.]*)M)?(?:([0-9,.]*)S)?)?|([0-9,.]*)W)$/;
+    var isoRegex = /^(-)?P(?:(?:([0-9,.]*)Y)?(?:([0-9,.]*)M)?(?:([0-9,.]*)D)?(?:T(?:([0-9,.]*)H)?(?:([0-9,.]*)M)?(?:([0-9,.]*)S)?)?|([0-9,.]*)W)$/;
 
     function create__createDuration (input, key) {
         var duration = input,
@@ -22864,7 +22927,7 @@ module.exports = range;
                 s  : toInt(match[SECOND])      * sign,
                 ms : toInt(match[MILLISECOND]) * sign
             };
-        } else if (!!(match = create__isoRegex.exec(input))) {
+        } else if (!!(match = isoRegex.exec(input))) {
             sign = (match[1] === '-') ? -1 : 1;
             duration = {
                 y : parseIso(match[2], sign),
@@ -22921,6 +22984,10 @@ module.exports = range;
 
     function momentsDifference(base, other) {
         var res;
+        if (!(base.isValid() && other.isValid())) {
+            return {milliseconds: 0, months: 0};
+        }
+
         other = cloneWithOffset(other, base);
         if (base.isBefore(other)) {
             res = positiveMomentsDifference(base, other);
@@ -22933,6 +23000,7 @@ module.exports = range;
         return res;
     }
 
+    // TODO: remove 'name' arg after deprecation is removed
     function createAdder(direction, name) {
         return function (val, period) {
             var dur, tmp;
@@ -22953,6 +23021,12 @@ module.exports = range;
         var milliseconds = duration._milliseconds,
             days = duration._days,
             months = duration._months;
+
+        if (!mom.isValid()) {
+            // No op
+            return;
+        }
+
         updateOffset = updateOffset == null ? true : updateOffset;
 
         if (milliseconds) {
@@ -22984,7 +23058,10 @@ module.exports = range;
                 diff < 1 ? 'sameDay' :
                 diff < 2 ? 'nextDay' :
                 diff < 7 ? 'nextWeek' : 'sameElse';
-        return this.format(formats && formats[format] || this.localeData().calendar(format, this, local__createLocal(now)));
+
+        var output = formats && (isFunction(formats[format]) ? formats[format]() : formats[format]);
+
+        return this.format(output || this.localeData().calendar(format, this, local__createLocal(now)));
     }
 
     function clone () {
@@ -22992,26 +23069,28 @@ module.exports = range;
     }
 
     function isAfter (input, units) {
-        var inputMs;
-        units = normalizeUnits(typeof units !== 'undefined' ? units : 'millisecond');
+        var localInput = isMoment(input) ? input : local__createLocal(input);
+        if (!(this.isValid() && localInput.isValid())) {
+            return false;
+        }
+        units = normalizeUnits(!isUndefined(units) ? units : 'millisecond');
         if (units === 'millisecond') {
-            input = isMoment(input) ? input : local__createLocal(input);
-            return +this > +input;
+            return +this > +localInput;
         } else {
-            inputMs = isMoment(input) ? +input : +local__createLocal(input);
-            return inputMs < +this.clone().startOf(units);
+            return +localInput < +this.clone().startOf(units);
         }
     }
 
     function isBefore (input, units) {
-        var inputMs;
-        units = normalizeUnits(typeof units !== 'undefined' ? units : 'millisecond');
+        var localInput = isMoment(input) ? input : local__createLocal(input);
+        if (!(this.isValid() && localInput.isValid())) {
+            return false;
+        }
+        units = normalizeUnits(!isUndefined(units) ? units : 'millisecond');
         if (units === 'millisecond') {
-            input = isMoment(input) ? input : local__createLocal(input);
-            return +this < +input;
+            return +this < +localInput;
         } else {
-            inputMs = isMoment(input) ? +input : +local__createLocal(input);
-            return +this.clone().endOf(units) < inputMs;
+            return +this.clone().endOf(units) < +localInput;
         }
     }
 
@@ -23020,21 +23099,44 @@ module.exports = range;
     }
 
     function isSame (input, units) {
-        var inputMs;
+        var localInput = isMoment(input) ? input : local__createLocal(input),
+            inputMs;
+        if (!(this.isValid() && localInput.isValid())) {
+            return false;
+        }
         units = normalizeUnits(units || 'millisecond');
         if (units === 'millisecond') {
-            input = isMoment(input) ? input : local__createLocal(input);
-            return +this === +input;
+            return +this === +localInput;
         } else {
-            inputMs = +local__createLocal(input);
+            inputMs = +localInput;
             return +(this.clone().startOf(units)) <= inputMs && inputMs <= +(this.clone().endOf(units));
         }
     }
 
+    function isSameOrAfter (input, units) {
+        return this.isSame(input, units) || this.isAfter(input,units);
+    }
+
+    function isSameOrBefore (input, units) {
+        return this.isSame(input, units) || this.isBefore(input,units);
+    }
+
     function diff (input, units, asFloat) {
-        var that = cloneWithOffset(input, this),
-            zoneDelta = (that.utcOffset() - this.utcOffset()) * 6e4,
+        var that,
+            zoneDelta,
             delta, output;
+
+        if (!this.isValid()) {
+            return NaN;
+        }
+
+        that = cloneWithOffset(input, this);
+
+        if (!that.isValid()) {
+            return NaN;
+        }
+
+        zoneDelta = (that.utcOffset() - this.utcOffset()) * 6e4;
 
         units = normalizeUnits(units);
 
@@ -23086,7 +23188,7 @@ module.exports = range;
     function moment_format__toISOString () {
         var m = this.clone().utc();
         if (0 < m.year() && m.year() <= 9999) {
-            if ('function' === typeof Date.prototype.toISOString) {
+            if (isFunction(Date.prototype.toISOString)) {
                 // native implementation is ~50x faster, use it when we can
                 return this.toDate().toISOString();
             } else {
@@ -23103,10 +23205,13 @@ module.exports = range;
     }
 
     function from (time, withoutSuffix) {
-        if (!this.isValid()) {
+        if (this.isValid() &&
+                ((isMoment(time) && time.isValid()) ||
+                 local__createLocal(time).isValid())) {
+            return create__createDuration({to: this, from: time}).locale(this.locale()).humanize(!withoutSuffix);
+        } else {
             return this.localeData().invalidDate();
         }
-        return create__createDuration({to: this, from: time}).locale(this.locale()).humanize(!withoutSuffix);
     }
 
     function fromNow (withoutSuffix) {
@@ -23114,16 +23219,22 @@ module.exports = range;
     }
 
     function to (time, withoutSuffix) {
-        if (!this.isValid()) {
+        if (this.isValid() &&
+                ((isMoment(time) && time.isValid()) ||
+                 local__createLocal(time).isValid())) {
+            return create__createDuration({from: this, to: time}).locale(this.locale()).humanize(!withoutSuffix);
+        } else {
             return this.localeData().invalidDate();
         }
-        return create__createDuration({from: this, to: time}).locale(this.locale()).humanize(!withoutSuffix);
     }
 
     function toNow (withoutSuffix) {
         return this.to(local__createLocal(), withoutSuffix);
     }
 
+    // If passed a locale key, it will set the locale for this
+    // instance.  Otherwise, it will return the locale configuration
+    // variables for this instance.
     function locale (key) {
         var newLocaleData;
 
@@ -23234,6 +23345,11 @@ module.exports = range;
         };
     }
 
+    function toJSON () {
+        // JSON.stringify(new Date(NaN)) === 'null'
+        return this.isValid() ? this.toISOString() : 'null';
+    }
+
     function moment_valid__isValid () {
         return valid__isValid(this);
     }
@@ -23245,6 +23361,18 @@ module.exports = range;
     function invalidAt () {
         return getParsingFlags(this).overflow;
     }
+
+    function creationData() {
+        return {
+            input: this._i,
+            format: this._f,
+            locale: this._locale,
+            isUTC: this._isUTC,
+            strict: this._strict
+        };
+    }
+
+    // FORMATTING
 
     addFormatToken(0, ['gg', 2], 0, function () {
         return this.weekYear() % 100;
@@ -23287,22 +23415,20 @@ module.exports = range;
         week[token] = utils_hooks__hooks.parseTwoDigitYear(input);
     });
 
-    // HELPERS
-
-    function weeksInYear(year, dow, doy) {
-        return weekOfYear(local__createLocal([year, 11, 31 + dow - doy]), dow, doy).week;
-    }
-
     // MOMENTS
 
     function getSetWeekYear (input) {
-        var year = weekOfYear(this, this.localeData()._week.dow, this.localeData()._week.doy).year;
-        return input == null ? year : this.add((input - year), 'y');
+        return getSetWeekYearHelper.call(this,
+                input,
+                this.week(),
+                this.weekday(),
+                this.localeData()._week.dow,
+                this.localeData()._week.doy);
     }
 
     function getSetISOWeekYear (input) {
-        var year = weekOfYear(this, 1, 4).year;
-        return input == null ? year : this.add((input - year), 'y');
+        return getSetWeekYearHelper.call(this,
+                input, this.isoWeek(), this.isoWeekday(), 1, 4);
     }
 
     function getISOWeeksInYear () {
@@ -23314,7 +23440,33 @@ module.exports = range;
         return weeksInYear(this.year(), weekInfo.dow, weekInfo.doy);
     }
 
-    addFormatToken('Q', 0, 0, 'quarter');
+    function getSetWeekYearHelper(input, week, weekday, dow, doy) {
+        var weeksTarget;
+        if (input == null) {
+            return weekOfYear(this, dow, doy).year;
+        } else {
+            weeksTarget = weeksInYear(input, dow, doy);
+            if (week > weeksTarget) {
+                week = weeksTarget;
+            }
+            return setWeekAll.call(this, input, week, weekday, dow, doy);
+        }
+    }
+
+    function setWeekAll(weekYear, week, weekday, dow, doy) {
+        var dayOfYearData = dayOfYearFromWeeks(weekYear, week, weekday, dow, doy),
+            date = createUTCDate(dayOfYearData.year, 0, dayOfYearData.dayOfYear);
+
+        // console.log("got", weekYear, week, weekday, "set", date.toISOString());
+        this.year(date.getUTCFullYear());
+        this.month(date.getUTCMonth());
+        this.date(date.getUTCDate());
+        return this;
+    }
+
+    // FORMATTING
+
+    addFormatToken('Q', 0, 'Qo', 'quarter');
 
     // ALIASES
 
@@ -23332,6 +23484,62 @@ module.exports = range;
     function getSetQuarter (input) {
         return input == null ? Math.ceil((this.month() + 1) / 3) : this.month((input - 1) * 3 + this.month() % 3);
     }
+
+    // FORMATTING
+
+    addFormatToken('w', ['ww', 2], 'wo', 'week');
+    addFormatToken('W', ['WW', 2], 'Wo', 'isoWeek');
+
+    // ALIASES
+
+    addUnitAlias('week', 'w');
+    addUnitAlias('isoWeek', 'W');
+
+    // PARSING
+
+    addRegexToken('w',  match1to2);
+    addRegexToken('ww', match1to2, match2);
+    addRegexToken('W',  match1to2);
+    addRegexToken('WW', match1to2, match2);
+
+    addWeekParseToken(['w', 'ww', 'W', 'WW'], function (input, week, config, token) {
+        week[token.substr(0, 1)] = toInt(input);
+    });
+
+    // HELPERS
+
+    // LOCALES
+
+    function localeWeek (mom) {
+        return weekOfYear(mom, this._week.dow, this._week.doy).week;
+    }
+
+    var defaultLocaleWeek = {
+        dow : 0, // Sunday is the first day of the week.
+        doy : 6  // The week that contains Jan 1st is the first week of the year.
+    };
+
+    function localeFirstDayOfWeek () {
+        return this._week.dow;
+    }
+
+    function localeFirstDayOfYear () {
+        return this._week.doy;
+    }
+
+    // MOMENTS
+
+    function getSetWeek (input) {
+        var week = this.localeData().week(this);
+        return input == null ? week : this.add((input - week) * 7, 'd');
+    }
+
+    function getSetISOWeek (input) {
+        var week = weekOfYear(this, 1, 4).week;
+        return input == null ? week : this.add((input - week) * 7, 'd');
+    }
+
+    // FORMATTING
 
     addFormatToken('D', ['DD', 2], 'Do', 'date');
 
@@ -23355,6 +23563,8 @@ module.exports = range;
     // MOMENTS
 
     var getSetDayOfMonth = makeGetSet('Date', true);
+
+    // FORMATTING
 
     addFormatToken('d', 0, 'do', 'day');
 
@@ -23388,8 +23598,8 @@ module.exports = range;
     addRegexToken('ddd',  matchWord);
     addRegexToken('dddd', matchWord);
 
-    addWeekParseToken(['dd', 'ddd', 'dddd'], function (input, week, config) {
-        var weekday = config._locale.weekdaysParse(input);
+    addWeekParseToken(['dd', 'ddd', 'dddd'], function (input, week, config, token) {
+        var weekday = config._locale.weekdaysParse(input, token, config._strict);
         // if we didn't get a weekday name, mark the date as invalid
         if (weekday != null) {
             week.d = weekday;
@@ -23424,8 +23634,9 @@ module.exports = range;
     // LOCALES
 
     var defaultLocaleWeekdays = 'Sunday_Monday_Tuesday_Wednesday_Thursday_Friday_Saturday'.split('_');
-    function localeWeekdays (m) {
-        return this._weekdays[m.day()];
+    function localeWeekdays (m, format) {
+        return isArray(this._weekdays) ? this._weekdays[m.day()] :
+            this._weekdays[this._weekdays.isFormat.test(format) ? 'format' : 'standalone'][m.day()];
     }
 
     var defaultLocaleWeekdaysShort = 'Sun_Mon_Tue_Wed_Thu_Fri_Sat'.split('_');
@@ -23438,20 +23649,37 @@ module.exports = range;
         return this._weekdaysMin[m.day()];
     }
 
-    function localeWeekdaysParse (weekdayName) {
+    function localeWeekdaysParse (weekdayName, format, strict) {
         var i, mom, regex;
 
-        this._weekdaysParse = this._weekdaysParse || [];
+        if (!this._weekdaysParse) {
+            this._weekdaysParse = [];
+            this._minWeekdaysParse = [];
+            this._shortWeekdaysParse = [];
+            this._fullWeekdaysParse = [];
+        }
 
         for (i = 0; i < 7; i++) {
             // make the regex if we don't have it already
+
+            mom = local__createLocal([2000, 1]).day(i);
+            if (strict && !this._fullWeekdaysParse[i]) {
+                this._fullWeekdaysParse[i] = new RegExp('^' + this.weekdays(mom, '').replace('.', '\.?') + '$', 'i');
+                this._shortWeekdaysParse[i] = new RegExp('^' + this.weekdaysShort(mom, '').replace('.', '\.?') + '$', 'i');
+                this._minWeekdaysParse[i] = new RegExp('^' + this.weekdaysMin(mom, '').replace('.', '\.?') + '$', 'i');
+            }
             if (!this._weekdaysParse[i]) {
-                mom = local__createLocal([2000, 1]).day(i);
                 regex = '^' + this.weekdays(mom, '') + '|^' + this.weekdaysShort(mom, '') + '|^' + this.weekdaysMin(mom, '');
                 this._weekdaysParse[i] = new RegExp(regex.replace('.', ''), 'i');
             }
             // test the regex
-            if (this._weekdaysParse[i].test(weekdayName)) {
+            if (strict && format === 'dddd' && this._fullWeekdaysParse[i].test(weekdayName)) {
+                return i;
+            } else if (strict && format === 'ddd' && this._shortWeekdaysParse[i].test(weekdayName)) {
+                return i;
+            } else if (strict && format === 'dd' && this._minWeekdaysParse[i].test(weekdayName)) {
+                return i;
+            } else if (!strict && this._weekdaysParse[i].test(weekdayName)) {
                 return i;
             }
         }
@@ -23460,6 +23688,9 @@ module.exports = range;
     // MOMENTS
 
     function getSetDayOfWeek (input) {
+        if (!this.isValid()) {
+            return input != null ? this : NaN;
+        }
         var day = this._isUTC ? this._d.getUTCDay() : this._d.getDay();
         if (input != null) {
             input = parseWeekday(input, this.localeData());
@@ -23470,20 +23701,73 @@ module.exports = range;
     }
 
     function getSetLocaleDayOfWeek (input) {
+        if (!this.isValid()) {
+            return input != null ? this : NaN;
+        }
         var weekday = (this.day() + 7 - this.localeData()._week.dow) % 7;
         return input == null ? weekday : this.add(input - weekday, 'd');
     }
 
     function getSetISODayOfWeek (input) {
+        if (!this.isValid()) {
+            return input != null ? this : NaN;
+        }
         // behaves the same as moment#day except
         // as a getter, returns 7 instead of 0 (1-7 range instead of 0-6)
         // as a setter, sunday should belong to the previous week.
         return input == null ? this.day() || 7 : this.day(this.day() % 7 ? input : input - 7);
     }
 
-    addFormatToken('H', ['HH', 2], 0, 'hour');
-    addFormatToken('h', ['hh', 2], 0, function () {
+    // FORMATTING
+
+    addFormatToken('DDD', ['DDDD', 3], 'DDDo', 'dayOfYear');
+
+    // ALIASES
+
+    addUnitAlias('dayOfYear', 'DDD');
+
+    // PARSING
+
+    addRegexToken('DDD',  match1to3);
+    addRegexToken('DDDD', match3);
+    addParseToken(['DDD', 'DDDD'], function (input, array, config) {
+        config._dayOfYear = toInt(input);
+    });
+
+    // HELPERS
+
+    // MOMENTS
+
+    function getSetDayOfYear (input) {
+        var dayOfYear = Math.round((this.clone().startOf('day') - this.clone().startOf('year')) / 864e5) + 1;
+        return input == null ? dayOfYear : this.add((input - dayOfYear), 'd');
+    }
+
+    // FORMATTING
+
+    function hFormat() {
         return this.hours() % 12 || 12;
+    }
+
+    addFormatToken('H', ['HH', 2], 0, 'hour');
+    addFormatToken('h', ['hh', 2], 0, hFormat);
+
+    addFormatToken('hmm', 0, 0, function () {
+        return '' + hFormat.apply(this) + zeroFill(this.minutes(), 2);
+    });
+
+    addFormatToken('hmmss', 0, 0, function () {
+        return '' + hFormat.apply(this) + zeroFill(this.minutes(), 2) +
+            zeroFill(this.seconds(), 2);
+    });
+
+    addFormatToken('Hmm', 0, 0, function () {
+        return '' + this.hours() + zeroFill(this.minutes(), 2);
+    });
+
+    addFormatToken('Hmmss', 0, 0, function () {
+        return '' + this.hours() + zeroFill(this.minutes(), 2) +
+            zeroFill(this.seconds(), 2);
     });
 
     function meridiem (token, lowercase) {
@@ -23512,6 +23796,11 @@ module.exports = range;
     addRegexToken('HH', match1to2, match2);
     addRegexToken('hh', match1to2, match2);
 
+    addRegexToken('hmm', match3to4);
+    addRegexToken('hmmss', match5to6);
+    addRegexToken('Hmm', match3to4);
+    addRegexToken('Hmmss', match5to6);
+
     addParseToken(['H', 'HH'], HOUR);
     addParseToken(['a', 'A'], function (input, array, config) {
         config._isPm = config._locale.isPM(input);
@@ -23520,6 +23809,32 @@ module.exports = range;
     addParseToken(['h', 'hh'], function (input, array, config) {
         array[HOUR] = toInt(input);
         getParsingFlags(config).bigHour = true;
+    });
+    addParseToken('hmm', function (input, array, config) {
+        var pos = input.length - 2;
+        array[HOUR] = toInt(input.substr(0, pos));
+        array[MINUTE] = toInt(input.substr(pos));
+        getParsingFlags(config).bigHour = true;
+    });
+    addParseToken('hmmss', function (input, array, config) {
+        var pos1 = input.length - 4;
+        var pos2 = input.length - 2;
+        array[HOUR] = toInt(input.substr(0, pos1));
+        array[MINUTE] = toInt(input.substr(pos1, 2));
+        array[SECOND] = toInt(input.substr(pos2));
+        getParsingFlags(config).bigHour = true;
+    });
+    addParseToken('Hmm', function (input, array, config) {
+        var pos = input.length - 2;
+        array[HOUR] = toInt(input.substr(0, pos));
+        array[MINUTE] = toInt(input.substr(pos));
+    });
+    addParseToken('Hmmss', function (input, array, config) {
+        var pos1 = input.length - 4;
+        var pos2 = input.length - 2;
+        array[HOUR] = toInt(input.substr(0, pos1));
+        array[MINUTE] = toInt(input.substr(pos1, 2));
+        array[SECOND] = toInt(input.substr(pos2));
     });
 
     // LOCALES
@@ -23548,6 +23863,8 @@ module.exports = range;
     // this rule.
     var getSetHour = makeGetSet('Hours', true);
 
+    // FORMATTING
+
     addFormatToken('m', ['mm', 2], 0, 'minute');
 
     // ALIASES
@@ -23564,6 +23881,8 @@ module.exports = range;
 
     var getSetMinute = makeGetSet('Minutes', false);
 
+    // FORMATTING
+
     addFormatToken('s', ['ss', 2], 0, 'second');
 
     // ALIASES
@@ -23579,6 +23898,8 @@ module.exports = range;
     // MOMENTS
 
     var getSetSecond = makeGetSet('Seconds', false);
+
+    // FORMATTING
 
     addFormatToken('S', 0, 0, function () {
         return ~~(this.millisecond() / 100);
@@ -23635,6 +23956,8 @@ module.exports = range;
 
     var getSetMillisecond = makeGetSet('Milliseconds', false);
 
+    // FORMATTING
+
     addFormatToken('z',  0, 0, 'zoneAbbr');
     addFormatToken('zz', 0, 0, 'zoneName');
 
@@ -23650,40 +23973,43 @@ module.exports = range;
 
     var momentPrototype__proto = Moment.prototype;
 
-    momentPrototype__proto.add          = add_subtract__add;
-    momentPrototype__proto.calendar     = moment_calendar__calendar;
-    momentPrototype__proto.clone        = clone;
-    momentPrototype__proto.diff         = diff;
-    momentPrototype__proto.endOf        = endOf;
-    momentPrototype__proto.format       = format;
-    momentPrototype__proto.from         = from;
-    momentPrototype__proto.fromNow      = fromNow;
-    momentPrototype__proto.to           = to;
-    momentPrototype__proto.toNow        = toNow;
-    momentPrototype__proto.get          = getSet;
-    momentPrototype__proto.invalidAt    = invalidAt;
-    momentPrototype__proto.isAfter      = isAfter;
-    momentPrototype__proto.isBefore     = isBefore;
-    momentPrototype__proto.isBetween    = isBetween;
-    momentPrototype__proto.isSame       = isSame;
-    momentPrototype__proto.isValid      = moment_valid__isValid;
-    momentPrototype__proto.lang         = lang;
-    momentPrototype__proto.locale       = locale;
-    momentPrototype__proto.localeData   = localeData;
-    momentPrototype__proto.max          = prototypeMax;
-    momentPrototype__proto.min          = prototypeMin;
-    momentPrototype__proto.parsingFlags = parsingFlags;
-    momentPrototype__proto.set          = getSet;
-    momentPrototype__proto.startOf      = startOf;
-    momentPrototype__proto.subtract     = add_subtract__subtract;
-    momentPrototype__proto.toArray      = toArray;
-    momentPrototype__proto.toObject     = toObject;
-    momentPrototype__proto.toDate       = toDate;
-    momentPrototype__proto.toISOString  = moment_format__toISOString;
-    momentPrototype__proto.toJSON       = moment_format__toISOString;
-    momentPrototype__proto.toString     = toString;
-    momentPrototype__proto.unix         = unix;
-    momentPrototype__proto.valueOf      = to_type__valueOf;
+    momentPrototype__proto.add               = add_subtract__add;
+    momentPrototype__proto.calendar          = moment_calendar__calendar;
+    momentPrototype__proto.clone             = clone;
+    momentPrototype__proto.diff              = diff;
+    momentPrototype__proto.endOf             = endOf;
+    momentPrototype__proto.format            = format;
+    momentPrototype__proto.from              = from;
+    momentPrototype__proto.fromNow           = fromNow;
+    momentPrototype__proto.to                = to;
+    momentPrototype__proto.toNow             = toNow;
+    momentPrototype__proto.get               = getSet;
+    momentPrototype__proto.invalidAt         = invalidAt;
+    momentPrototype__proto.isAfter           = isAfter;
+    momentPrototype__proto.isBefore          = isBefore;
+    momentPrototype__proto.isBetween         = isBetween;
+    momentPrototype__proto.isSame            = isSame;
+    momentPrototype__proto.isSameOrAfter     = isSameOrAfter;
+    momentPrototype__proto.isSameOrBefore    = isSameOrBefore;
+    momentPrototype__proto.isValid           = moment_valid__isValid;
+    momentPrototype__proto.lang              = lang;
+    momentPrototype__proto.locale            = locale;
+    momentPrototype__proto.localeData        = localeData;
+    momentPrototype__proto.max               = prototypeMax;
+    momentPrototype__proto.min               = prototypeMin;
+    momentPrototype__proto.parsingFlags      = parsingFlags;
+    momentPrototype__proto.set               = getSet;
+    momentPrototype__proto.startOf           = startOf;
+    momentPrototype__proto.subtract          = add_subtract__subtract;
+    momentPrototype__proto.toArray           = toArray;
+    momentPrototype__proto.toObject          = toObject;
+    momentPrototype__proto.toDate            = toDate;
+    momentPrototype__proto.toISOString       = moment_format__toISOString;
+    momentPrototype__proto.toJSON            = toJSON;
+    momentPrototype__proto.toString          = toString;
+    momentPrototype__proto.unix              = unix;
+    momentPrototype__proto.valueOf           = to_type__valueOf;
+    momentPrototype__proto.creationData      = creationData;
 
     // Year
     momentPrototype__proto.year       = getSetYear;
@@ -23769,7 +24095,7 @@ module.exports = range;
 
     function locale_calendar__calendar (key, mom, now) {
         var output = this._calendar[key];
-        return typeof output === 'function' ? output.call(mom, now) : output;
+        return isFunction(output) ? output.call(mom, now) : output;
     }
 
     var defaultLongDateFormat = {
@@ -23831,21 +24157,21 @@ module.exports = range;
 
     function relative__relativeTime (number, withoutSuffix, string, isFuture) {
         var output = this._relativeTime[string];
-        return (typeof output === 'function') ?
+        return (isFunction(output)) ?
             output(number, withoutSuffix, string, isFuture) :
             output.replace(/%d/i, number);
     }
 
     function pastFuture (diff, output) {
         var format = this._relativeTime[diff > 0 ? 'future' : 'past'];
-        return typeof format === 'function' ? format(output) : format.replace(/%s/i, output);
+        return isFunction(format) ? format(output) : format.replace(/%s/i, output);
     }
 
     function locale_set__set (config) {
         var prop, i;
         for (i in config) {
             prop = config[i];
-            if (typeof prop === 'function') {
+            if (isFunction(prop)) {
                 this[i] = prop;
             } else {
                 this['_' + i] = prop;
@@ -23948,6 +24274,9 @@ module.exports = range;
     }
 
     locale_locales__getSetGlobalLocale('en', {
+        monthsParse : [/^jan/i, /^feb/i, /^mar/i, /^apr/i, /^may/i, /^jun/i, /^jul/i, /^aug/i, /^sep/i, /^oct/i, /^nov/i, /^dec/i],
+        longMonthsParse : [/^january$/i, /^february$/i, /^march$/i, /^april$/i, /^may$/i, /^june$/i, /^july$/i, /^august$/i, /^september$/i, /^october$/i, /^november$/i, /^december$/i],
+        shortMonthsParse : [/^jan$/i, /^feb$/i, /^mar$/i, /^apr$/i, /^may$/i, /^jun$/i, /^jul$/i, /^aug/i, /^sept?$/i, /^oct$/i, /^nov$/i, /^dec$/i],
         ordinalParse: /\d{1,2}(th|st|nd|rd)/,
         ordinal : function (number) {
             var b = number % 10,
@@ -24167,15 +24496,15 @@ module.exports = range;
         var years    = round(duration.as('y'));
 
         var a = seconds < thresholds.s && ['s', seconds]  ||
-                minutes === 1          && ['m']           ||
+                minutes <= 1           && ['m']           ||
                 minutes < thresholds.m && ['mm', minutes] ||
-                hours   === 1          && ['h']           ||
+                hours   <= 1           && ['h']           ||
                 hours   < thresholds.h && ['hh', hours]   ||
-                days    === 1          && ['d']           ||
+                days    <= 1           && ['d']           ||
                 days    < thresholds.d && ['dd', days]    ||
-                months  === 1          && ['M']           ||
+                months  <= 1           && ['M']           ||
                 months  < thresholds.M && ['MM', months]  ||
-                years   === 1          && ['y']           || ['yy', years];
+                years   <= 1           && ['y']           || ['yy', years];
 
         a[2] = withoutSuffix;
         a[3] = +posNegDuration > 0;
@@ -24296,6 +24625,8 @@ module.exports = range;
 
     // Side effect imports
 
+    // FORMATTING
+
     addFormatToken('X', 0, 0, 'unix');
     addFormatToken('x', 0, 0, 'valueOf');
 
@@ -24313,13 +24644,14 @@ module.exports = range;
     // Side effect imports
 
 
-    utils_hooks__hooks.version = '2.10.6';
+    utils_hooks__hooks.version = '2.11.0';
 
     setHookCallback(local__createLocal);
 
     utils_hooks__hooks.fn                    = momentPrototype;
     utils_hooks__hooks.min                   = min;
     utils_hooks__hooks.max                   = max;
+    utils_hooks__hooks.now                   = now;
     utils_hooks__hooks.utc                   = create_utc__createUTC;
     utils_hooks__hooks.unix                  = moment__createUnix;
     utils_hooks__hooks.months                = lists__listMonths;
@@ -24338,6 +24670,7 @@ module.exports = range;
     utils_hooks__hooks.weekdaysShort         = lists__listWeekdaysShort;
     utils_hooks__hooks.normalizeUnits        = normalizeUnits;
     utils_hooks__hooks.relativeTimeThreshold = duration_humanize__getSetRelativeTimeThreshold;
+    utils_hooks__hooks.prototype             = momentPrototype;
 
     var _moment = utils_hooks__hooks;
 
@@ -25113,7 +25446,7 @@ exports.stringify = function (obj) {
 	}).join('&') : '';
 };
 
-},{"strict-uri-encode":615}],267:[function(require,module,exports){
+},{"strict-uri-encode":617}],267:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -25517,7 +25850,7 @@ var DatePicker = _reactAddons2['default'].createClass({
 exports['default'] = DatePicker;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"./daypicker/DayPicker":277,"./monthpicker/MonthPicker":281,"./utils/DateUtils.js":284,"./utils/ValueLinkMixin":285,"./utils/formatMixin":286,"./yearpicker/YearPicker":287,"_process":264,"classnames":19,"moment":261,"react/addons":425}],272:[function(require,module,exports){
+},{"./daypicker/DayPicker":277,"./monthpicker/MonthPicker":281,"./utils/DateUtils.js":284,"./utils/ValueLinkMixin":285,"./utils/formatMixin":286,"./yearpicker/YearPicker":287,"_process":264,"classnames":19,"moment":261,"react/addons":427}],272:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -25586,6 +25919,8 @@ var propTypes = {
   autoClose: _react.PropTypes.bool,
   floating: _react.PropTypes.bool,
   iconClassName: _react.PropTypes.string,
+  iconClearClassName: _react.PropTypes.string,
+  onClear: _react.PropTypes.func,
   className: _react.PropTypes.string, // used to omit from inputProps
   style: _react.PropTypes.object // used to omit from inputProps
 };
@@ -25675,6 +26010,16 @@ var DatePickerInput = _react2['default'].createClass({
     }
   },
 
+  onClear: function onClear() {
+    var _date = this.props.defaultValue;
+    var date = typeof _date === 'string' ? this.parsePropDateString(_date) : _moment2['default'](_date);
+    this.setState({
+      date: _date ? date : undefined,
+      dateString: _date ? this.formatDisplayedDate(date) : '',
+      showing: false
+    }, this.props.onClear);
+  },
+
   _onChangeDate: function _onChangeDate(jsDate) {
     var newDate = _moment2['default'](jsDate);
     var newDateString = this.formatDisplayedDate(newDate);
@@ -25723,21 +26068,34 @@ var DatePickerInput = _react2['default'].createClass({
 
   render: function render() {
     var inputProps = _lodashObjectOmit2['default'](this.props, Object.keys(propTypes));
-    var inputButton = null;
-    if (this.props.showInputButton) {
-      inputButton = _react2['default'].createElement(
-        'div',
-        { className: _classnames2['default']('input-button', { active: this.state.showing }), onClick: this.toggleDatePicker },
-        _react2['default'].createElement('i', { className: this.props.iconClassName })
-      );
-    }
+    var _props = this.props;
+    var showInputButton = _props.showInputButton;
+    var active = _props.showing;
+    var iconClassName = _props.iconClassName;
+    var showOnInputClick = _props.showOnInputClick;
+    var onClear = _props.onClear;
+    var iconClearClassName = _props.iconClearClassName;
+    var className = _props.className;
+    var style = _props.style;
 
-    var onInputClick = this.props.showOnInputClick ? this.show : undefined;
+    var inputButton = _react2['default'].createElement(
+      'div',
+      { className: _classnames2['default']('input-button', { active: active }), onClick: this.toggleDatePicker },
+      _react2['default'].createElement('i', { className: iconClassName })
+    );
+
+    var clearButton = _react2['default'].createElement(
+      'div',
+      { className: 'clear-button', onClick: this.onClear },
+      _react2['default'].createElement('i', { className: iconClearClassName })
+    );
+
+    var onInputClick = showOnInputClick ? this.show : undefined;
     return _react2['default'].createElement(
       'div',
       {
-        className: _classnames2['default']('react-datepicker-component', this.props.className),
-        style: this.props.style,
+        className: _classnames2['default']('react-datepicker-component', className),
+        style: style,
         onClick: this.stopPropagation },
       _react2['default'].createElement(
         'div',
@@ -25747,7 +26105,12 @@ var DatePickerInput = _react2['default'].createClass({
           onClick: onInputClick,
           onKeyUp: this.hideOnEnterKey
         }, inputProps)),
-        inputButton
+        _react2['default'].createElement(
+          'div',
+          { className: 'button-wrapper' },
+          onClear && clearButton,
+          showInputButton && inputButton
+        )
       ),
       this.getDatePicker()
     );
@@ -25784,7 +26147,7 @@ var DatePickerInput = _react2['default'].createClass({
 
 exports['default'] = DatePickerInput;
 module.exports = exports['default'];
-},{"./DatePicker":271,"./utils/DateUtils":284,"./utils/ValueLinkMixin.js":285,"./utils/formatMixin":286,"classnames":19,"lodash/object/omit":256,"moment":261,"react":599}],273:[function(require,module,exports){
+},{"./DatePicker":271,"./utils/DateUtils":284,"./utils/ValueLinkMixin.js":285,"./utils/formatMixin":286,"classnames":19,"lodash/object/omit":256,"moment":261,"react":601}],273:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -25817,7 +26180,7 @@ var InvalidDate = _react2['default'].createClass({
 
 exports['default'] = InvalidDate;
 module.exports = exports['default'];
-},{"react":599}],274:[function(require,module,exports){
+},{"react":601}],274:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -25895,7 +26258,7 @@ var Picker = _react2['default'].createClass({
 
 exports['default'] = Picker;
 module.exports = exports['default'];
-},{"./utils/DateUtils.js":284,"classnames":19,"react":599}],275:[function(require,module,exports){
+},{"./utils/DateUtils.js":284,"classnames":19,"react":601}],275:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -25918,7 +26281,7 @@ exports['default'] = _react2['default'].createClass({
     handleClick: _react.PropTypes.func,
     nextDate: _react.PropTypes.func,
     previousDate: _react.PropTypes.func,
-    value: _react.PropTypes.string,
+    value: _react.PropTypes.oneOfType([_react.PropTypes.string, _react.PropTypes.number]).isRequired,
     valueClassName: _react.PropTypes.string,
     weekDays: _react.PropTypes.element
   },
@@ -25966,7 +26329,7 @@ exports['default'] = _react2['default'].createClass({
   }
 });
 module.exports = exports['default'];
-},{"classnames":19,"react":599}],276:[function(require,module,exports){
+},{"classnames":19,"react":601}],276:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -25997,7 +26360,7 @@ var Row = _react2['default'].createClass({
 
 exports['default'] = Row;
 module.exports = exports['default'];
-},{"react":599}],277:[function(require,module,exports){
+},{"react":601}],277:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -26061,7 +26424,7 @@ var DayPicker = _react2['default'].createClass({
 
 exports['default'] = DayPicker;
 module.exports = exports['default'];
-},{"../utils/DateUtils.js":284,"./DayPickerBody":278,"./DayPickerTop":279,"react":599}],278:[function(require,module,exports){
+},{"../utils/DateUtils.js":284,"./DayPickerBody":278,"./DayPickerTop":279,"react":601}],278:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -26148,7 +26511,7 @@ var DayPickerBody = _react2['default'].createClass({
 
 exports['default'] = DayPickerBody;
 module.exports = exports['default'];
-},{"../InvalidDate":273,"../Picker":274,"../Row":276,"../utils/DateUtils":284,"lodash/utility/range":260,"react":599}],279:[function(require,module,exports){
+},{"../InvalidDate":273,"../Picker":274,"../Row":276,"../utils/DateUtils":284,"lodash/utility/range":260,"react":601}],279:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -26180,8 +26543,10 @@ exports['default'] = _react2['default'].createClass({
   displayName: 'DayPickerTop',
 
   propTypes: {
+    changeMonth: _react.PropTypes.func.isRequired,
     visibleDate: _react.PropTypes.any.isRequired,
     onChangeMode: _react.PropTypes.func.isRequired,
+    textClassNames: _react.PropTypes.string,
     fixedMode: _react.PropTypes.bool
   },
 
@@ -26217,7 +26582,7 @@ exports['default'] = _react2['default'].createClass({
   }
 });
 module.exports = exports['default'];
-},{"../PickerTop":275,"../utils/DateUtils.js":284,"lodash/function/partial":198,"lodash/string/capitalize":257,"react":599}],280:[function(require,module,exports){
+},{"../PickerTop":275,"../utils/DateUtils.js":284,"lodash/function/partial":198,"lodash/string/capitalize":257,"react":601}],280:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -26304,7 +26669,7 @@ var MonthPicker = _react2['default'].createClass({
 
 exports['default'] = MonthPicker;
 module.exports = exports['default'];
-},{"../utils/DateUtils.js":284,"./MonthPickerBody":282,"./MonthPickerTop":283,"react":599}],282:[function(require,module,exports){
+},{"../utils/DateUtils.js":284,"./MonthPickerBody":282,"./MonthPickerTop":283,"react":601}],282:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -26390,7 +26755,7 @@ var MonthPickerBody = _react2['default'].createClass({
 
 exports['default'] = MonthPickerBody;
 module.exports = exports['default'];
-},{"../InvalidDate":273,"../Picker":274,"../Row":276,"../utils/DateUtils":284,"lodash/utility/range":260,"moment":261,"react":599}],283:[function(require,module,exports){
+},{"../InvalidDate":273,"../Picker":274,"../Row":276,"../utils/DateUtils":284,"lodash/utility/range":260,"moment":261,"react":601}],283:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -26415,6 +26780,8 @@ var MonthPickerTop = _react2['default'].createClass({
   propTypes: {
     visibleDate: _react.PropTypes.any.isRequired,
     onChangeMode: _react.PropTypes.func.isRequired,
+    changeYear: _react.PropTypes.func.isRequired,
+    textClassNames: _react.PropTypes.string,
     fixedMode: _react.PropTypes.bool
   },
 
@@ -26438,7 +26805,7 @@ var MonthPickerTop = _react2['default'].createClass({
 
 exports['default'] = MonthPickerTop;
 module.exports = exports['default'];
-},{"../PickerTop":275,"lodash/function/partial":198,"react":599}],284:[function(require,module,exports){
+},{"../PickerTop":275,"lodash/function/partial":198,"react":601}],284:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -26698,7 +27065,7 @@ var YearPicker = _react2['default'].createClass({
 
 exports['default'] = YearPicker;
 module.exports = exports['default'];
-},{"../utils/DateUtils.js":284,"./YearPickerBody":288,"./YearPickerTop":289,"react":599}],288:[function(require,module,exports){
+},{"../utils/DateUtils.js":284,"./YearPickerBody":288,"./YearPickerTop":289,"react":601}],288:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -26784,7 +27151,7 @@ var YearPickerBody = _react2['default'].createClass({
 
 exports['default'] = YearPickerBody;
 module.exports = exports['default'];
-},{"../InvalidDate":273,"../Picker":274,"../Row":276,"../utils/DateUtils":284,"lodash/utility/range":260,"moment":261,"react":599}],289:[function(require,module,exports){
+},{"../InvalidDate":273,"../Picker":274,"../Row":276,"../utils/DateUtils":284,"lodash/utility/range":260,"moment":261,"react":601}],289:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -26807,8 +27174,9 @@ var YearPickerTop = _react2['default'].createClass({
   displayName: 'YearPickerTop',
 
   propTypes: {
-    initialVisibleDate: _react.PropTypes.any.isRequired,
-    onChangeVisibleDate: _react.PropTypes.func.isRequired
+    visibleDate: _react.PropTypes.any.isRequired,
+    changeYear: _react.PropTypes.func.isRequired,
+    textClassNames: _react.PropTypes.string
   },
 
   render: function render() {
@@ -26826,7 +27194,9 @@ var YearPickerTop = _react2['default'].createClass({
 
 exports['default'] = YearPickerTop;
 module.exports = exports['default'];
-},{"../PickerTop":275,"lodash/function/partial":198,"react":599}],290:[function(require,module,exports){
+},{"../PickerTop":275,"lodash/function/partial":198,"react":601}],290:[function(require,module,exports){
+module.exports = require('react/lib/update');
+},{"react/lib/update":570}],291:[function(require,module,exports){
 /* ========================================================================
  * react-bootstrap-switch - v3.3.4
  * https://github.com/Julusian/react-bootstrap-switch
@@ -27279,7 +27649,7 @@ module.exports = exports['default'];
 
 }).call(this);
 
-},{"jquery":124,"react":599}],291:[function(require,module,exports){
+},{"jquery":124,"react":601}],292:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -27310,7 +27680,7 @@ var Accordion = _react2['default'].createClass({
 
 exports['default'] = Accordion;
 module.exports = exports['default'];
-},{"./PanelGroup":347,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"react":599}],292:[function(require,module,exports){
+},{"./PanelGroup":348,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"react":601}],293:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -27403,7 +27773,7 @@ var Alert = _react2['default'].createClass({
 
 exports['default'] = _utilsBootstrapUtils.bsStyles(_styleMaps.State.values(), _styleMaps.State.INFO, _utilsBootstrapUtils.bsClass('alert', Alert));
 module.exports = exports['default'];
-},{"./styleMaps":363,"./utils/bootstrapUtils":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],293:[function(require,module,exports){
+},{"./styleMaps":364,"./utils/bootstrapUtils":368,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],294:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -27463,7 +27833,7 @@ var Badge = _react2['default'].createClass({
 
 exports['default'] = Badge;
 module.exports = exports['default'];
-},{"./utils/ValidComponentChildren":366,"./utils/bootstrapUtils":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],294:[function(require,module,exports){
+},{"./utils/ValidComponentChildren":367,"./utils/bootstrapUtils":368,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],295:[function(require,module,exports){
 'use strict';
 
 var _objectWithoutProperties = require('babel-runtime/helpers/object-without-properties')['default'];
@@ -27526,7 +27896,7 @@ var Breadcrumb = _react2['default'].createClass({
 
 exports['default'] = Breadcrumb;
 module.exports = exports['default'];
-},{"./utils/ValidComponentChildren":366,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"react":599}],295:[function(require,module,exports){
+},{"./utils/ValidComponentChildren":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"react":601}],296:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -27631,7 +28001,7 @@ var BreadcrumbItem = _react2['default'].createClass({
 exports['default'] = BreadcrumbItem;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"./SafeAnchor":352,"_process":264,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"react":599,"warning":625}],296:[function(require,module,exports){
+},{"./SafeAnchor":353,"_process":264,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"react":601,"warning":627}],297:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -27760,7 +28130,7 @@ Button.types = types;
 
 exports['default'] = _utilsBootstrapUtils.bsStyles(ButtonStyles, _styleMaps.DEFAULT, _utilsBootstrapUtils.bsSizes([_styleMaps.Sizes.LARGE, _styleMaps.Sizes.SMALL, _styleMaps.Sizes.XSMALL], _utilsBootstrapUtils.bsClass('btn', Button)));
 module.exports = exports['default'];
-},{"./styleMaps":363,"./utils/bootstrapUtils":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599,"react-prop-types/lib/elementType":398}],297:[function(require,module,exports){
+},{"./styleMaps":364,"./utils/bootstrapUtils":368,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601,"react-prop-types/lib/elementType":400}],298:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -27835,7 +28205,7 @@ var ButtonGroup = _react2['default'].createClass({
 
 exports['default'] = _utilsBootstrapUtils.bsClass('btn-group', ButtonGroup);
 module.exports = exports['default'];
-},{"./Button":296,"./utils/bootstrapUtils":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599,"react-prop-types/lib/all":395}],298:[function(require,module,exports){
+},{"./Button":297,"./utils/bootstrapUtils":368,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601,"react-prop-types/lib/all":397}],299:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -27925,7 +28295,7 @@ ButtonInput.propTypes = {
 
 exports['default'] = ButtonInput;
 module.exports = exports['default'];
-},{"./Button":296,"./FormGroup":312,"./InputBase":317,"./utils/childrenValueInputValidation":369,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"react":599}],299:[function(require,module,exports){
+},{"./Button":297,"./FormGroup":313,"./InputBase":318,"./utils/childrenValueInputValidation":370,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"react":601}],300:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -27978,7 +28348,7 @@ var ButtonToolbar = _react2['default'].createClass({
 
 exports['default'] = ButtonToolbar;
 module.exports = exports['default'];
-},{"./Button":296,"./utils/bootstrapUtils":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],300:[function(require,module,exports){
+},{"./Button":297,"./utils/bootstrapUtils":368,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],301:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -28289,7 +28659,7 @@ var Carousel = _react2['default'].createClass({
 
 exports['default'] = Carousel;
 module.exports = exports['default'];
-},{"./Glyphicon":313,"./utils/ValidComponentChildren":366,"./utils/bootstrapUtils":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],301:[function(require,module,exports){
+},{"./Glyphicon":314,"./utils/ValidComponentChildren":367,"./utils/bootstrapUtils":368,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],302:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -28413,7 +28783,7 @@ var CarouselItem = _react2['default'].createClass({
 
 exports['default'] = CarouselItem;
 module.exports = exports['default'];
-},{"./utils/TransitionEvents":365,"./utils/bootstrapUtils":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599,"react-dom":374}],302:[function(require,module,exports){
+},{"./utils/TransitionEvents":366,"./utils/bootstrapUtils":368,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601,"react-dom":376}],303:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -28628,7 +28998,7 @@ var Col = _react2['default'].createClass({
 
 exports['default'] = Col;
 module.exports = exports['default'];
-},{"./styleMaps":363,"babel-runtime/core-js/object/keys":4,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599,"react-prop-types/lib/elementType":398}],303:[function(require,module,exports){
+},{"./styleMaps":364,"babel-runtime/core-js/object/keys":4,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601,"react-prop-types/lib/elementType":400}],304:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -28875,7 +29245,7 @@ Collapse.defaultProps = {
 
 exports['default'] = Collapse;
 module.exports = exports['default'];
-},{"./utils/createChainedFunction":370,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"dom-helpers/style":89,"react":599,"react-overlays/lib/Transition":382,"react-prop-types/lib/deprecated":397}],304:[function(require,module,exports){
+},{"./utils/createChainedFunction":371,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"dom-helpers/style":89,"react":601,"react-overlays/lib/Transition":384,"react-prop-types/lib/deprecated":399}],305:[function(require,module,exports){
 'use strict';
 
 var _interopRequireDefault = require('babel-runtime/helpers/interop-require-default')['default'];
@@ -28993,7 +29363,7 @@ var CollapsibleNav = _react2['default'].createClass({
 
 exports['default'] = _utilsDeprecationWarning2['default'].wrapper(CollapsibleNav, 'CollapsibleNav', 'Navbar.Collapse', 'http://react-bootstrap.github.io/components.html#navbars');
 module.exports = exports['default'];
-},{"./Collapse":303,"./utils/ValidComponentChildren":366,"./utils/createChainedFunction":370,"./utils/deprecationWarning":372,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],305:[function(require,module,exports){
+},{"./Collapse":304,"./utils/ValidComponentChildren":367,"./utils/createChainedFunction":371,"./utils/deprecationWarning":373,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],306:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -29395,7 +29765,7 @@ Dropdown.Menu = _DropdownMenu2['default'];
 
 exports['default'] = Dropdown;
 module.exports = exports['default'];
-},{"./ButtonGroup":297,"./DropdownMenu":307,"./DropdownToggle":308,"./utils/CustomPropTypes":364,"./utils/ValidComponentChildren":366,"./utils/bootstrapUtils":367,"./utils/createChainedFunction":370,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"dom-helpers/activeElement":70,"dom-helpers/query/contains":80,"keycode":126,"lodash-compat/collection/find":128,"lodash-compat/object/omit":190,"react":599,"react-dom":374,"react-prop-types/lib/all":395,"react-prop-types/lib/elementType":398,"react-prop-types/lib/isRequiredForA11y":399,"uncontrollable":618}],306:[function(require,module,exports){
+},{"./ButtonGroup":298,"./DropdownMenu":308,"./DropdownToggle":309,"./utils/CustomPropTypes":365,"./utils/ValidComponentChildren":367,"./utils/bootstrapUtils":368,"./utils/createChainedFunction":371,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"dom-helpers/activeElement":70,"dom-helpers/query/contains":80,"keycode":126,"lodash-compat/collection/find":128,"lodash-compat/object/omit":190,"react":601,"react-dom":376,"react-prop-types/lib/all":397,"react-prop-types/lib/elementType":400,"react-prop-types/lib/isRequiredForA11y":401,"uncontrollable":620}],307:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -29502,7 +29872,7 @@ DropdownButton.defaultProps = {
 
 exports['default'] = DropdownButton;
 module.exports = exports['default'];
-},{"./Button":296,"./Dropdown":305,"babel-runtime/core-js/object/keys":4,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"lodash-compat/object/omit":190,"lodash-compat/object/pick":192,"react":599}],307:[function(require,module,exports){
+},{"./Button":297,"./Dropdown":306,"babel-runtime/core-js/object/keys":4,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"lodash-compat/object/omit":190,"lodash-compat/object/pick":192,"react":601}],308:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -29699,7 +30069,7 @@ DropdownMenu.propTypes = {
 
 exports['default'] = DropdownMenu;
 module.exports = exports['default'];
-},{"./utils/ValidComponentChildren":366,"./utils/bootstrapUtils":367,"./utils/createChainedFunction":370,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"keycode":126,"react":599,"react-dom":374,"react-overlays/lib/RootCloseWrapper":381}],308:[function(require,module,exports){
+},{"./utils/ValidComponentChildren":367,"./utils/bootstrapUtils":368,"./utils/createChainedFunction":371,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"keycode":126,"react":601,"react-dom":376,"react-overlays/lib/RootCloseWrapper":383}],309:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -29788,7 +30158,7 @@ DropdownToggle.isToggle = true;
 DropdownToggle.titleProp = 'title';
 DropdownToggle.onClickProp = 'onClick';
 module.exports = exports['default'];
-},{"./Button":296,"./SafeAnchor":352,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],309:[function(require,module,exports){
+},{"./Button":297,"./SafeAnchor":353,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],310:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -29912,7 +30282,7 @@ Fade.defaultProps = {
 
 exports['default'] = Fade;
 module.exports = exports['default'];
-},{"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599,"react-overlays/lib/Transition":382,"react-prop-types/lib/deprecated":397}],310:[function(require,module,exports){
+},{"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601,"react-overlays/lib/Transition":384,"react-prop-types/lib/deprecated":399}],311:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -29976,7 +30346,7 @@ Static.propTypes = {
 
 exports['default'] = Static;
 module.exports = exports['default'];
-},{"../InputBase":317,"../utils/childrenValueInputValidation":369,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],311:[function(require,module,exports){
+},{"../InputBase":318,"../utils/childrenValueInputValidation":370,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],312:[function(require,module,exports){
 'use strict';
 
 var _interopRequireDefault = require('babel-runtime/helpers/interop-require-default')['default'];
@@ -29988,7 +30358,7 @@ var _Static2 = require('./Static');
 var _Static3 = _interopRequireDefault(_Static2);
 
 exports.Static = _Static3['default'];
-},{"./Static":310,"babel-runtime/helpers/interop-require-default":9}],312:[function(require,module,exports){
+},{"./Static":311,"babel-runtime/helpers/interop-require-default":9}],313:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -30058,7 +30428,7 @@ FormGroup.propTypes = {
 
 exports['default'] = FormGroup;
 module.exports = exports['default'];
-},{"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],313:[function(require,module,exports){
+},{"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],314:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -30117,7 +30487,7 @@ var Glyphicon = _react2['default'].createClass({
 
 exports['default'] = Glyphicon;
 module.exports = exports['default'];
-},{"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],314:[function(require,module,exports){
+},{"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],315:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -30176,7 +30546,7 @@ var Grid = _react2['default'].createClass({
 
 exports['default'] = Grid;
 module.exports = exports['default'];
-},{"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599,"react-prop-types/lib/elementType":398}],315:[function(require,module,exports){
+},{"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601,"react-prop-types/lib/elementType":400}],316:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -30242,7 +30612,7 @@ var Image = _react2['default'].createClass({
 
 exports['default'] = Image;
 module.exports = exports['default'];
-},{"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],316:[function(require,module,exports){
+},{"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],317:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -30298,7 +30668,7 @@ Input.propTypes = {
 
 exports['default'] = Input;
 module.exports = exports['default'];
-},{"./FormControls":311,"./InputBase":317,"./utils/deprecationWarning":372,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/interop-require-wildcard":10,"react":599}],317:[function(require,module,exports){
+},{"./FormControls":312,"./InputBase":318,"./utils/deprecationWarning":373,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/interop-require-wildcard":10,"react":601}],318:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -30561,7 +30931,7 @@ InputBase.defaultProps = {
 
 exports['default'] = InputBase;
 module.exports = exports['default'];
-},{"./FormGroup":312,"./Glyphicon":313,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],318:[function(require,module,exports){
+},{"./FormGroup":313,"./Glyphicon":314,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],319:[function(require,module,exports){
 // https://www.npmjs.org/package/react-interpolate-component
 // TODO: Drop this in favor of es6 string interpolation
 
@@ -30659,7 +31029,7 @@ var Interpolate = _react2['default'].createClass({
 
 exports['default'] = Interpolate;
 module.exports = exports['default'];
-},{"./utils/ValidComponentChildren":366,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"react":599}],319:[function(require,module,exports){
+},{"./utils/ValidComponentChildren":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"react":601}],320:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -30707,7 +31077,7 @@ var Jumbotron = _react2['default'].createClass({
 
 exports['default'] = Jumbotron;
 module.exports = exports['default'];
-},{"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599,"react-prop-types/lib/elementType":398}],320:[function(require,module,exports){
+},{"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601,"react-prop-types/lib/elementType":400}],321:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -30761,7 +31131,7 @@ var Label = (function (_React$Component) {
 
 exports['default'] = Label;
 module.exports = exports['default'];
-},{"./styleMaps":363,"./utils/bootstrapUtils":367,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],321:[function(require,module,exports){
+},{"./styleMaps":364,"./utils/bootstrapUtils":368,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],322:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -30889,7 +31259,7 @@ ListGroup.propTypes = {
 
 exports['default'] = ListGroup;
 module.exports = exports['default'];
-},{"./ListGroupItem":322,"./utils/ValidComponentChildren":366,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],322:[function(require,module,exports){
+},{"./ListGroupItem":323,"./utils/ValidComponentChildren":367,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],323:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -31026,7 +31396,7 @@ ListGroupItem.defaultTypes = {
 
 exports['default'] = _utilsBootstrapUtils.bsStyles(_styleMaps.State.values(), _utilsBootstrapUtils.bsClass('list-group-item', ListGroupItem));
 module.exports = exports['default'];
-},{"./styleMaps":363,"./utils/bootstrapUtils":367,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],323:[function(require,module,exports){
+},{"./styleMaps":364,"./utils/bootstrapUtils":368,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],324:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -31161,7 +31531,7 @@ MenuItem.defaultProps = {
 
 exports['default'] = _utilsBootstrapUtils.bsClass('dropdown', MenuItem);
 module.exports = exports['default'];
-},{"./SafeAnchor":352,"./utils/bootstrapUtils":367,"./utils/createChainedFunction":370,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"react":599,"react-prop-types/lib/all":395}],324:[function(require,module,exports){
+},{"./SafeAnchor":353,"./utils/bootstrapUtils":368,"./utils/createChainedFunction":371,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"react":601,"react-prop-types/lib/all":397}],325:[function(require,module,exports){
 
 /* eslint-disable react/prop-types */
 'use strict';
@@ -31453,7 +31823,7 @@ Modal.BACKDROP_TRANSITION_DURATION = 150;
 
 exports['default'] = _utilsBootstrapUtils.bsSizes([_styleMaps.Sizes.LARGE, _styleMaps.Sizes.SMALL], _utilsBootstrapUtils.bsClass('modal', Modal));
 module.exports = exports['default'];
-},{"./Fade":309,"./ModalBody":325,"./ModalDialog":326,"./ModalFooter":327,"./ModalHeader":328,"./ModalTitle":329,"./styleMaps":363,"./utils/bootstrapUtils":367,"babel-runtime/core-js/object/keys":4,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"dom-helpers/events":76,"dom-helpers/ownerDocument":79,"dom-helpers/util/inDOM":97,"dom-helpers/util/scrollbarSize":98,"lodash-compat/object/pick":192,"react":599,"react-dom":374,"react-overlays/lib/Modal":376,"react-overlays/lib/utils/isOverflowing":387,"react-prop-types/lib/elementType":398}],325:[function(require,module,exports){
+},{"./Fade":310,"./ModalBody":326,"./ModalDialog":327,"./ModalFooter":328,"./ModalHeader":329,"./ModalTitle":330,"./styleMaps":364,"./utils/bootstrapUtils":368,"babel-runtime/core-js/object/keys":4,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"dom-helpers/events":76,"dom-helpers/ownerDocument":79,"dom-helpers/util/inDOM":97,"dom-helpers/util/scrollbarSize":98,"lodash-compat/object/pick":192,"react":601,"react-dom":376,"react-overlays/lib/Modal":378,"react-overlays/lib/utils/isOverflowing":389,"react-prop-types/lib/elementType":400}],326:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -31501,7 +31871,7 @@ var ModalBody = (function (_React$Component) {
 
 exports['default'] = _utilsBootstrapUtils.bsClass('modal', ModalBody);
 module.exports = exports['default'];
-},{"./utils/bootstrapUtils":367,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],326:[function(require,module,exports){
+},{"./utils/bootstrapUtils":368,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],327:[function(require,module,exports){
 /* eslint-disable react/prop-types */
 'use strict';
 
@@ -31569,7 +31939,7 @@ var ModalDialog = _react2['default'].createClass({
 
 exports['default'] = _utilsBootstrapUtils.bsSizes([_styleMaps.Sizes.LARGE, _styleMaps.Sizes.SMALL], _utilsBootstrapUtils.bsClass('modal', ModalDialog));
 module.exports = exports['default'];
-},{"./styleMaps":363,"./utils/bootstrapUtils":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],327:[function(require,module,exports){
+},{"./styleMaps":364,"./utils/bootstrapUtils":368,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],328:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -31628,7 +31998,7 @@ ModalFooter.defaultProps = {
 
 exports['default'] = _utilsBootstrapUtils.bsClass('modal', ModalFooter);
 module.exports = exports['default'];
-},{"./utils/bootstrapUtils":367,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],328:[function(require,module,exports){
+},{"./utils/bootstrapUtils":368,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],329:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -31733,7 +32103,7 @@ ModalHeader.defaultProps = {
 
 exports['default'] = _utilsBootstrapUtils.bsClass('modal', ModalHeader);
 module.exports = exports['default'];
-},{"./utils/bootstrapUtils":367,"./utils/createChainedFunction":370,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"react":599}],329:[function(require,module,exports){
+},{"./utils/bootstrapUtils":368,"./utils/createChainedFunction":371,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"react":601}],330:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -31781,7 +32151,7 @@ var ModalTitle = (function (_React$Component) {
 
 exports['default'] = _utilsBootstrapUtils.bsClass('modal', ModalTitle);
 module.exports = exports['default'];
-},{"./utils/bootstrapUtils":367,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],330:[function(require,module,exports){
+},{"./utils/bootstrapUtils":368,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],331:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -31995,7 +32365,7 @@ Nav.defaultProps = {
 
 exports['default'] = _utilsBootstrapUtils.bsClass('nav', _utilsBootstrapUtils.bsStyles(['tabs', 'pills'], Nav));
 module.exports = exports['default'];
-},{"./Collapse":303,"./utils/ValidComponentChildren":366,"./utils/bootstrapUtils":367,"./utils/createChainedFunction":370,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599,"react-prop-types/lib/all":395,"react-prop-types/lib/deprecated":397}],331:[function(require,module,exports){
+},{"./Collapse":304,"./utils/ValidComponentChildren":367,"./utils/bootstrapUtils":368,"./utils/createChainedFunction":371,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601,"react-prop-types/lib/all":397,"react-prop-types/lib/deprecated":399}],332:[function(require,module,exports){
 'use strict';
 
 var _interopRequireDefault = require('babel-runtime/helpers/interop-require-default')['default'];
@@ -32014,7 +32384,7 @@ exports['default'] = _utilsDeprecationWarning2['default'].wrapper(_NavbarBrand2[
   message: 'The `NavBrand` component has been renamed to: `NavbarBrand`. ' + 'Please use that component instead; this alias will be removed in an upcoming release'
 });
 module.exports = exports['default'];
-},{"./NavbarBrand":335,"./utils/deprecationWarning":372,"babel-runtime/helpers/interop-require-default":9}],332:[function(require,module,exports){
+},{"./NavbarBrand":336,"./utils/deprecationWarning":373,"babel-runtime/helpers/interop-require-default":9}],333:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -32084,7 +32454,7 @@ NavDropdown.propTypes = _extends({
 
 exports['default'] = NavDropdown;
 module.exports = exports['default'];
-},{"./Dropdown":305,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"react":599}],333:[function(require,module,exports){
+},{"./Dropdown":306,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"react":601}],334:[function(require,module,exports){
 'use strict';
 
 var _objectWithoutProperties = require('babel-runtime/helpers/object-without-properties')['default'];
@@ -32196,7 +32566,7 @@ var NavItem = _react2['default'].createClass({
 exports['default'] = NavItem;
 module.exports = exports['default'];
 //eslint-disable-line
-},{"./SafeAnchor":352,"./utils/createChainedFunction":370,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"react":599}],334:[function(require,module,exports){
+},{"./SafeAnchor":353,"./utils/createChainedFunction":371,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"react":601}],335:[function(require,module,exports){
 /* eslint react/no-multi-comp: 0 */
 'use strict';
 
@@ -32465,7 +32835,7 @@ Navbar.Link = createSimpleWrapper('a', 'link', 'NavbarLink');
 
 exports['default'] = Navbar;
 module.exports = exports['default'];
-},{"./Grid":314,"./NavbarBrand":335,"./NavbarCollapse":336,"./NavbarHeader":337,"./NavbarToggle":338,"./deprecated/Navbar":361,"./styleMaps":363,"./utils/ValidComponentChildren":366,"./utils/bootstrapUtils":367,"./utils/deprecationWarning":372,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"react":599,"react-prop-types/lib/deprecated":397,"react-prop-types/lib/elementType":398,"uncontrollable":618}],335:[function(require,module,exports){
+},{"./Grid":315,"./NavbarBrand":336,"./NavbarCollapse":337,"./NavbarHeader":338,"./NavbarToggle":339,"./deprecated/Navbar":362,"./styleMaps":364,"./utils/ValidComponentChildren":367,"./utils/bootstrapUtils":368,"./utils/deprecationWarning":373,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"react":601,"react-prop-types/lib/deprecated":399,"react-prop-types/lib/elementType":400,"uncontrollable":620}],336:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -32535,7 +32905,7 @@ NavbarBrand.contextTypes = {
 
 exports['default'] = NavbarBrand;
 module.exports = exports['default'];
-},{"./utils/bootstrapUtils":367,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"react":599}],336:[function(require,module,exports){
+},{"./utils/bootstrapUtils":368,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"react":601}],337:[function(require,module,exports){
 'use strict';
 
 var _objectWithoutProperties = require('babel-runtime/helpers/object-without-properties')['default'];
@@ -32591,7 +32961,7 @@ var NavbarCollapse = _react2['default'].createClass({
 
 exports['default'] = NavbarCollapse;
 module.exports = exports['default'];
-},{"./Collapse":303,"./utils/bootstrapUtils":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"react":599}],337:[function(require,module,exports){
+},{"./Collapse":304,"./utils/bootstrapUtils":368,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"react":601}],338:[function(require,module,exports){
 'use strict';
 
 var _objectWithoutProperties = require('babel-runtime/helpers/object-without-properties')['default'];
@@ -32634,7 +33004,7 @@ var NavbarHeader = _react2['default'].createClass({
 
 exports['default'] = NavbarHeader;
 module.exports = exports['default'];
-},{"./utils/bootstrapUtils":367,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"react":599}],338:[function(require,module,exports){
+},{"./utils/bootstrapUtils":368,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"react":601}],339:[function(require,module,exports){
 'use strict';
 
 var _objectWithoutProperties = require('babel-runtime/helpers/object-without-properties')['default'];
@@ -32694,7 +33064,7 @@ var NavbarToggle = _react2['default'].createClass({
 
 exports['default'] = NavbarToggle;
 module.exports = exports['default'];
-},{"./utils/bootstrapUtils":367,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"react":599}],339:[function(require,module,exports){
+},{"./utils/bootstrapUtils":368,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"react":601}],340:[function(require,module,exports){
 /* eslint react/prop-types: [2, {ignore: ["container", "containerPadding", "target", "placement", "children"] }] */
 /* These properties are validated in 'Portal' and 'Position' components */
 
@@ -32834,7 +33204,7 @@ Overlay.defaultProps = {
 
 exports['default'] = Overlay;
 module.exports = exports['default'];
-},{"./Fade":309,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"react":599,"react-overlays/lib/Overlay":378,"react-prop-types/lib/elementType":398}],340:[function(require,module,exports){
+},{"./Fade":310,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"react":601,"react-overlays/lib/Overlay":380,"react-prop-types/lib/elementType":400}],341:[function(require,module,exports){
 (function (process){
 /* eslint-disable react/prop-types */
 
@@ -33151,7 +33521,7 @@ var OverlayTrigger = _react2['default'].createClass({
 exports['default'] = OverlayTrigger;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"./Overlay":339,"./utils/createChainedFunction":370,"_process":264,"babel-runtime/core-js/object/keys":4,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"dom-helpers/query/contains":80,"lodash-compat/object/pick":192,"react":599,"react-dom":374,"warning":625}],341:[function(require,module,exports){
+},{"./Overlay":340,"./utils/createChainedFunction":371,"_process":264,"babel-runtime/core-js/object/keys":4,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"dom-helpers/query/contains":80,"lodash-compat/object/pick":192,"react":601,"react-dom":376,"warning":627}],342:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -33186,7 +33556,7 @@ var PageHeader = _react2['default'].createClass({
 
 exports['default'] = PageHeader;
 module.exports = exports['default'];
-},{"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],342:[function(require,module,exports){
+},{"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],343:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -33265,7 +33635,7 @@ var PageItem = _react2['default'].createClass({
 
 exports['default'] = PageItem;
 module.exports = exports['default'];
-},{"./SafeAnchor":352,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],343:[function(require,module,exports){
+},{"./SafeAnchor":353,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],344:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -33316,7 +33686,7 @@ var Pager = _react2['default'].createClass({
 
 exports['default'] = Pager;
 module.exports = exports['default'];
-},{"./utils/ValidComponentChildren":366,"./utils/createChainedFunction":370,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],344:[function(require,module,exports){
+},{"./utils/ValidComponentChildren":367,"./utils/createChainedFunction":371,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],345:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -33566,7 +33936,7 @@ var Pagination = _react2['default'].createClass({
 
 exports['default'] = _utilsBootstrapUtils.bsClass('pagination', Pagination);
 module.exports = exports['default'];
-},{"./PaginationButton":345,"./SafeAnchor":352,"./utils/bootstrapUtils":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599,"react-prop-types/lib/elementType":398}],345:[function(require,module,exports){
+},{"./PaginationButton":346,"./SafeAnchor":353,"./utils/bootstrapUtils":368,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601,"react-prop-types/lib/elementType":400}],346:[function(require,module,exports){
 'use strict';
 
 var _objectWithoutProperties = require('babel-runtime/helpers/object-without-properties')['default'];
@@ -33650,7 +34020,7 @@ var PaginationButton = _react2['default'].createClass({
 
 exports['default'] = PaginationButton;
 module.exports = exports['default'];
-},{"./utils/createSelectedEvent":371,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"react":599,"react-prop-types/lib/elementType":398}],346:[function(require,module,exports){
+},{"./utils/createSelectedEvent":372,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"react":601,"react-prop-types/lib/elementType":400}],347:[function(require,module,exports){
 'use strict';
 
 var _objectWithoutProperties = require('babel-runtime/helpers/object-without-properties')['default'];
@@ -33900,7 +34270,7 @@ var PANEL_STATES = _styleMaps.State.values().concat(_styleMaps.DEFAULT, _styleMa
 
 exports['default'] = _utilsBootstrapUtils.bsStyles(PANEL_STATES, _styleMaps.DEFAULT, _utilsBootstrapUtils.bsClass('panel', Panel));
 module.exports = exports['default'];
-},{"./Collapse":303,"./styleMaps":363,"./utils/bootstrapUtils":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"react":599}],347:[function(require,module,exports){
+},{"./Collapse":304,"./styleMaps":364,"./utils/bootstrapUtils":368,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"react":601}],348:[function(require,module,exports){
 'use strict';
 
 var _objectWithoutProperties = require('babel-runtime/helpers/object-without-properties')['default'];
@@ -34016,7 +34386,7 @@ var PanelGroup = _react2['default'].createClass({
 
 exports['default'] = _utilsBootstrapUtils.bsClass('panel-group', PanelGroup);
 module.exports = exports['default'];
-},{"./utils/ValidComponentChildren":366,"./utils/bootstrapUtils":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"react":599}],348:[function(require,module,exports){
+},{"./utils/ValidComponentChildren":367,"./utils/bootstrapUtils":368,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"react":601}],349:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -34129,7 +34499,7 @@ var Popover = _react2['default'].createClass({
 exports['default'] = Popover;
 module.exports = exports['default'];
 // we don't want to expose the `style` property
-},{"./utils/bootstrapUtils":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599,"react-prop-types/lib/isRequiredForA11y":399}],349:[function(require,module,exports){
+},{"./utils/bootstrapUtils":368,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601,"react-prop-types/lib/isRequiredForA11y":401}],350:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -34328,7 +34698,7 @@ ProgressBar.defaultProps = _extends({}, ProgressBar.defaultProps, {
 
 exports['default'] = _utilsBootstrapUtils.bsStyles(_styleMaps.State.values(), _utilsBootstrapUtils.bsClass('progress-bar', ProgressBar));
 module.exports = exports['default'];
-},{"./Interpolate":318,"./styleMaps":363,"./utils/ValidComponentChildren":366,"./utils/bootstrapUtils":367,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"react":599}],350:[function(require,module,exports){
+},{"./Interpolate":319,"./styleMaps":364,"./utils/ValidComponentChildren":367,"./utils/bootstrapUtils":368,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"react":601}],351:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -34424,7 +34794,7 @@ ResponsiveEmbed.propTypes = {
 exports['default'] = ResponsiveEmbed;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"_process":264,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"react":599,"warning":625}],351:[function(require,module,exports){
+},{"_process":264,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"react":601,"warning":627}],352:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -34474,7 +34844,7 @@ var Row = _react2['default'].createClass({
 
 exports['default'] = Row;
 module.exports = exports['default'];
-},{"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599,"react-prop-types/lib/elementType":398}],352:[function(require,module,exports){
+},{"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601,"react-prop-types/lib/elementType":400}],353:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -34535,7 +34905,7 @@ SafeAnchor.propTypes = {
   onClick: _react2['default'].PropTypes.func
 };
 module.exports = exports['default'];
-},{"./utils/createChainedFunction":370,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"react":599}],353:[function(require,module,exports){
+},{"./utils/createChainedFunction":371,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"react":601}],354:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -34659,7 +35029,7 @@ SplitButton.Toggle = _SplitToggle2['default'];
 
 exports['default'] = SplitButton;
 module.exports = exports['default'];
-},{"./Button":296,"./Dropdown":305,"./SplitToggle":354,"babel-runtime/core-js/object/keys":4,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"lodash-compat/object/omit":190,"lodash-compat/object/pick":192,"react":599}],354:[function(require,module,exports){
+},{"./Button":297,"./Dropdown":306,"./SplitToggle":355,"babel-runtime/core-js/object/keys":4,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"lodash-compat/object/omit":190,"lodash-compat/object/pick":192,"react":601}],355:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -34703,7 +35073,7 @@ exports['default'] = SplitToggle;
 
 SplitToggle.defaultProps = _DropdownToggle2['default'].defaultProps;
 module.exports = exports['default'];
-},{"./DropdownToggle":308,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"react":599}],355:[function(require,module,exports){
+},{"./DropdownToggle":309,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"react":601}],356:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -34831,7 +35201,7 @@ var Tab = _react2['default'].createClass({
 
 exports['default'] = Tab;
 module.exports = exports['default'];
-},{"./utils/TransitionEvents":365,"./utils/bootstrapUtils":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599,"react-dom":374}],356:[function(require,module,exports){
+},{"./utils/TransitionEvents":366,"./utils/bootstrapUtils":368,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601,"react-dom":376}],357:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -34893,7 +35263,7 @@ var Table = _react2['default'].createClass({
 
 exports['default'] = Table;
 module.exports = exports['default'];
-},{"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],357:[function(require,module,exports){
+},{"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],358:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -35337,7 +35707,7 @@ var Tabs = _react2['default'].createClass({
 
 exports['default'] = Tabs;
 module.exports = exports['default'];
-},{"./Col":302,"./Nav":330,"./NavItem":333,"./styleMaps":363,"./utils/ValidComponentChildren":366,"./utils/bootstrapUtils":367,"./utils/createChainedFunction":370,"babel-runtime/core-js/object/keys":4,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"keycode":126,"react":599,"react-dom":374}],358:[function(require,module,exports){
+},{"./Col":303,"./Nav":331,"./NavItem":334,"./styleMaps":364,"./utils/ValidComponentChildren":367,"./utils/bootstrapUtils":368,"./utils/createChainedFunction":371,"babel-runtime/core-js/object/keys":4,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"keycode":126,"react":601,"react-dom":376}],359:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -35405,7 +35775,7 @@ var Thumbnail = _react2['default'].createClass({
 
 exports['default'] = _utilsBootstrapUtils.bsClass('thumbnail', Thumbnail);
 module.exports = exports['default'];
-},{"./SafeAnchor":352,"./utils/bootstrapUtils":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],359:[function(require,module,exports){
+},{"./SafeAnchor":353,"./utils/bootstrapUtils":368,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],360:[function(require,module,exports){
 'use strict';
 
 var _extends = require('babel-runtime/helpers/extends')['default'];
@@ -35505,7 +35875,7 @@ var Tooltip = _react2['default'].createClass({
 
 exports['default'] = Tooltip;
 module.exports = exports['default'];
-},{"./utils/bootstrapUtils":367,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599,"react-prop-types/lib/isRequiredForA11y":399}],360:[function(require,module,exports){
+},{"./utils/bootstrapUtils":368,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601,"react-prop-types/lib/isRequiredForA11y":401}],361:[function(require,module,exports){
 'use strict';
 
 var _inherits = require('babel-runtime/helpers/inherits')['default'];
@@ -35559,7 +35929,7 @@ var Well = (function (_React$Component) {
 
 exports['default'] = Well;
 module.exports = exports['default'];
-},{"./styleMaps":363,"./utils/bootstrapUtils":367,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":373,"react":599}],361:[function(require,module,exports){
+},{"./styleMaps":364,"./utils/bootstrapUtils":368,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"classnames":374,"react":601}],362:[function(require,module,exports){
 'use strict';
 
 var _objectWithoutProperties = require('babel-runtime/helpers/object-without-properties')['default'];
@@ -35819,7 +36189,7 @@ var NAVBAR_STATES = [_styleMaps.DEFAULT, _styleMaps.INVERSE];
 
 exports['default'] = _utilsBootstrapUtils.bsStyles(NAVBAR_STATES, _styleMaps.DEFAULT, _utilsBootstrapUtils.bsClass('navbar', Navbar));
 module.exports = exports['default'];
-},{"../Grid":314,"../NavBrand":331,"../styleMaps":363,"../utils/ValidComponentChildren":366,"../utils/bootstrapUtils":367,"../utils/createChainedFunction":370,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":373,"react":599,"react-prop-types/lib/deprecated":397,"react-prop-types/lib/elementType":398}],362:[function(require,module,exports){
+},{"../Grid":315,"../NavBrand":332,"../styleMaps":364,"../utils/ValidComponentChildren":367,"../utils/bootstrapUtils":368,"../utils/createChainedFunction":371,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/object-without-properties":11,"classnames":374,"react":601,"react-prop-types/lib/deprecated":399,"react-prop-types/lib/elementType":400}],363:[function(require,module,exports){
 'use strict';
 
 var _interopRequireDefault = require('babel-runtime/helpers/interop-require-default')['default'];
@@ -36208,7 +36578,7 @@ var utils = {
   ValidComponentChildren: _utilsValidComponentChildren2['default']
 };
 exports.utils = utils;
-},{"./Accordion":291,"./Alert":292,"./Badge":293,"./Breadcrumb":294,"./BreadcrumbItem":295,"./Button":296,"./ButtonGroup":297,"./ButtonInput":298,"./ButtonToolbar":299,"./Carousel":300,"./CarouselItem":301,"./Col":302,"./Collapse":303,"./CollapsibleNav":304,"./Dropdown":305,"./DropdownButton":306,"./Fade":309,"./FormControls":311,"./Glyphicon":313,"./Grid":314,"./Image":315,"./Input":316,"./Interpolate":318,"./Jumbotron":319,"./Label":320,"./ListGroup":321,"./ListGroupItem":322,"./MenuItem":323,"./Modal":324,"./ModalBody":325,"./ModalFooter":327,"./ModalHeader":328,"./ModalTitle":329,"./Nav":330,"./NavBrand":331,"./NavDropdown":332,"./NavItem":333,"./Navbar":334,"./NavbarBrand":335,"./Overlay":339,"./OverlayTrigger":340,"./PageHeader":341,"./PageItem":342,"./Pager":343,"./Pagination":344,"./Panel":346,"./PanelGroup":347,"./Popover":348,"./ProgressBar":349,"./ResponsiveEmbed":350,"./Row":351,"./SafeAnchor":352,"./SplitButton":353,"./Tab":355,"./Table":356,"./Tabs":357,"./Thumbnail":358,"./Tooltip":359,"./Well":360,"./utils/ValidComponentChildren":366,"./utils/bootstrapUtils":367,"./utils/childrenValueInputValidation":369,"./utils/createChainedFunction":370,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/interop-require-wildcard":10}],363:[function(require,module,exports){
+},{"./Accordion":292,"./Alert":293,"./Badge":294,"./Breadcrumb":295,"./BreadcrumbItem":296,"./Button":297,"./ButtonGroup":298,"./ButtonInput":299,"./ButtonToolbar":300,"./Carousel":301,"./CarouselItem":302,"./Col":303,"./Collapse":304,"./CollapsibleNav":305,"./Dropdown":306,"./DropdownButton":307,"./Fade":310,"./FormControls":312,"./Glyphicon":314,"./Grid":315,"./Image":316,"./Input":317,"./Interpolate":319,"./Jumbotron":320,"./Label":321,"./ListGroup":322,"./ListGroupItem":323,"./MenuItem":324,"./Modal":325,"./ModalBody":326,"./ModalFooter":328,"./ModalHeader":329,"./ModalTitle":330,"./Nav":331,"./NavBrand":332,"./NavDropdown":333,"./NavItem":334,"./Navbar":335,"./NavbarBrand":336,"./Overlay":340,"./OverlayTrigger":341,"./PageHeader":342,"./PageItem":343,"./Pager":344,"./Pagination":345,"./Panel":347,"./PanelGroup":348,"./Popover":349,"./ProgressBar":350,"./ResponsiveEmbed":351,"./Row":352,"./SafeAnchor":353,"./SplitButton":354,"./Tab":356,"./Table":357,"./Tabs":358,"./Thumbnail":359,"./Tooltip":360,"./Well":361,"./utils/ValidComponentChildren":367,"./utils/bootstrapUtils":368,"./utils/childrenValueInputValidation":370,"./utils/createChainedFunction":371,"babel-runtime/helpers/interop-require-default":9,"babel-runtime/helpers/interop-require-wildcard":10}],364:[function(require,module,exports){
 'use strict';
 
 var _Object$assign = require('babel-runtime/core-js/object/assign')['default'];
@@ -36272,7 +36642,7 @@ var INVERSE = 'inverse';
 
 exports.INVERSE = INVERSE;
 exports['default'] = styleMaps;
-},{"babel-runtime/core-js/object/assign":2,"babel-runtime/core-js/object/create":3,"babel-runtime/core-js/object/keys":4}],364:[function(require,module,exports){
+},{"babel-runtime/core-js/object/assign":2,"babel-runtime/core-js/object/create":3,"babel-runtime/core-js/object/keys":4}],365:[function(require,module,exports){
 'use strict';
 
 var _interopRequireDefault = require('babel-runtime/helpers/interop-require-default')['default'];
@@ -36344,7 +36714,7 @@ exports['default'] = {
   }
 };
 module.exports = exports['default'];
-},{"./childrenToArray":368,"babel-runtime/helpers/interop-require-default":9,"react-prop-types/lib/common":396}],365:[function(require,module,exports){
+},{"./childrenToArray":369,"babel-runtime/helpers/interop-require-default":9,"react-prop-types/lib/common":398}],366:[function(require,module,exports){
 /**
  * Copyright 2013-2014, Facebook, Inc.
  * All rights reserved.
@@ -36459,7 +36829,7 @@ var ReactTransitionEvents = {
 
 exports['default'] = ReactTransitionEvents;
 module.exports = exports['default'];
-},{}],366:[function(require,module,exports){
+},{}],367:[function(require,module,exports){
 'use strict';
 
 var _interopRequireDefault = require('babel-runtime/helpers/interop-require-default')['default'];
@@ -36603,7 +36973,7 @@ exports['default'] = {
   hasValidComponent: hasValidComponent
 };
 module.exports = exports['default'];
-},{"babel-runtime/helpers/interop-require-default":9,"react":599}],367:[function(require,module,exports){
+},{"babel-runtime/helpers/interop-require-default":9,"react":601}],368:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -36782,7 +37152,7 @@ exports['default'] = {
 var _curry = curry;
 exports._curry = _curry;
 }).call(this,require('_process'))
-},{"../styleMaps":363,"_process":264,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"invariant":121,"react":599,"warning":625}],368:[function(require,module,exports){
+},{"../styleMaps":364,"_process":264,"babel-runtime/helpers/extends":7,"babel-runtime/helpers/interop-require-default":9,"invariant":121,"react":601,"warning":627}],369:[function(require,module,exports){
 'use strict';
 
 var _interopRequireDefault = require('babel-runtime/helpers/interop-require-default')['default'];
@@ -36809,7 +37179,7 @@ function childrenAsArray(children) {
 }
 
 module.exports = exports['default'];
-},{"./ValidComponentChildren":366,"babel-runtime/helpers/interop-require-default":9}],369:[function(require,module,exports){
+},{"./ValidComponentChildren":367,"babel-runtime/helpers/interop-require-default":9}],370:[function(require,module,exports){
 'use strict';
 
 var _interopRequireDefault = require('babel-runtime/helpers/interop-require-default')['default'];
@@ -36836,7 +37206,7 @@ function valueValidation(props, propName, componentName) {
 }
 
 module.exports = exports['default'];
-},{"babel-runtime/helpers/interop-require-default":9,"react":599,"react-prop-types/lib/singlePropFrom":400}],370:[function(require,module,exports){
+},{"babel-runtime/helpers/interop-require-default":9,"react":601,"react-prop-types/lib/singlePropFrom":402}],371:[function(require,module,exports){
 /**
  * Safe chained function
  *
@@ -36878,7 +37248,7 @@ function createChainedFunction() {
 
 exports['default'] = createChainedFunction;
 module.exports = exports['default'];
-},{}],371:[function(require,module,exports){
+},{}],372:[function(require,module,exports){
 "use strict";
 
 exports.__esModule = true;
@@ -36901,7 +37271,7 @@ function createSelectedEvent(eventKey) {
 }
 
 module.exports = exports["default"];
-},{}],372:[function(require,module,exports){
+},{}],373:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -36975,7 +37345,7 @@ deprecationWarning.wrapper = function (Component) {
 exports['default'] = deprecationWarning;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"_process":264,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"warning":625}],373:[function(require,module,exports){
+},{"_process":264,"babel-runtime/helpers/class-call-check":6,"babel-runtime/helpers/inherits":8,"babel-runtime/helpers/interop-require-default":9,"warning":627}],374:[function(require,module,exports){
 /*!
   Copyright (c) 2015 Jed Watson.
   Licensed under the MIT License (MIT), see
@@ -37025,17 +37395,107 @@ module.exports = exports['default'];
 	}
 }());
 
-},{}],374:[function(require,module,exports){
+},{}],375:[function(require,module,exports){
+/**
+* @jsx React.DOM
+*/
+'use strict';
+
+function _objectWithoutProperties(obj, keys) { var target = {}; for (var i in obj) { if (keys.indexOf(i) >= 0) continue; if (!Object.prototype.hasOwnProperty.call(obj, i)) continue; target[i] = obj[i]; } return target; }
+
+var React = require('react');
+var ReactDOM = require('react-dom');
+
+module.exports = React.createClass({
+  displayName: 'CheckboxGroup',
+  getInitialState: function getInitialState() {
+    return { defaultValue: this.props.defaultValue || [] };
+  },
+
+  componentDidMount: function componentDidMount() {
+    this.setCheckboxNames();
+    this.setCheckedBoxes();
+  },
+
+  componentDidUpdate: function componentDidUpdate() {
+    this.setCheckboxNames();
+    this.setCheckedBoxes();
+  },
+
+  render: function render() {
+    var _props = this.props;
+    var name = _props.name;
+    var value = _props.value;
+    var defaultValue = _props.defaultValue;
+
+    var otherProps = _objectWithoutProperties(_props, ['name', 'value', 'defaultValue']);
+
+    return React.createElement(
+      'div',
+      otherProps,
+      this.props.children
+    );
+  },
+
+  setCheckboxNames: function setCheckboxNames() {
+    // stay DRY and don't put the same `name` on all checkboxes manually. Put it on
+    // the tag and it'll be done here
+    var $checkboxes = this.getCheckboxes();
+    for (var i = 0, _length = $checkboxes.length; i < _length; i++) {
+      $checkboxes[i].setAttribute('name', this.props.name);
+    }
+  },
+
+  getCheckboxes: function getCheckboxes() {
+    return ReactDOM.findDOMNode(this).querySelectorAll('input[type="checkbox"]');
+  },
+
+  setCheckedBoxes: function setCheckedBoxes() {
+    var $checkboxes = this.getCheckboxes();
+    // if `value` is passed from parent, always use that value. This is similar
+    // to React's controlled component. If `defaultValue` is used instead,
+    // subsequent updates to defaultValue are ignored. Note: when `defaultValue`
+    // and `value` are both passed, the latter takes precedence, just like in
+    // a controlled component
+    var destinationValue = this.props.value != null ? this.props.value : this.state.defaultValue;
+
+    for (var i = 0, _length2 = $checkboxes.length; i < _length2; i++) {
+      var $checkbox = $checkboxes[i];
+
+      // intentionally use implicit conversion for those who accidentally used,
+      // say, `valueToChange` of 1 (integer) to compare it with `value` of "1"
+      // (auto conversion to valid html value from React)
+      if (destinationValue.indexOf($checkbox.value) >= 0) {
+        $checkbox.checked = true;
+      }
+    }
+  },
+
+  getCheckedValues: function getCheckedValues() {
+    var $checkboxes = this.getCheckboxes();
+
+    var checked = [];
+    for (var i = 0, _length3 = $checkboxes.length; i < _length3; i++) {
+      if ($checkboxes[i].checked) {
+        checked.push($checkboxes[i].value);
+      }
+    }
+
+    return checked;
+  }
+});
+
+},{"react":601,"react-dom":376}],376:[function(require,module,exports){
 'use strict';
 
 module.exports = require('react/lib/ReactDOM');
 
-},{"react/lib/ReactDOM":464}],375:[function(require,module,exports){
+},{"react/lib/ReactDOM":466}],377:[function(require,module,exports){
 'use strict';
 
 module.exports = require('react/lib/ReactDOMServer');
 
-},{"react/lib/ReactDOMServer":474}],376:[function(require,module,exports){
+},{"react/lib/ReactDOMServer":476}],378:[function(require,module,exports){
 /*eslint-disable react/prop-types */
 'use strict';
 
@@ -37493,7 +37953,7 @@ Modal.manager = modalManager;
 
 exports['default'] = Modal;
 module.exports = exports['default'];
-},{"./ModalManager":377,"./Portal":379,"./utils/addEventListener":383,"./utils/addFocusListener":384,"./utils/getContainer":386,"./utils/ownerDocument":390,"dom-helpers/activeElement":70,"dom-helpers/query/contains":80,"dom-helpers/util/inDOM":97,"react":599,"react-prop-types/lib/elementType":393,"react-prop-types/lib/mountable":394,"warning":625}],377:[function(require,module,exports){
+},{"./ModalManager":379,"./Portal":381,"./utils/addEventListener":385,"./utils/addFocusListener":386,"./utils/getContainer":388,"./utils/ownerDocument":392,"dom-helpers/activeElement":70,"dom-helpers/query/contains":80,"dom-helpers/util/inDOM":97,"react":601,"react-prop-types/lib/elementType":395,"react-prop-types/lib/mountable":396,"warning":627}],379:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -37649,7 +38109,7 @@ var ModalManager = (function () {
 
 exports['default'] = ModalManager;
 module.exports = exports['default'];
-},{"./utils/isOverflowing":387,"./utils/manageAriaHidden":388,"dom-helpers/class":73,"dom-helpers/style":89,"dom-helpers/util/scrollbarSize":98}],378:[function(require,module,exports){
+},{"./utils/isOverflowing":389,"./utils/manageAriaHidden":390,"dom-helpers/class":73,"dom-helpers/style":89,"dom-helpers/util/scrollbarSize":98}],380:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -37844,7 +38304,7 @@ Overlay.propTypes = _extends({}, _Portal2['default'].propTypes, _Position2['defa
 
 exports['default'] = Overlay;
 module.exports = exports['default'];
-},{"./Portal":379,"./Position":380,"./RootCloseWrapper":381,"react":599,"react-prop-types/lib/elementType":393}],379:[function(require,module,exports){
+},{"./Portal":381,"./Position":382,"./RootCloseWrapper":383,"react":601,"react-prop-types/lib/elementType":395}],381:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -37968,7 +38428,7 @@ var Portal = _react2['default'].createClass({
 
 exports['default'] = Portal;
 module.exports = exports['default'];
-},{"./utils/getContainer":386,"./utils/ownerDocument":390,"react":599,"react-dom":374,"react-prop-types/lib/mountable":394}],380:[function(require,module,exports){
+},{"./utils/getContainer":388,"./utils/ownerDocument":392,"react":601,"react-dom":376,"react-prop-types/lib/mountable":396}],382:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -38155,7 +38615,7 @@ Position.defaultProps = {
 
 exports['default'] = Position;
 module.exports = exports['default'];
-},{"./utils/getContainer":386,"./utils/overlayPositionUtils":389,"./utils/ownerDocument":390,"classnames":391,"react":599,"react-dom":374,"react-prop-types/lib/mountable":394}],381:[function(require,module,exports){
+},{"./utils/getContainer":388,"./utils/overlayPositionUtils":391,"./utils/ownerDocument":392,"classnames":393,"react":601,"react-dom":376,"react-prop-types/lib/mountable":396}],383:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -38315,7 +38775,7 @@ RootCloseWrapper.propTypes = {
   noWrap: _react2['default'].PropTypes.bool
 };
 module.exports = exports['default'];
-},{"./utils/addEventListener":383,"./utils/createChainedFunction":385,"./utils/ownerDocument":390,"react":599,"react-dom":374}],382:[function(require,module,exports){
+},{"./utils/addEventListener":385,"./utils/createChainedFunction":387,"./utils/ownerDocument":392,"react":601,"react-dom":376}],384:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -38653,7 +39113,7 @@ Transition.defaultProps = {
 };
 
 exports['default'] = Transition;
-},{"classnames":391,"dom-helpers/events/on":78,"dom-helpers/transition/properties":91,"react":599,"react-dom":374}],383:[function(require,module,exports){
+},{"classnames":393,"dom-helpers/events/on":78,"dom-helpers/transition/properties":91,"react":601,"react-dom":376}],385:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -38678,7 +39138,7 @@ exports['default'] = function (node, event, handler) {
 };
 
 module.exports = exports['default'];
-},{"dom-helpers/events/off":77,"dom-helpers/events/on":78}],384:[function(require,module,exports){
+},{"dom-helpers/events/off":77,"dom-helpers/events/on":78}],386:[function(require,module,exports){
 /**
  * Firefox doesn't have a focusin event so using capture is easiest way to get bubbling
  * IE8 can't do addEventListener, but does have onfocusin, so we use that in ie8
@@ -38710,7 +39170,7 @@ function addFocusListener(handler) {
 }
 
 module.exports = exports['default'];
-},{}],385:[function(require,module,exports){
+},{}],387:[function(require,module,exports){
 /**
  * Safe chained function
  *
@@ -38752,7 +39212,7 @@ function createChainedFunction() {
 
 exports['default'] = createChainedFunction;
 module.exports = exports['default'];
-},{}],386:[function(require,module,exports){
+},{}],388:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -38770,7 +39230,7 @@ function getContainer(container, defaultContainer) {
 }
 
 module.exports = exports['default'];
-},{"react-dom":374}],387:[function(require,module,exports){
+},{"react-dom":376}],389:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -38811,7 +39271,7 @@ function isOverflowing(container) {
 }
 
 module.exports = exports['default'];
-},{"dom-helpers/ownerDocument":79,"dom-helpers/query/isWindow":81}],388:[function(require,module,exports){
+},{"dom-helpers/ownerDocument":79,"dom-helpers/query/isWindow":81}],390:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -38859,7 +39319,7 @@ function showSiblings(container, mountNode) {
     return ariaHidden(false, node);
   });
 }
-},{}],389:[function(require,module,exports){
+},{}],391:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -38994,7 +39454,7 @@ function getLeftDelta(left, overlayWidth, container, padding) {
 }
 exports['default'] = utils;
 module.exports = exports['default'];
-},{"./ownerDocument":390,"dom-helpers/query/offset":82,"dom-helpers/query/position":84,"dom-helpers/query/scrollTop":87}],390:[function(require,module,exports){
+},{"./ownerDocument":392,"dom-helpers/query/offset":82,"dom-helpers/query/position":84,"dom-helpers/query/scrollTop":87}],392:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -39014,9 +39474,9 @@ exports['default'] = function (componentOrElement) {
 };
 
 module.exports = exports['default'];
-},{"dom-helpers/ownerDocument":79,"react-dom":374}],391:[function(require,module,exports){
-arguments[4][373][0].apply(exports,arguments)
-},{"dup":373}],392:[function(require,module,exports){
+},{"dom-helpers/ownerDocument":79,"react-dom":376}],393:[function(require,module,exports){
+arguments[4][374][0].apply(exports,arguments)
+},{"dup":374}],394:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -39051,7 +39511,7 @@ function createChainableTypeChecker(validate) {
 
   return chainedCheckType;
 }
-},{}],393:[function(require,module,exports){
+},{}],395:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -39093,7 +39553,7 @@ function validate(props, propName, componentName) {
 
 exports['default'] = _common.createChainableTypeChecker(validate);
 module.exports = exports['default'];
-},{"./common":392,"react":599}],394:[function(require,module,exports){
+},{"./common":394,"react":601}],396:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -39121,7 +39581,7 @@ function validate(props, propName, componentName) {
 
 exports['default'] = _common.createChainableTypeChecker(validate);
 module.exports = exports['default'];
-},{"./common":392}],395:[function(require,module,exports){
+},{"./common":394}],397:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -39158,9 +39618,9 @@ function all() {
 }
 
 module.exports = exports['default'];
-},{}],396:[function(require,module,exports){
-arguments[4][392][0].apply(exports,arguments)
-},{"dup":392}],397:[function(require,module,exports){
+},{}],398:[function(require,module,exports){
+arguments[4][394][0].apply(exports,arguments)
+},{"dup":394}],399:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -39183,9 +39643,9 @@ function deprecated(propType, explanation) {
 }
 
 module.exports = exports['default'];
-},{"warning":625}],398:[function(require,module,exports){
-arguments[4][393][0].apply(exports,arguments)
-},{"./common":396,"dup":393,"react":599}],399:[function(require,module,exports){
+},{"warning":627}],400:[function(require,module,exports){
+arguments[4][395][0].apply(exports,arguments)
+},{"./common":398,"dup":395,"react":601}],401:[function(require,module,exports){
 "use strict";
 
 exports.__esModule = true;
@@ -39202,7 +39662,7 @@ function isRequiredForA11y(propType) {
 }
 
 module.exports = exports["default"];
-},{}],400:[function(require,module,exports){
+},{}],402:[function(require,module,exports){
 /**
  * Checks if only one of the listed properties is in use. An error is given
  * if multiple have a value
@@ -39241,7 +39701,7 @@ function createSinglePropFromChecker() {
 }
 
 module.exports = exports['default'];
-},{}],401:[function(require,module,exports){
+},{}],403:[function(require,module,exports){
 "use strict";
 
 exports.__esModule = true;
@@ -39300,7 +39760,7 @@ function mapAsync(array, work, callback) {
     });
   });
 }
-},{}],402:[function(require,module,exports){
+},{}],404:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -39324,7 +39784,7 @@ var History = {
 
 exports['default'] = History;
 module.exports = exports['default'];
-},{"./PropTypes":409}],403:[function(require,module,exports){
+},{"./PropTypes":411}],405:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -39367,7 +39827,7 @@ var IndexLink = (function (_Component) {
 
 exports['default'] = IndexLink;
 module.exports = exports['default'];
-},{"./Link":407,"react":599}],404:[function(require,module,exports){
+},{"./Link":409,"react":601}],406:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -39443,7 +39903,7 @@ IndexRedirect.createRouteFromReactElement = function (element, parentRoute) {
 exports['default'] = IndexRedirect;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"./PropTypes":409,"./Redirect":410,"_process":264,"invariant":121,"react":599,"warning":625}],405:[function(require,module,exports){
+},{"./PropTypes":411,"./Redirect":412,"_process":264,"invariant":121,"react":601,"warning":627}],407:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -39516,7 +39976,7 @@ IndexRoute.createRouteFromReactElement = function (element, parentRoute) {
 exports['default'] = IndexRoute;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"./PropTypes":409,"./RouteUtils":413,"_process":264,"invariant":121,"react":599,"warning":625}],406:[function(require,module,exports){
+},{"./PropTypes":411,"./RouteUtils":415,"_process":264,"invariant":121,"react":601,"warning":627}],408:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -39583,7 +40043,7 @@ var Lifecycle = {
 exports['default'] = Lifecycle;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"_process":264,"invariant":121,"react":599}],407:[function(require,module,exports){
+},{"_process":264,"invariant":121,"react":601}],409:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -39747,7 +40207,7 @@ Link.defaultProps = {
 
 exports['default'] = Link;
 module.exports = exports['default'];
-},{"react":599}],408:[function(require,module,exports){
+},{"react":601}],410:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -39977,7 +40437,7 @@ function formatPattern(pattern, params) {
   return pathname.replace(/\/+/g, '/');
 }
 }).call(this,require('_process'))
-},{"_process":264,"invariant":121}],409:[function(require,module,exports){
+},{"_process":264,"invariant":121}],411:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -40031,7 +40491,7 @@ exports['default'] = {
   components: components,
   route: route
 };
-},{"react":599}],410:[function(require,module,exports){
+},{"react":601}],412:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -40141,7 +40601,7 @@ Redirect.propTypes = {
 exports['default'] = Redirect;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"./PatternUtils":408,"./PropTypes":409,"./RouteUtils":413,"_process":264,"invariant":121,"react":599}],411:[function(require,module,exports){
+},{"./PatternUtils":410,"./PropTypes":411,"./RouteUtils":415,"_process":264,"invariant":121,"react":601}],413:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -40211,7 +40671,7 @@ Route.propTypes = {
 exports['default'] = Route;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"./PropTypes":409,"./RouteUtils":413,"_process":264,"invariant":121,"react":599}],412:[function(require,module,exports){
+},{"./PropTypes":411,"./RouteUtils":415,"_process":264,"invariant":121,"react":601}],414:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -40250,7 +40710,7 @@ var RouteContext = {
 
 exports['default'] = RouteContext;
 module.exports = exports['default'];
-},{"react":599}],413:[function(require,module,exports){
+},{"react":601}],415:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -40367,7 +40827,7 @@ function createRoutes(routes) {
   return routes;
 }
 }).call(this,require('_process'))
-},{"_process":264,"react":599,"warning":625}],414:[function(require,module,exports){
+},{"_process":264,"react":601,"warning":627}],416:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -40535,7 +40995,7 @@ Router.defaultProps = {
 exports['default'] = Router;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"./PropTypes":409,"./RouteUtils":413,"./RoutingContext":415,"./useRoutes":424,"_process":264,"history/lib/createHashHistory":109,"react":599,"warning":625}],415:[function(require,module,exports){
+},{"./PropTypes":411,"./RouteUtils":415,"./RoutingContext":417,"./useRoutes":426,"_process":264,"history/lib/createHashHistory":109,"react":601,"warning":627}],417:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -40678,7 +41138,7 @@ RoutingContext.childContextTypes = {
 exports['default'] = RoutingContext;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"./RouteUtils":413,"./getRouteParams":419,"_process":264,"invariant":121,"react":599}],416:[function(require,module,exports){
+},{"./RouteUtils":415,"./getRouteParams":421,"_process":264,"invariant":121,"react":601}],418:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -40751,7 +41211,7 @@ function runLeaveHooks(routes) {
     if (routes[i].onLeave) routes[i].onLeave.call(routes[i]);
   }
 }
-},{"./AsyncUtils":401}],417:[function(require,module,exports){
+},{"./AsyncUtils":403}],419:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -40808,7 +41268,7 @@ function computeChangedRoutes(prevState, nextState) {
 
 exports['default'] = computeChangedRoutes;
 module.exports = exports['default'];
-},{"./PatternUtils":408}],418:[function(require,module,exports){
+},{"./PatternUtils":410}],420:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -40842,7 +41302,7 @@ function getComponents(nextState, callback) {
 
 exports['default'] = getComponents;
 module.exports = exports['default'];
-},{"./AsyncUtils":401}],419:[function(require,module,exports){
+},{"./AsyncUtils":403}],421:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -40867,7 +41327,7 @@ function getRouteParams(route, params) {
 
 exports['default'] = getRouteParams;
 module.exports = exports['default'];
-},{"./PatternUtils":408}],420:[function(require,module,exports){
+},{"./PatternUtils":410}],422:[function(require,module,exports){
 /* components */
 'use strict';
 
@@ -40972,7 +41432,7 @@ exports.match = _match3['default'];
 var _Router4 = _interopRequireDefault(_Router2);
 
 exports['default'] = _Router4['default'];
-},{"./History":402,"./IndexLink":403,"./IndexRedirect":404,"./IndexRoute":405,"./Lifecycle":406,"./Link":407,"./PropTypes":409,"./Redirect":410,"./Route":411,"./RouteContext":412,"./RouteUtils":413,"./Router":414,"./RoutingContext":415,"./match":422,"./useRoutes":424}],421:[function(require,module,exports){
+},{"./History":404,"./IndexLink":405,"./IndexRedirect":406,"./IndexRoute":407,"./Lifecycle":408,"./Link":409,"./PropTypes":411,"./Redirect":412,"./Route":413,"./RouteContext":414,"./RouteUtils":415,"./Router":416,"./RoutingContext":417,"./match":424,"./useRoutes":426}],423:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -41096,7 +41556,7 @@ function isActive(pathname, query, indexOnly, location, routes, params) {
 
 exports['default'] = isActive;
 module.exports = exports['default'];
-},{"./PatternUtils":408}],422:[function(require,module,exports){
+},{"./PatternUtils":410}],424:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -41162,7 +41622,7 @@ function match(_ref, callback) {
 exports['default'] = match;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"./RouteUtils":413,"./useRoutes":424,"_process":264,"history/lib/createMemoryHistory":112,"history/lib/useBasename":117,"invariant":121}],423:[function(require,module,exports){
+},{"./RouteUtils":415,"./useRoutes":426,"_process":264,"history/lib/createMemoryHistory":112,"history/lib/useBasename":117,"invariant":121}],425:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -41353,7 +41813,7 @@ function matchRoutes(routes, location, callback) {
 exports['default'] = matchRoutes;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"./AsyncUtils":401,"./PatternUtils":408,"./RouteUtils":413,"_process":264,"warning":625}],424:[function(require,module,exports){
+},{"./AsyncUtils":403,"./PatternUtils":410,"./RouteUtils":415,"_process":264,"warning":627}],426:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -41647,7 +42107,7 @@ function useRoutes(createHistory) {
 exports['default'] = useRoutes;
 module.exports = exports['default'];
 }).call(this,require('_process'))
-},{"./TransitionUtils":416,"./computeChangedRoutes":417,"./getComponents":418,"./isActive":421,"./matchRoutes":423,"_process":264,"history/lib/Actions":103,"history/lib/useQueries":118,"warning":625}],425:[function(require,module,exports){
+},{"./TransitionUtils":418,"./computeChangedRoutes":419,"./getComponents":420,"./isActive":423,"./matchRoutes":425,"_process":264,"history/lib/Actions":103,"history/lib/useQueries":118,"warning":627}],427:[function(require,module,exports){
 'use strict';
 
 var warning = require('fbjs/lib/warning');
@@ -41662,7 +42122,7 @@ warning(
 
 module.exports = require('./lib/ReactWithAddons');
 
-},{"./lib/ReactWithAddons":522,"fbjs/lib/warning":598}],426:[function(require,module,exports){
+},{"./lib/ReactWithAddons":524,"fbjs/lib/warning":600}],428:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -41699,7 +42159,7 @@ var AutoFocusUtils = {
 };
 
 module.exports = AutoFocusUtils;
-},{"./ReactMount":496,"./findDOMNode":547,"fbjs/lib/focusNode":580}],427:[function(require,module,exports){
+},{"./ReactMount":498,"./findDOMNode":549,"fbjs/lib/focusNode":582}],429:[function(require,module,exports){
 /**
  * Copyright 2013-2015 Facebook, Inc.
  * All rights reserved.
@@ -42105,7 +42565,7 @@ var BeforeInputEventPlugin = {
 };
 
 module.exports = BeforeInputEventPlugin;
-},{"./EventConstants":439,"./EventPropagators":443,"./FallbackCompositionState":444,"./SyntheticCompositionEvent":528,"./SyntheticInputEvent":532,"fbjs/lib/ExecutionEnvironment":572,"fbjs/lib/keyOf":591}],428:[function(require,module,exports){
+},{"./EventConstants":441,"./EventPropagators":445,"./FallbackCompositionState":446,"./SyntheticCompositionEvent":530,"./SyntheticInputEvent":534,"fbjs/lib/ExecutionEnvironment":574,"fbjs/lib/keyOf":593}],430:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -42245,7 +42705,7 @@ var CSSProperty = {
 };
 
 module.exports = CSSProperty;
-},{}],429:[function(require,module,exports){
+},{}],431:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -42423,7 +42883,7 @@ ReactPerf.measureMethods(CSSPropertyOperations, 'CSSPropertyOperations', {
 
 module.exports = CSSPropertyOperations;
 }).call(this,require('_process'))
-},{"./CSSProperty":428,"./ReactPerf":502,"./dangerousStyleValue":544,"_process":264,"fbjs/lib/ExecutionEnvironment":572,"fbjs/lib/camelizeStyleName":574,"fbjs/lib/hyphenateStyleName":585,"fbjs/lib/memoizeStringOnly":593,"fbjs/lib/warning":598}],430:[function(require,module,exports){
+},{"./CSSProperty":430,"./ReactPerf":504,"./dangerousStyleValue":546,"_process":264,"fbjs/lib/ExecutionEnvironment":574,"fbjs/lib/camelizeStyleName":576,"fbjs/lib/hyphenateStyleName":587,"fbjs/lib/memoizeStringOnly":595,"fbjs/lib/warning":600}],432:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -42519,7 +42979,7 @@ PooledClass.addPoolingTo(CallbackQueue);
 
 module.exports = CallbackQueue;
 }).call(this,require('_process'))
-},{"./Object.assign":448,"./PooledClass":449,"_process":264,"fbjs/lib/invariant":586}],431:[function(require,module,exports){
+},{"./Object.assign":450,"./PooledClass":451,"_process":264,"fbjs/lib/invariant":588}],433:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -42841,7 +43301,7 @@ var ChangeEventPlugin = {
 };
 
 module.exports = ChangeEventPlugin;
-},{"./EventConstants":439,"./EventPluginHub":440,"./EventPropagators":443,"./ReactUpdates":520,"./SyntheticEvent":530,"./getEventTarget":553,"./isEventSupported":558,"./isTextInputElement":559,"fbjs/lib/ExecutionEnvironment":572,"fbjs/lib/keyOf":591}],432:[function(require,module,exports){
+},{"./EventConstants":441,"./EventPluginHub":442,"./EventPropagators":445,"./ReactUpdates":522,"./SyntheticEvent":532,"./getEventTarget":555,"./isEventSupported":560,"./isTextInputElement":561,"fbjs/lib/ExecutionEnvironment":574,"fbjs/lib/keyOf":593}],434:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -42865,7 +43325,7 @@ var ClientReactRootIndex = {
 };
 
 module.exports = ClientReactRootIndex;
-},{}],433:[function(require,module,exports){
+},{}],435:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -42997,7 +43457,7 @@ ReactPerf.measureMethods(DOMChildrenOperations, 'DOMChildrenOperations', {
 
 module.exports = DOMChildrenOperations;
 }).call(this,require('_process'))
-},{"./Danger":436,"./ReactMultiChildUpdateTypes":498,"./ReactPerf":502,"./setInnerHTML":563,"./setTextContent":564,"_process":264,"fbjs/lib/invariant":586}],434:[function(require,module,exports){
+},{"./Danger":438,"./ReactMultiChildUpdateTypes":500,"./ReactPerf":504,"./setInnerHTML":565,"./setTextContent":566,"_process":264,"fbjs/lib/invariant":588}],436:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -43234,7 +43694,7 @@ var DOMProperty = {
 
 module.exports = DOMProperty;
 }).call(this,require('_process'))
-},{"_process":264,"fbjs/lib/invariant":586}],435:[function(require,module,exports){
+},{"_process":264,"fbjs/lib/invariant":588}],437:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -43462,7 +43922,7 @@ ReactPerf.measureMethods(DOMPropertyOperations, 'DOMPropertyOperations', {
 
 module.exports = DOMPropertyOperations;
 }).call(this,require('_process'))
-},{"./DOMProperty":434,"./ReactPerf":502,"./quoteAttributeValueForBrowser":561,"_process":264,"fbjs/lib/warning":598}],436:[function(require,module,exports){
+},{"./DOMProperty":436,"./ReactPerf":504,"./quoteAttributeValueForBrowser":563,"_process":264,"fbjs/lib/warning":600}],438:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -43610,7 +44070,7 @@ var Danger = {
 
 module.exports = Danger;
 }).call(this,require('_process'))
-},{"_process":264,"fbjs/lib/ExecutionEnvironment":572,"fbjs/lib/createNodesFromMarkup":577,"fbjs/lib/emptyFunction":578,"fbjs/lib/getMarkupWrap":582,"fbjs/lib/invariant":586}],437:[function(require,module,exports){
+},{"_process":264,"fbjs/lib/ExecutionEnvironment":574,"fbjs/lib/createNodesFromMarkup":579,"fbjs/lib/emptyFunction":580,"fbjs/lib/getMarkupWrap":584,"fbjs/lib/invariant":588}],439:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -43638,7 +44098,7 @@ var keyOf = require('fbjs/lib/keyOf');
 var DefaultEventPluginOrder = [keyOf({ ResponderEventPlugin: null }), keyOf({ SimpleEventPlugin: null }), keyOf({ TapEventPlugin: null }), keyOf({ EnterLeaveEventPlugin: null }), keyOf({ ChangeEventPlugin: null }), keyOf({ SelectEventPlugin: null }), keyOf({ BeforeInputEventPlugin: null })];
 
 module.exports = DefaultEventPluginOrder;
-},{"fbjs/lib/keyOf":591}],438:[function(require,module,exports){
+},{"fbjs/lib/keyOf":593}],440:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -43763,7 +44223,7 @@ var EnterLeaveEventPlugin = {
 };
 
 module.exports = EnterLeaveEventPlugin;
-},{"./EventConstants":439,"./EventPropagators":443,"./ReactMount":496,"./SyntheticMouseEvent":534,"fbjs/lib/keyOf":591}],439:[function(require,module,exports){
+},{"./EventConstants":441,"./EventPropagators":445,"./ReactMount":498,"./SyntheticMouseEvent":536,"fbjs/lib/keyOf":593}],441:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -43856,7 +44316,7 @@ var EventConstants = {
 };
 
 module.exports = EventConstants;
-},{"fbjs/lib/keyMirror":590}],440:[function(require,module,exports){
+},{"fbjs/lib/keyMirror":592}],442:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -44138,7 +44598,7 @@ var EventPluginHub = {
 
 module.exports = EventPluginHub;
 }).call(this,require('_process'))
-},{"./EventPluginRegistry":441,"./EventPluginUtils":442,"./ReactErrorUtils":485,"./accumulateInto":540,"./forEachAccumulated":549,"_process":264,"fbjs/lib/invariant":586,"fbjs/lib/warning":598}],441:[function(require,module,exports){
+},{"./EventPluginRegistry":443,"./EventPluginUtils":444,"./ReactErrorUtils":487,"./accumulateInto":542,"./forEachAccumulated":551,"_process":264,"fbjs/lib/invariant":588,"fbjs/lib/warning":600}],443:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -44361,7 +44821,7 @@ var EventPluginRegistry = {
 
 module.exports = EventPluginRegistry;
 }).call(this,require('_process'))
-},{"_process":264,"fbjs/lib/invariant":586}],442:[function(require,module,exports){
+},{"_process":264,"fbjs/lib/invariant":588}],444:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -44566,7 +45026,7 @@ var EventPluginUtils = {
 
 module.exports = EventPluginUtils;
 }).call(this,require('_process'))
-},{"./EventConstants":439,"./ReactErrorUtils":485,"_process":264,"fbjs/lib/invariant":586,"fbjs/lib/warning":598}],443:[function(require,module,exports){
+},{"./EventConstants":441,"./ReactErrorUtils":487,"_process":264,"fbjs/lib/invariant":588,"fbjs/lib/warning":600}],445:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -44704,7 +45164,7 @@ var EventPropagators = {
 
 module.exports = EventPropagators;
 }).call(this,require('_process'))
-},{"./EventConstants":439,"./EventPluginHub":440,"./accumulateInto":540,"./forEachAccumulated":549,"_process":264,"fbjs/lib/warning":598}],444:[function(require,module,exports){
+},{"./EventConstants":441,"./EventPluginHub":442,"./accumulateInto":542,"./forEachAccumulated":551,"_process":264,"fbjs/lib/warning":600}],446:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -44800,7 +45260,7 @@ assign(FallbackCompositionState.prototype, {
 PooledClass.addPoolingTo(FallbackCompositionState);
 
 module.exports = FallbackCompositionState;
-},{"./Object.assign":448,"./PooledClass":449,"./getTextContentAccessor":556}],445:[function(require,module,exports){
+},{"./Object.assign":450,"./PooledClass":451,"./getTextContentAccessor":558}],447:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -44983,8 +45443,8 @@ var HTMLDOMPropertyConfig = {
      */
     // autoCapitalize and autoCorrect are supported in Mobile Safari for
     // keyboard hints.
-    autoCapitalize: null,
-    autoCorrect: null,
+    autoCapitalize: MUST_USE_ATTRIBUTE,
+    autoCorrect: MUST_USE_ATTRIBUTE,
     // autoSave allows WebKit/Blink to persist values of input fields on page reloads
     autoSave: null,
     // color is for Safari mask-icon link
@@ -45015,9 +45475,7 @@ var HTMLDOMPropertyConfig = {
     httpEquiv: 'http-equiv'
   },
   DOMPropertyNames: {
-    autoCapitalize: 'autocapitalize',
     autoComplete: 'autocomplete',
-    autoCorrect: 'autocorrect',
     autoFocus: 'autofocus',
     autoPlay: 'autoplay',
     autoSave: 'autosave',
@@ -45033,7 +45491,7 @@ var HTMLDOMPropertyConfig = {
 };
 
 module.exports = HTMLDOMPropertyConfig;
-},{"./DOMProperty":434,"fbjs/lib/ExecutionEnvironment":572}],446:[function(require,module,exports){
+},{"./DOMProperty":436,"fbjs/lib/ExecutionEnvironment":574}],448:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -45070,7 +45528,7 @@ var LinkedStateMixin = {
 };
 
 module.exports = LinkedStateMixin;
-},{"./ReactLink":494,"./ReactStateSetters":514}],447:[function(require,module,exports){
+},{"./ReactLink":496,"./ReactStateSetters":516}],449:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -45207,7 +45665,7 @@ var LinkedValueUtils = {
 
 module.exports = LinkedValueUtils;
 }).call(this,require('_process'))
-},{"./ReactPropTypeLocations":505,"./ReactPropTypes":506,"_process":264,"fbjs/lib/invariant":586,"fbjs/lib/warning":598}],448:[function(require,module,exports){
+},{"./ReactPropTypeLocations":507,"./ReactPropTypes":508,"_process":264,"fbjs/lib/invariant":588,"fbjs/lib/warning":600}],450:[function(require,module,exports){
 /**
  * Copyright 2014-2015, Facebook, Inc.
  * All rights reserved.
@@ -45255,7 +45713,7 @@ function assign(target, sources) {
 }
 
 module.exports = assign;
-},{}],449:[function(require,module,exports){
+},{}],451:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -45377,7 +45835,7 @@ var PooledClass = {
 
 module.exports = PooledClass;
 }).call(this,require('_process'))
-},{"_process":264,"fbjs/lib/invariant":586}],450:[function(require,module,exports){
+},{"_process":264,"fbjs/lib/invariant":588}],452:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -45418,7 +45876,7 @@ React.__SECRET_DOM_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactDOM;
 React.__SECRET_DOM_SERVER_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactDOMServer;
 
 module.exports = React;
-},{"./Object.assign":448,"./ReactDOM":464,"./ReactDOMServer":474,"./ReactIsomorphic":493,"./deprecated":545}],451:[function(require,module,exports){
+},{"./Object.assign":450,"./ReactDOM":466,"./ReactDOMServer":476,"./ReactIsomorphic":495,"./deprecated":547}],453:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -45457,7 +45915,7 @@ var ReactBrowserComponentMixin = {
 
 module.exports = ReactBrowserComponentMixin;
 }).call(this,require('_process'))
-},{"./ReactInstanceMap":492,"./findDOMNode":547,"_process":264,"fbjs/lib/warning":598}],452:[function(require,module,exports){
+},{"./ReactInstanceMap":494,"./findDOMNode":549,"_process":264,"fbjs/lib/warning":600}],454:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -45782,7 +46240,7 @@ ReactPerf.measureMethods(ReactBrowserEventEmitter, 'ReactBrowserEventEmitter', {
 });
 
 module.exports = ReactBrowserEventEmitter;
-},{"./EventConstants":439,"./EventPluginHub":440,"./EventPluginRegistry":441,"./Object.assign":448,"./ReactEventEmitterMixin":486,"./ReactPerf":502,"./ViewportMetrics":539,"./isEventSupported":558}],453:[function(require,module,exports){
+},{"./EventConstants":441,"./EventPluginHub":442,"./EventPluginRegistry":443,"./Object.assign":450,"./ReactEventEmitterMixin":488,"./ReactPerf":504,"./ViewportMetrics":541,"./isEventSupported":560}],455:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -45866,7 +46324,7 @@ var ReactCSSTransitionGroup = React.createClass({
 });
 
 module.exports = ReactCSSTransitionGroup;
-},{"./Object.assign":448,"./React":450,"./ReactCSSTransitionGroupChild":454,"./ReactTransitionGroup":518}],454:[function(require,module,exports){
+},{"./Object.assign":450,"./React":452,"./ReactCSSTransitionGroupChild":456,"./ReactTransitionGroup":520}],456:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -46032,7 +46490,7 @@ var ReactCSSTransitionGroupChild = React.createClass({
 });
 
 module.exports = ReactCSSTransitionGroupChild;
-},{"./React":450,"./ReactDOM":464,"./ReactTransitionEvents":517,"./onlyChild":560,"fbjs/lib/CSSCore":570}],455:[function(require,module,exports){
+},{"./React":452,"./ReactDOM":466,"./ReactTransitionEvents":519,"./onlyChild":562,"fbjs/lib/CSSCore":572}],457:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-2015, Facebook, Inc.
@@ -46157,7 +46615,7 @@ var ReactChildReconciler = {
 
 module.exports = ReactChildReconciler;
 }).call(this,require('_process'))
-},{"./ReactReconciler":508,"./instantiateReactComponent":557,"./shouldUpdateReactComponent":566,"./traverseAllChildren":567,"_process":264,"fbjs/lib/warning":598}],456:[function(require,module,exports){
+},{"./ReactReconciler":510,"./instantiateReactComponent":559,"./shouldUpdateReactComponent":568,"./traverseAllChildren":569,"_process":264,"fbjs/lib/warning":600}],458:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -46340,7 +46798,7 @@ var ReactChildren = {
 };
 
 module.exports = ReactChildren;
-},{"./PooledClass":449,"./ReactElement":481,"./traverseAllChildren":567,"fbjs/lib/emptyFunction":578}],457:[function(require,module,exports){
+},{"./PooledClass":451,"./ReactElement":483,"./traverseAllChildren":569,"fbjs/lib/emptyFunction":580}],459:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -47114,7 +47572,7 @@ var ReactClass = {
 
 module.exports = ReactClass;
 }).call(this,require('_process'))
-},{"./Object.assign":448,"./ReactComponent":458,"./ReactElement":481,"./ReactNoopUpdateQueue":500,"./ReactPropTypeLocationNames":504,"./ReactPropTypeLocations":505,"_process":264,"fbjs/lib/emptyObject":579,"fbjs/lib/invariant":586,"fbjs/lib/keyMirror":590,"fbjs/lib/keyOf":591,"fbjs/lib/warning":598}],458:[function(require,module,exports){
+},{"./Object.assign":450,"./ReactComponent":460,"./ReactElement":483,"./ReactNoopUpdateQueue":502,"./ReactPropTypeLocationNames":506,"./ReactPropTypeLocations":507,"_process":264,"fbjs/lib/emptyObject":581,"fbjs/lib/invariant":588,"fbjs/lib/keyMirror":592,"fbjs/lib/keyOf":593,"fbjs/lib/warning":600}],460:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -47239,7 +47697,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = ReactComponent;
 }).call(this,require('_process'))
-},{"./ReactNoopUpdateQueue":500,"./canDefineProperty":542,"_process":264,"fbjs/lib/emptyObject":579,"fbjs/lib/invariant":586,"fbjs/lib/warning":598}],459:[function(require,module,exports){
+},{"./ReactNoopUpdateQueue":502,"./canDefineProperty":544,"_process":264,"fbjs/lib/emptyObject":581,"fbjs/lib/invariant":588,"fbjs/lib/warning":600}],461:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -47281,7 +47739,7 @@ var ReactComponentBrowserEnvironment = {
 };
 
 module.exports = ReactComponentBrowserEnvironment;
-},{"./ReactDOMIDOperations":469,"./ReactMount":496}],460:[function(require,module,exports){
+},{"./ReactDOMIDOperations":471,"./ReactMount":498}],462:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-2015, Facebook, Inc.
@@ -47335,7 +47793,7 @@ var ReactComponentEnvironment = {
 
 module.exports = ReactComponentEnvironment;
 }).call(this,require('_process'))
-},{"_process":264,"fbjs/lib/invariant":586}],461:[function(require,module,exports){
+},{"_process":264,"fbjs/lib/invariant":588}],463:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -47382,7 +47840,7 @@ var ReactComponentWithPureRenderMixin = {
 };
 
 module.exports = ReactComponentWithPureRenderMixin;
-},{"./shallowCompare":565}],462:[function(require,module,exports){
+},{"./shallowCompare":567}],464:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -48079,7 +48537,7 @@ var ReactCompositeComponent = {
 
 module.exports = ReactCompositeComponent;
 }).call(this,require('_process'))
-},{"./Object.assign":448,"./ReactComponentEnvironment":460,"./ReactCurrentOwner":463,"./ReactElement":481,"./ReactInstanceMap":492,"./ReactPerf":502,"./ReactPropTypeLocationNames":504,"./ReactPropTypeLocations":505,"./ReactReconciler":508,"./ReactUpdateQueue":519,"./shouldUpdateReactComponent":566,"_process":264,"fbjs/lib/emptyObject":579,"fbjs/lib/invariant":586,"fbjs/lib/warning":598}],463:[function(require,module,exports){
+},{"./Object.assign":450,"./ReactComponentEnvironment":462,"./ReactCurrentOwner":465,"./ReactElement":483,"./ReactInstanceMap":494,"./ReactPerf":504,"./ReactPropTypeLocationNames":506,"./ReactPropTypeLocations":507,"./ReactReconciler":510,"./ReactUpdateQueue":521,"./shouldUpdateReactComponent":568,"_process":264,"fbjs/lib/emptyObject":581,"fbjs/lib/invariant":588,"fbjs/lib/warning":600}],465:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -48110,7 +48568,7 @@ var ReactCurrentOwner = {
 };
 
 module.exports = ReactCurrentOwner;
-},{}],464:[function(require,module,exports){
+},{}],466:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -48205,7 +48663,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = React;
 }).call(this,require('_process'))
-},{"./ReactCurrentOwner":463,"./ReactDOMTextComponent":475,"./ReactDefaultInjection":478,"./ReactInstanceHandles":491,"./ReactMount":496,"./ReactPerf":502,"./ReactReconciler":508,"./ReactUpdates":520,"./ReactVersion":521,"./findDOMNode":547,"./renderSubtreeIntoContainer":562,"_process":264,"fbjs/lib/ExecutionEnvironment":572,"fbjs/lib/warning":598}],465:[function(require,module,exports){
+},{"./ReactCurrentOwner":465,"./ReactDOMTextComponent":477,"./ReactDefaultInjection":480,"./ReactInstanceHandles":493,"./ReactMount":498,"./ReactPerf":504,"./ReactReconciler":510,"./ReactUpdates":522,"./ReactVersion":523,"./findDOMNode":549,"./renderSubtreeIntoContainer":564,"_process":264,"fbjs/lib/ExecutionEnvironment":574,"fbjs/lib/warning":600}],467:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -48256,7 +48714,7 @@ var ReactDOMButton = {
 };
 
 module.exports = ReactDOMButton;
-},{}],466:[function(require,module,exports){
+},{}],468:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -49221,7 +49679,7 @@ assign(ReactDOMComponent.prototype, ReactDOMComponent.Mixin, ReactMultiChild.Mix
 
 module.exports = ReactDOMComponent;
 }).call(this,require('_process'))
-},{"./AutoFocusUtils":426,"./CSSPropertyOperations":429,"./DOMProperty":434,"./DOMPropertyOperations":435,"./EventConstants":439,"./Object.assign":448,"./ReactBrowserEventEmitter":452,"./ReactComponentBrowserEnvironment":459,"./ReactDOMButton":465,"./ReactDOMInput":470,"./ReactDOMOption":471,"./ReactDOMSelect":472,"./ReactDOMTextarea":476,"./ReactMount":496,"./ReactMultiChild":497,"./ReactPerf":502,"./ReactUpdateQueue":519,"./canDefineProperty":542,"./escapeTextContentForBrowser":546,"./isEventSupported":558,"./setInnerHTML":563,"./setTextContent":564,"./validateDOMNesting":569,"_process":264,"fbjs/lib/invariant":586,"fbjs/lib/keyOf":591,"fbjs/lib/shallowEqual":596,"fbjs/lib/warning":598}],467:[function(require,module,exports){
+},{"./AutoFocusUtils":428,"./CSSPropertyOperations":431,"./DOMProperty":436,"./DOMPropertyOperations":437,"./EventConstants":441,"./Object.assign":450,"./ReactBrowserEventEmitter":454,"./ReactComponentBrowserEnvironment":461,"./ReactDOMButton":467,"./ReactDOMInput":472,"./ReactDOMOption":473,"./ReactDOMSelect":474,"./ReactDOMTextarea":478,"./ReactMount":498,"./ReactMultiChild":499,"./ReactPerf":504,"./ReactUpdateQueue":521,"./canDefineProperty":544,"./escapeTextContentForBrowser":548,"./isEventSupported":560,"./setInnerHTML":565,"./setTextContent":566,"./validateDOMNesting":571,"_process":264,"fbjs/lib/invariant":588,"fbjs/lib/keyOf":593,"fbjs/lib/shallowEqual":598,"fbjs/lib/warning":600}],469:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -49401,7 +49859,7 @@ var ReactDOMFactories = mapObject({
 
 module.exports = ReactDOMFactories;
 }).call(this,require('_process'))
-},{"./ReactElement":481,"./ReactElementValidator":482,"_process":264,"fbjs/lib/mapObject":592}],468:[function(require,module,exports){
+},{"./ReactElement":483,"./ReactElementValidator":484,"_process":264,"fbjs/lib/mapObject":594}],470:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -49420,7 +49878,7 @@ var ReactDOMFeatureFlags = {
 };
 
 module.exports = ReactDOMFeatureFlags;
-},{}],469:[function(require,module,exports){
+},{}],471:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -49517,7 +49975,7 @@ ReactPerf.measureMethods(ReactDOMIDOperations, 'ReactDOMIDOperations', {
 
 module.exports = ReactDOMIDOperations;
 }).call(this,require('_process'))
-},{"./DOMChildrenOperations":433,"./DOMPropertyOperations":435,"./ReactMount":496,"./ReactPerf":502,"_process":264,"fbjs/lib/invariant":586}],470:[function(require,module,exports){
+},{"./DOMChildrenOperations":435,"./DOMPropertyOperations":437,"./ReactMount":498,"./ReactPerf":504,"_process":264,"fbjs/lib/invariant":588}],472:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -49673,7 +50131,7 @@ function _handleChange(event) {
 
 module.exports = ReactDOMInput;
 }).call(this,require('_process'))
-},{"./LinkedValueUtils":447,"./Object.assign":448,"./ReactDOMIDOperations":469,"./ReactMount":496,"./ReactUpdates":520,"_process":264,"fbjs/lib/invariant":586}],471:[function(require,module,exports){
+},{"./LinkedValueUtils":449,"./Object.assign":450,"./ReactDOMIDOperations":471,"./ReactMount":498,"./ReactUpdates":522,"_process":264,"fbjs/lib/invariant":588}],473:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -49762,7 +50220,7 @@ var ReactDOMOption = {
 
 module.exports = ReactDOMOption;
 }).call(this,require('_process'))
-},{"./Object.assign":448,"./ReactChildren":456,"./ReactDOMSelect":472,"_process":264,"fbjs/lib/warning":598}],472:[function(require,module,exports){
+},{"./Object.assign":450,"./ReactChildren":458,"./ReactDOMSelect":474,"_process":264,"fbjs/lib/warning":600}],474:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -49794,7 +50252,7 @@ function updateOptionsIfPendingUpdateAndMounted() {
     var value = LinkedValueUtils.getValue(props);
 
     if (value != null) {
-      updateOptions(this, props, value);
+      updateOptions(this, Boolean(props.multiple), value);
     }
   }
 }
@@ -49953,7 +50411,7 @@ function _handleChange(event) {
 
 module.exports = ReactDOMSelect;
 }).call(this,require('_process'))
-},{"./LinkedValueUtils":447,"./Object.assign":448,"./ReactMount":496,"./ReactUpdates":520,"_process":264,"fbjs/lib/warning":598}],473:[function(require,module,exports){
+},{"./LinkedValueUtils":449,"./Object.assign":450,"./ReactMount":498,"./ReactUpdates":522,"_process":264,"fbjs/lib/warning":600}],475:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -50166,7 +50624,7 @@ var ReactDOMSelection = {
 };
 
 module.exports = ReactDOMSelection;
-},{"./getNodeForCharacterOffset":555,"./getTextContentAccessor":556,"fbjs/lib/ExecutionEnvironment":572}],474:[function(require,module,exports){
+},{"./getNodeForCharacterOffset":557,"./getTextContentAccessor":558,"fbjs/lib/ExecutionEnvironment":574}],476:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -50193,7 +50651,7 @@ var ReactDOMServer = {
 };
 
 module.exports = ReactDOMServer;
-},{"./ReactDefaultInjection":478,"./ReactServerRendering":512,"./ReactVersion":521}],475:[function(require,module,exports){
+},{"./ReactDefaultInjection":480,"./ReactServerRendering":514,"./ReactVersion":523}],477:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -50323,7 +50781,7 @@ assign(ReactDOMTextComponent.prototype, {
 
 module.exports = ReactDOMTextComponent;
 }).call(this,require('_process'))
-},{"./DOMChildrenOperations":433,"./DOMPropertyOperations":435,"./Object.assign":448,"./ReactComponentBrowserEnvironment":459,"./ReactMount":496,"./escapeTextContentForBrowser":546,"./setTextContent":564,"./validateDOMNesting":569,"_process":264}],476:[function(require,module,exports){
+},{"./DOMChildrenOperations":435,"./DOMPropertyOperations":437,"./Object.assign":450,"./ReactComponentBrowserEnvironment":461,"./ReactMount":498,"./escapeTextContentForBrowser":548,"./setTextContent":566,"./validateDOMNesting":571,"_process":264}],478:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -50439,7 +50897,7 @@ function _handleChange(event) {
 
 module.exports = ReactDOMTextarea;
 }).call(this,require('_process'))
-},{"./LinkedValueUtils":447,"./Object.assign":448,"./ReactDOMIDOperations":469,"./ReactUpdates":520,"_process":264,"fbjs/lib/invariant":586,"fbjs/lib/warning":598}],477:[function(require,module,exports){
+},{"./LinkedValueUtils":449,"./Object.assign":450,"./ReactDOMIDOperations":471,"./ReactUpdates":522,"_process":264,"fbjs/lib/invariant":588,"fbjs/lib/warning":600}],479:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -50507,7 +50965,7 @@ var ReactDefaultBatchingStrategy = {
 };
 
 module.exports = ReactDefaultBatchingStrategy;
-},{"./Object.assign":448,"./ReactUpdates":520,"./Transaction":538,"fbjs/lib/emptyFunction":578}],478:[function(require,module,exports){
+},{"./Object.assign":450,"./ReactUpdates":522,"./Transaction":540,"fbjs/lib/emptyFunction":580}],480:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -50607,7 +51065,7 @@ module.exports = {
   inject: inject
 };
 }).call(this,require('_process'))
-},{"./BeforeInputEventPlugin":427,"./ChangeEventPlugin":431,"./ClientReactRootIndex":432,"./DefaultEventPluginOrder":437,"./EnterLeaveEventPlugin":438,"./HTMLDOMPropertyConfig":445,"./ReactBrowserComponentMixin":451,"./ReactComponentBrowserEnvironment":459,"./ReactDOMComponent":466,"./ReactDOMTextComponent":475,"./ReactDefaultBatchingStrategy":477,"./ReactDefaultPerf":479,"./ReactEventListener":487,"./ReactInjection":489,"./ReactInstanceHandles":491,"./ReactMount":496,"./ReactReconcileTransaction":507,"./SVGDOMPropertyConfig":523,"./SelectEventPlugin":524,"./ServerReactRootIndex":525,"./SimpleEventPlugin":526,"_process":264,"fbjs/lib/ExecutionEnvironment":572}],479:[function(require,module,exports){
+},{"./BeforeInputEventPlugin":429,"./ChangeEventPlugin":433,"./ClientReactRootIndex":434,"./DefaultEventPluginOrder":439,"./EnterLeaveEventPlugin":440,"./HTMLDOMPropertyConfig":447,"./ReactBrowserComponentMixin":453,"./ReactComponentBrowserEnvironment":461,"./ReactDOMComponent":468,"./ReactDOMTextComponent":477,"./ReactDefaultBatchingStrategy":479,"./ReactDefaultPerf":481,"./ReactEventListener":489,"./ReactInjection":491,"./ReactInstanceHandles":493,"./ReactMount":498,"./ReactReconcileTransaction":509,"./SVGDOMPropertyConfig":525,"./SelectEventPlugin":526,"./ServerReactRootIndex":527,"./SimpleEventPlugin":528,"_process":264,"fbjs/lib/ExecutionEnvironment":574}],481:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -50845,7 +51303,7 @@ var ReactDefaultPerf = {
 };
 
 module.exports = ReactDefaultPerf;
-},{"./DOMProperty":434,"./ReactDefaultPerfAnalysis":480,"./ReactMount":496,"./ReactPerf":502,"fbjs/lib/performanceNow":595}],480:[function(require,module,exports){
+},{"./DOMProperty":436,"./ReactDefaultPerfAnalysis":482,"./ReactMount":498,"./ReactPerf":504,"fbjs/lib/performanceNow":597}],482:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -50873,7 +51331,9 @@ var DOM_OPERATION_TYPES = {
   'setValueForProperty': 'update attribute',
   'setValueForAttribute': 'update attribute',
   'deleteValueForProperty': 'remove attribute',
-  'dangerouslyReplaceNodeWithMarkupByID': 'replace'
+  'setValueForStyles': 'update styles',
+  'replaceNodeWithMarkup': 'replace',
+  'updateTextContent': 'set textContent'
 };
 
 function getTotalTime(measurements) {
@@ -51045,7 +51505,7 @@ var ReactDefaultPerfAnalysis = {
 };
 
 module.exports = ReactDefaultPerfAnalysis;
-},{"./Object.assign":448}],481:[function(require,module,exports){
+},{"./Object.assign":450}],483:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-2015, Facebook, Inc.
@@ -51295,7 +51755,7 @@ ReactElement.isValidElement = function (object) {
 
 module.exports = ReactElement;
 }).call(this,require('_process'))
-},{"./Object.assign":448,"./ReactCurrentOwner":463,"./canDefineProperty":542,"_process":264}],482:[function(require,module,exports){
+},{"./Object.assign":450,"./ReactCurrentOwner":465,"./canDefineProperty":544,"_process":264}],484:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-2015, Facebook, Inc.
@@ -51579,7 +52039,7 @@ var ReactElementValidator = {
 
 module.exports = ReactElementValidator;
 }).call(this,require('_process'))
-},{"./ReactCurrentOwner":463,"./ReactElement":481,"./ReactPropTypeLocationNames":504,"./ReactPropTypeLocations":505,"./canDefineProperty":542,"./getIteratorFn":554,"_process":264,"fbjs/lib/invariant":586,"fbjs/lib/warning":598}],483:[function(require,module,exports){
+},{"./ReactCurrentOwner":465,"./ReactElement":483,"./ReactPropTypeLocationNames":506,"./ReactPropTypeLocations":507,"./canDefineProperty":544,"./getIteratorFn":556,"_process":264,"fbjs/lib/invariant":588,"fbjs/lib/warning":600}],485:[function(require,module,exports){
 /**
  * Copyright 2014-2015, Facebook, Inc.
  * All rights reserved.
@@ -51631,7 +52091,7 @@ assign(ReactEmptyComponent.prototype, {
 ReactEmptyComponent.injection = ReactEmptyComponentInjection;
 
 module.exports = ReactEmptyComponent;
-},{"./Object.assign":448,"./ReactElement":481,"./ReactEmptyComponentRegistry":484,"./ReactReconciler":508}],484:[function(require,module,exports){
+},{"./Object.assign":450,"./ReactElement":483,"./ReactEmptyComponentRegistry":486,"./ReactReconciler":510}],486:[function(require,module,exports){
 /**
  * Copyright 2014-2015, Facebook, Inc.
  * All rights reserved.
@@ -51680,7 +52140,7 @@ var ReactEmptyComponentRegistry = {
 };
 
 module.exports = ReactEmptyComponentRegistry;
-},{}],485:[function(require,module,exports){
+},{}],487:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -51760,7 +52220,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = ReactErrorUtils;
 }).call(this,require('_process'))
-},{"_process":264}],486:[function(require,module,exports){
+},{"_process":264}],488:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -51799,7 +52259,7 @@ var ReactEventEmitterMixin = {
 };
 
 module.exports = ReactEventEmitterMixin;
-},{"./EventPluginHub":440}],487:[function(require,module,exports){
+},{"./EventPluginHub":442}],489:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -52011,7 +52471,7 @@ var ReactEventListener = {
 };
 
 module.exports = ReactEventListener;
-},{"./Object.assign":448,"./PooledClass":449,"./ReactInstanceHandles":491,"./ReactMount":496,"./ReactUpdates":520,"./getEventTarget":553,"fbjs/lib/EventListener":571,"fbjs/lib/ExecutionEnvironment":572,"fbjs/lib/getUnboundedScrollPosition":583}],488:[function(require,module,exports){
+},{"./Object.assign":450,"./PooledClass":451,"./ReactInstanceHandles":493,"./ReactMount":498,"./ReactUpdates":522,"./getEventTarget":555,"fbjs/lib/EventListener":573,"fbjs/lib/ExecutionEnvironment":574,"fbjs/lib/getUnboundedScrollPosition":585}],490:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2015, Facebook, Inc.
@@ -52078,7 +52538,7 @@ var ReactFragment = {
 
 module.exports = ReactFragment;
 }).call(this,require('_process'))
-},{"./ReactChildren":456,"./ReactElement":481,"_process":264,"fbjs/lib/emptyFunction":578,"fbjs/lib/invariant":586,"fbjs/lib/warning":598}],489:[function(require,module,exports){
+},{"./ReactChildren":458,"./ReactElement":483,"_process":264,"fbjs/lib/emptyFunction":580,"fbjs/lib/invariant":588,"fbjs/lib/warning":600}],491:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -52117,7 +52577,7 @@ var ReactInjection = {
 };
 
 module.exports = ReactInjection;
-},{"./DOMProperty":434,"./EventPluginHub":440,"./ReactBrowserEventEmitter":452,"./ReactClass":457,"./ReactComponentEnvironment":460,"./ReactEmptyComponent":483,"./ReactNativeComponent":499,"./ReactPerf":502,"./ReactRootIndex":510,"./ReactUpdates":520}],490:[function(require,module,exports){
+},{"./DOMProperty":436,"./EventPluginHub":442,"./ReactBrowserEventEmitter":454,"./ReactClass":459,"./ReactComponentEnvironment":462,"./ReactEmptyComponent":485,"./ReactNativeComponent":501,"./ReactPerf":504,"./ReactRootIndex":512,"./ReactUpdates":522}],492:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -52242,7 +52702,7 @@ var ReactInputSelection = {
 };
 
 module.exports = ReactInputSelection;
-},{"./ReactDOMSelection":473,"fbjs/lib/containsNode":575,"fbjs/lib/focusNode":580,"fbjs/lib/getActiveElement":581}],491:[function(require,module,exports){
+},{"./ReactDOMSelection":475,"fbjs/lib/containsNode":577,"fbjs/lib/focusNode":582,"fbjs/lib/getActiveElement":583}],493:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -52547,7 +53007,7 @@ var ReactInstanceHandles = {
 
 module.exports = ReactInstanceHandles;
 }).call(this,require('_process'))
-},{"./ReactRootIndex":510,"_process":264,"fbjs/lib/invariant":586}],492:[function(require,module,exports){
+},{"./ReactRootIndex":512,"_process":264,"fbjs/lib/invariant":588}],494:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -52595,7 +53055,7 @@ var ReactInstanceMap = {
 };
 
 module.exports = ReactInstanceMap;
-},{}],493:[function(require,module,exports){
+},{}],495:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -52672,7 +53132,7 @@ var React = {
 
 module.exports = React;
 }).call(this,require('_process'))
-},{"./Object.assign":448,"./ReactChildren":456,"./ReactClass":457,"./ReactComponent":458,"./ReactDOMFactories":467,"./ReactElement":481,"./ReactElementValidator":482,"./ReactPropTypes":506,"./ReactVersion":521,"./onlyChild":560,"_process":264}],494:[function(require,module,exports){
+},{"./Object.assign":450,"./ReactChildren":458,"./ReactClass":459,"./ReactComponent":460,"./ReactDOMFactories":469,"./ReactElement":483,"./ReactElementValidator":484,"./ReactPropTypes":508,"./ReactVersion":523,"./onlyChild":562,"_process":264}],496:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -52742,7 +53202,7 @@ ReactLink.PropTypes = {
 };
 
 module.exports = ReactLink;
-},{"./React":450}],495:[function(require,module,exports){
+},{"./React":452}],497:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -52788,7 +53248,7 @@ var ReactMarkupChecksum = {
 };
 
 module.exports = ReactMarkupChecksum;
-},{"./adler32":541}],496:[function(require,module,exports){
+},{"./adler32":543}],498:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -53641,7 +54101,7 @@ ReactPerf.measureMethods(ReactMount, 'ReactMount', {
 
 module.exports = ReactMount;
 }).call(this,require('_process'))
-},{"./DOMProperty":434,"./Object.assign":448,"./ReactBrowserEventEmitter":452,"./ReactCurrentOwner":463,"./ReactDOMFeatureFlags":468,"./ReactElement":481,"./ReactEmptyComponentRegistry":484,"./ReactInstanceHandles":491,"./ReactInstanceMap":492,"./ReactMarkupChecksum":495,"./ReactPerf":502,"./ReactReconciler":508,"./ReactUpdateQueue":519,"./ReactUpdates":520,"./instantiateReactComponent":557,"./setInnerHTML":563,"./shouldUpdateReactComponent":566,"./validateDOMNesting":569,"_process":264,"fbjs/lib/containsNode":575,"fbjs/lib/emptyObject":579,"fbjs/lib/invariant":586,"fbjs/lib/warning":598}],497:[function(require,module,exports){
+},{"./DOMProperty":436,"./Object.assign":450,"./ReactBrowserEventEmitter":454,"./ReactCurrentOwner":465,"./ReactDOMFeatureFlags":470,"./ReactElement":483,"./ReactEmptyComponentRegistry":486,"./ReactInstanceHandles":493,"./ReactInstanceMap":494,"./ReactMarkupChecksum":497,"./ReactPerf":504,"./ReactReconciler":510,"./ReactUpdateQueue":521,"./ReactUpdates":522,"./instantiateReactComponent":559,"./setInnerHTML":565,"./shouldUpdateReactComponent":568,"./validateDOMNesting":571,"_process":264,"fbjs/lib/containsNode":577,"fbjs/lib/emptyObject":581,"fbjs/lib/invariant":588,"fbjs/lib/warning":600}],499:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -54140,7 +54600,7 @@ var ReactMultiChild = {
 
 module.exports = ReactMultiChild;
 }).call(this,require('_process'))
-},{"./ReactChildReconciler":455,"./ReactComponentEnvironment":460,"./ReactCurrentOwner":463,"./ReactMultiChildUpdateTypes":498,"./ReactReconciler":508,"./flattenChildren":548,"_process":264}],498:[function(require,module,exports){
+},{"./ReactChildReconciler":457,"./ReactComponentEnvironment":462,"./ReactCurrentOwner":465,"./ReactMultiChildUpdateTypes":500,"./ReactReconciler":510,"./flattenChildren":550,"_process":264}],500:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -54173,7 +54633,7 @@ var ReactMultiChildUpdateTypes = keyMirror({
 });
 
 module.exports = ReactMultiChildUpdateTypes;
-},{"fbjs/lib/keyMirror":590}],499:[function(require,module,exports){
+},{"fbjs/lib/keyMirror":592}],501:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-2015, Facebook, Inc.
@@ -54270,7 +54730,7 @@ var ReactNativeComponent = {
 
 module.exports = ReactNativeComponent;
 }).call(this,require('_process'))
-},{"./Object.assign":448,"_process":264,"fbjs/lib/invariant":586}],500:[function(require,module,exports){
+},{"./Object.assign":450,"_process":264,"fbjs/lib/invariant":588}],502:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2015, Facebook, Inc.
@@ -54391,7 +54851,7 @@ var ReactNoopUpdateQueue = {
 
 module.exports = ReactNoopUpdateQueue;
 }).call(this,require('_process'))
-},{"_process":264,"fbjs/lib/warning":598}],501:[function(require,module,exports){
+},{"_process":264,"fbjs/lib/warning":600}],503:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -54485,7 +54945,7 @@ var ReactOwner = {
 
 module.exports = ReactOwner;
 }).call(this,require('_process'))
-},{"_process":264,"fbjs/lib/invariant":586}],502:[function(require,module,exports){
+},{"_process":264,"fbjs/lib/invariant":588}],504:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -54584,7 +55044,7 @@ function _noMeasure(objName, fnName, func) {
 
 module.exports = ReactPerf;
 }).call(this,require('_process'))
-},{"_process":264}],503:[function(require,module,exports){
+},{"_process":264}],505:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -54693,7 +55153,7 @@ var ReactPropTransferer = {
 };
 
 module.exports = ReactPropTransferer;
-},{"./Object.assign":448,"fbjs/lib/emptyFunction":578,"fbjs/lib/joinClasses":589}],504:[function(require,module,exports){
+},{"./Object.assign":450,"fbjs/lib/emptyFunction":580,"fbjs/lib/joinClasses":591}],506:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -54720,7 +55180,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = ReactPropTypeLocationNames;
 }).call(this,require('_process'))
-},{"_process":264}],505:[function(require,module,exports){
+},{"_process":264}],507:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -54743,7 +55203,7 @@ var ReactPropTypeLocations = keyMirror({
 });
 
 module.exports = ReactPropTypeLocations;
-},{"fbjs/lib/keyMirror":590}],506:[function(require,module,exports){
+},{"fbjs/lib/keyMirror":592}],508:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -55100,7 +55560,7 @@ function getClassName(propValue) {
 }
 
 module.exports = ReactPropTypes;
-},{"./ReactElement":481,"./ReactPropTypeLocationNames":504,"./getIteratorFn":554,"fbjs/lib/emptyFunction":578}],507:[function(require,module,exports){
+},{"./ReactElement":483,"./ReactPropTypeLocationNames":506,"./getIteratorFn":556,"fbjs/lib/emptyFunction":580}],509:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -55252,7 +55712,7 @@ assign(ReactReconcileTransaction.prototype, Transaction.Mixin, Mixin);
 PooledClass.addPoolingTo(ReactReconcileTransaction);
 
 module.exports = ReactReconcileTransaction;
-},{"./CallbackQueue":430,"./Object.assign":448,"./PooledClass":449,"./ReactBrowserEventEmitter":452,"./ReactDOMFeatureFlags":468,"./ReactInputSelection":490,"./Transaction":538}],508:[function(require,module,exports){
+},{"./CallbackQueue":432,"./Object.assign":450,"./PooledClass":451,"./ReactBrowserEventEmitter":454,"./ReactDOMFeatureFlags":470,"./ReactInputSelection":492,"./Transaction":540}],510:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -55360,7 +55820,7 @@ var ReactReconciler = {
 };
 
 module.exports = ReactReconciler;
-},{"./ReactRef":509}],509:[function(require,module,exports){
+},{"./ReactRef":511}],511:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -55439,7 +55899,7 @@ ReactRef.detachRefs = function (instance, element) {
 };
 
 module.exports = ReactRef;
-},{"./ReactOwner":501}],510:[function(require,module,exports){
+},{"./ReactOwner":503}],512:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -55469,7 +55929,7 @@ var ReactRootIndex = {
 };
 
 module.exports = ReactRootIndex;
-},{}],511:[function(require,module,exports){
+},{}],513:[function(require,module,exports){
 /**
  * Copyright 2014-2015, Facebook, Inc.
  * All rights reserved.
@@ -55493,7 +55953,7 @@ var ReactServerBatchingStrategy = {
 };
 
 module.exports = ReactServerBatchingStrategy;
-},{}],512:[function(require,module,exports){
+},{}],514:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -55579,7 +56039,7 @@ module.exports = {
   renderToStaticMarkup: renderToStaticMarkup
 };
 }).call(this,require('_process'))
-},{"./ReactDefaultBatchingStrategy":477,"./ReactElement":481,"./ReactInstanceHandles":491,"./ReactMarkupChecksum":495,"./ReactServerBatchingStrategy":511,"./ReactServerRenderingTransaction":513,"./ReactUpdates":520,"./instantiateReactComponent":557,"_process":264,"fbjs/lib/emptyObject":579,"fbjs/lib/invariant":586}],513:[function(require,module,exports){
+},{"./ReactDefaultBatchingStrategy":479,"./ReactElement":483,"./ReactInstanceHandles":493,"./ReactMarkupChecksum":497,"./ReactServerBatchingStrategy":513,"./ReactServerRenderingTransaction":515,"./ReactUpdates":522,"./instantiateReactComponent":559,"_process":264,"fbjs/lib/emptyObject":581,"fbjs/lib/invariant":588}],515:[function(require,module,exports){
 /**
  * Copyright 2014-2015, Facebook, Inc.
  * All rights reserved.
@@ -55667,7 +56127,7 @@ assign(ReactServerRenderingTransaction.prototype, Transaction.Mixin, Mixin);
 PooledClass.addPoolingTo(ReactServerRenderingTransaction);
 
 module.exports = ReactServerRenderingTransaction;
-},{"./CallbackQueue":430,"./Object.assign":448,"./PooledClass":449,"./Transaction":538,"fbjs/lib/emptyFunction":578}],514:[function(require,module,exports){
+},{"./CallbackQueue":432,"./Object.assign":450,"./PooledClass":451,"./Transaction":540,"fbjs/lib/emptyFunction":580}],516:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -55772,7 +56232,7 @@ ReactStateSetters.Mixin = {
 };
 
 module.exports = ReactStateSetters;
-},{}],515:[function(require,module,exports){
+},{}],517:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -56248,7 +56708,7 @@ Object.keys(topLevelTypes).forEach(function (eventType) {
 
 module.exports = ReactTestUtils;
 }).call(this,require('_process'))
-},{"./EventConstants":439,"./EventPluginHub":440,"./EventPropagators":443,"./Object.assign":448,"./React":450,"./ReactBrowserEventEmitter":452,"./ReactCompositeComponent":462,"./ReactDOM":464,"./ReactElement":481,"./ReactInstanceHandles":491,"./ReactInstanceMap":492,"./ReactMount":496,"./ReactUpdates":520,"./SyntheticEvent":530,"./findDOMNode":547,"_process":264,"fbjs/lib/emptyObject":579,"fbjs/lib/invariant":586}],516:[function(require,module,exports){
+},{"./EventConstants":441,"./EventPluginHub":442,"./EventPropagators":445,"./Object.assign":450,"./React":452,"./ReactBrowserEventEmitter":454,"./ReactCompositeComponent":464,"./ReactDOM":466,"./ReactElement":483,"./ReactInstanceHandles":493,"./ReactInstanceMap":494,"./ReactMount":498,"./ReactUpdates":522,"./SyntheticEvent":532,"./findDOMNode":549,"_process":264,"fbjs/lib/emptyObject":581,"fbjs/lib/invariant":588}],518:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -56347,7 +56807,7 @@ var ReactTransitionChildMapping = {
 };
 
 module.exports = ReactTransitionChildMapping;
-},{"./flattenChildren":548}],517:[function(require,module,exports){
+},{"./flattenChildren":550}],519:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -56457,7 +56917,7 @@ var ReactTransitionEvents = {
 };
 
 module.exports = ReactTransitionEvents;
-},{"fbjs/lib/ExecutionEnvironment":572}],518:[function(require,module,exports){
+},{"fbjs/lib/ExecutionEnvironment":574}],520:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -56663,7 +57123,7 @@ var ReactTransitionGroup = React.createClass({
 });
 
 module.exports = ReactTransitionGroup;
-},{"./Object.assign":448,"./React":450,"./ReactTransitionChildMapping":516,"fbjs/lib/emptyFunction":578}],519:[function(require,module,exports){
+},{"./Object.assign":450,"./React":452,"./ReactTransitionChildMapping":518,"fbjs/lib/emptyFunction":580}],521:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2015, Facebook, Inc.
@@ -56923,7 +57383,7 @@ var ReactUpdateQueue = {
 
 module.exports = ReactUpdateQueue;
 }).call(this,require('_process'))
-},{"./Object.assign":448,"./ReactCurrentOwner":463,"./ReactElement":481,"./ReactInstanceMap":492,"./ReactUpdates":520,"_process":264,"fbjs/lib/invariant":586,"fbjs/lib/warning":598}],520:[function(require,module,exports){
+},{"./Object.assign":450,"./ReactCurrentOwner":465,"./ReactElement":483,"./ReactInstanceMap":494,"./ReactUpdates":522,"_process":264,"fbjs/lib/invariant":588,"fbjs/lib/warning":600}],522:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -57149,7 +57609,7 @@ var ReactUpdates = {
 
 module.exports = ReactUpdates;
 }).call(this,require('_process'))
-},{"./CallbackQueue":430,"./Object.assign":448,"./PooledClass":449,"./ReactPerf":502,"./ReactReconciler":508,"./Transaction":538,"_process":264,"fbjs/lib/invariant":586}],521:[function(require,module,exports){
+},{"./CallbackQueue":432,"./Object.assign":450,"./PooledClass":451,"./ReactPerf":504,"./ReactReconciler":510,"./Transaction":540,"_process":264,"fbjs/lib/invariant":588}],523:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -57163,8 +57623,8 @@ module.exports = ReactUpdates;
 
 'use strict';
 
-module.exports = '0.14.3';
-},{}],522:[function(require,module,exports){
+module.exports = '0.14.5';
+},{}],524:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -57227,7 +57687,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = React;
 }).call(this,require('_process'))
-},{"./LinkedStateMixin":446,"./React":450,"./ReactCSSTransitionGroup":453,"./ReactComponentWithPureRenderMixin":461,"./ReactDefaultPerf":479,"./ReactFragment":488,"./ReactTestUtils":515,"./ReactTransitionGroup":518,"./ReactUpdates":520,"./cloneWithProps":543,"./shallowCompare":565,"./update":568,"_process":264,"fbjs/lib/warning":598}],523:[function(require,module,exports){
+},{"./LinkedStateMixin":448,"./React":452,"./ReactCSSTransitionGroup":455,"./ReactComponentWithPureRenderMixin":463,"./ReactDefaultPerf":481,"./ReactFragment":490,"./ReactTestUtils":517,"./ReactTransitionGroup":520,"./ReactUpdates":522,"./cloneWithProps":545,"./shallowCompare":567,"./update":570,"_process":264,"fbjs/lib/warning":600}],525:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -57355,7 +57815,7 @@ var SVGDOMPropertyConfig = {
 };
 
 module.exports = SVGDOMPropertyConfig;
-},{"./DOMProperty":434}],524:[function(require,module,exports){
+},{"./DOMProperty":436}],526:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -57557,7 +58017,7 @@ var SelectEventPlugin = {
 };
 
 module.exports = SelectEventPlugin;
-},{"./EventConstants":439,"./EventPropagators":443,"./ReactInputSelection":490,"./SyntheticEvent":530,"./isTextInputElement":559,"fbjs/lib/ExecutionEnvironment":572,"fbjs/lib/getActiveElement":581,"fbjs/lib/keyOf":591,"fbjs/lib/shallowEqual":596}],525:[function(require,module,exports){
+},{"./EventConstants":441,"./EventPropagators":445,"./ReactInputSelection":492,"./SyntheticEvent":532,"./isTextInputElement":561,"fbjs/lib/ExecutionEnvironment":574,"fbjs/lib/getActiveElement":583,"fbjs/lib/keyOf":593,"fbjs/lib/shallowEqual":598}],527:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -57587,7 +58047,7 @@ var ServerReactRootIndex = {
 };
 
 module.exports = ServerReactRootIndex;
-},{}],526:[function(require,module,exports){
+},{}],528:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -58177,7 +58637,7 @@ var SimpleEventPlugin = {
 
 module.exports = SimpleEventPlugin;
 }).call(this,require('_process'))
-},{"./EventConstants":439,"./EventPropagators":443,"./ReactMount":496,"./SyntheticClipboardEvent":527,"./SyntheticDragEvent":529,"./SyntheticEvent":530,"./SyntheticFocusEvent":531,"./SyntheticKeyboardEvent":533,"./SyntheticMouseEvent":534,"./SyntheticTouchEvent":535,"./SyntheticUIEvent":536,"./SyntheticWheelEvent":537,"./getEventCharCode":550,"_process":264,"fbjs/lib/EventListener":571,"fbjs/lib/emptyFunction":578,"fbjs/lib/invariant":586,"fbjs/lib/keyOf":591}],527:[function(require,module,exports){
+},{"./EventConstants":441,"./EventPropagators":445,"./ReactMount":498,"./SyntheticClipboardEvent":529,"./SyntheticDragEvent":531,"./SyntheticEvent":532,"./SyntheticFocusEvent":533,"./SyntheticKeyboardEvent":535,"./SyntheticMouseEvent":536,"./SyntheticTouchEvent":537,"./SyntheticUIEvent":538,"./SyntheticWheelEvent":539,"./getEventCharCode":552,"_process":264,"fbjs/lib/EventListener":573,"fbjs/lib/emptyFunction":580,"fbjs/lib/invariant":588,"fbjs/lib/keyOf":593}],529:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -58217,7 +58677,7 @@ function SyntheticClipboardEvent(dispatchConfig, dispatchMarker, nativeEvent, na
 SyntheticEvent.augmentClass(SyntheticClipboardEvent, ClipboardEventInterface);
 
 module.exports = SyntheticClipboardEvent;
-},{"./SyntheticEvent":530}],528:[function(require,module,exports){
+},{"./SyntheticEvent":532}],530:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -58255,7 +58715,7 @@ function SyntheticCompositionEvent(dispatchConfig, dispatchMarker, nativeEvent, 
 SyntheticEvent.augmentClass(SyntheticCompositionEvent, CompositionEventInterface);
 
 module.exports = SyntheticCompositionEvent;
-},{"./SyntheticEvent":530}],529:[function(require,module,exports){
+},{"./SyntheticEvent":532}],531:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -58293,7 +58753,7 @@ function SyntheticDragEvent(dispatchConfig, dispatchMarker, nativeEvent, nativeE
 SyntheticMouseEvent.augmentClass(SyntheticDragEvent, DragEventInterface);
 
 module.exports = SyntheticDragEvent;
-},{"./SyntheticMouseEvent":534}],530:[function(require,module,exports){
+},{"./SyntheticMouseEvent":536}],532:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -58473,7 +58933,7 @@ PooledClass.addPoolingTo(SyntheticEvent, PooledClass.fourArgumentPooler);
 
 module.exports = SyntheticEvent;
 }).call(this,require('_process'))
-},{"./Object.assign":448,"./PooledClass":449,"_process":264,"fbjs/lib/emptyFunction":578,"fbjs/lib/warning":598}],531:[function(require,module,exports){
+},{"./Object.assign":450,"./PooledClass":451,"_process":264,"fbjs/lib/emptyFunction":580,"fbjs/lib/warning":600}],533:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -58511,7 +58971,7 @@ function SyntheticFocusEvent(dispatchConfig, dispatchMarker, nativeEvent, native
 SyntheticUIEvent.augmentClass(SyntheticFocusEvent, FocusEventInterface);
 
 module.exports = SyntheticFocusEvent;
-},{"./SyntheticUIEvent":536}],532:[function(require,module,exports){
+},{"./SyntheticUIEvent":538}],534:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -58550,7 +59010,7 @@ function SyntheticInputEvent(dispatchConfig, dispatchMarker, nativeEvent, native
 SyntheticEvent.augmentClass(SyntheticInputEvent, InputEventInterface);
 
 module.exports = SyntheticInputEvent;
-},{"./SyntheticEvent":530}],533:[function(require,module,exports){
+},{"./SyntheticEvent":532}],535:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -58636,7 +59096,7 @@ function SyntheticKeyboardEvent(dispatchConfig, dispatchMarker, nativeEvent, nat
 SyntheticUIEvent.augmentClass(SyntheticKeyboardEvent, KeyboardEventInterface);
 
 module.exports = SyntheticKeyboardEvent;
-},{"./SyntheticUIEvent":536,"./getEventCharCode":550,"./getEventKey":551,"./getEventModifierState":552}],534:[function(require,module,exports){
+},{"./SyntheticUIEvent":538,"./getEventCharCode":552,"./getEventKey":553,"./getEventModifierState":554}],536:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -58710,7 +59170,7 @@ function SyntheticMouseEvent(dispatchConfig, dispatchMarker, nativeEvent, native
 SyntheticUIEvent.augmentClass(SyntheticMouseEvent, MouseEventInterface);
 
 module.exports = SyntheticMouseEvent;
-},{"./SyntheticUIEvent":536,"./ViewportMetrics":539,"./getEventModifierState":552}],535:[function(require,module,exports){
+},{"./SyntheticUIEvent":538,"./ViewportMetrics":541,"./getEventModifierState":554}],537:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -58757,7 +59217,7 @@ function SyntheticTouchEvent(dispatchConfig, dispatchMarker, nativeEvent, native
 SyntheticUIEvent.augmentClass(SyntheticTouchEvent, TouchEventInterface);
 
 module.exports = SyntheticTouchEvent;
-},{"./SyntheticUIEvent":536,"./getEventModifierState":552}],536:[function(require,module,exports){
+},{"./SyntheticUIEvent":538,"./getEventModifierState":554}],538:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -58818,7 +59278,7 @@ function SyntheticUIEvent(dispatchConfig, dispatchMarker, nativeEvent, nativeEve
 SyntheticEvent.augmentClass(SyntheticUIEvent, UIEventInterface);
 
 module.exports = SyntheticUIEvent;
-},{"./SyntheticEvent":530,"./getEventTarget":553}],537:[function(require,module,exports){
+},{"./SyntheticEvent":532,"./getEventTarget":555}],539:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -58874,7 +59334,7 @@ function SyntheticWheelEvent(dispatchConfig, dispatchMarker, nativeEvent, native
 SyntheticMouseEvent.augmentClass(SyntheticWheelEvent, WheelEventInterface);
 
 module.exports = SyntheticWheelEvent;
-},{"./SyntheticMouseEvent":534}],538:[function(require,module,exports){
+},{"./SyntheticMouseEvent":536}],540:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -59108,7 +59568,7 @@ var Transaction = {
 
 module.exports = Transaction;
 }).call(this,require('_process'))
-},{"_process":264,"fbjs/lib/invariant":586}],539:[function(require,module,exports){
+},{"_process":264,"fbjs/lib/invariant":588}],541:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -59136,7 +59596,7 @@ var ViewportMetrics = {
 };
 
 module.exports = ViewportMetrics;
-},{}],540:[function(require,module,exports){
+},{}],542:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-2015, Facebook, Inc.
@@ -59198,7 +59658,7 @@ function accumulateInto(current, next) {
 
 module.exports = accumulateInto;
 }).call(this,require('_process'))
-},{"_process":264,"fbjs/lib/invariant":586}],541:[function(require,module,exports){
+},{"_process":264,"fbjs/lib/invariant":588}],543:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -59241,7 +59701,7 @@ function adler32(data) {
 }
 
 module.exports = adler32;
-},{}],542:[function(require,module,exports){
+},{}],544:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -59268,7 +59728,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = canDefineProperty;
 }).call(this,require('_process'))
-},{"_process":264}],543:[function(require,module,exports){
+},{"_process":264}],545:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -59325,7 +59785,7 @@ function cloneWithProps(child, props) {
 
 module.exports = cloneWithProps;
 }).call(this,require('_process'))
-},{"./ReactElement":481,"./ReactPropTransferer":503,"_process":264,"fbjs/lib/keyOf":591,"fbjs/lib/warning":598}],544:[function(require,module,exports){
+},{"./ReactElement":483,"./ReactPropTransferer":505,"_process":264,"fbjs/lib/keyOf":593,"fbjs/lib/warning":600}],546:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -59381,7 +59841,7 @@ function dangerousStyleValue(name, value) {
 }
 
 module.exports = dangerousStyleValue;
-},{"./CSSProperty":428}],545:[function(require,module,exports){
+},{"./CSSProperty":430}],547:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -59432,7 +59892,7 @@ function deprecated(fnName, newModule, newPackage, ctx, fn) {
 
 module.exports = deprecated;
 }).call(this,require('_process'))
-},{"./Object.assign":448,"_process":264,"fbjs/lib/warning":598}],546:[function(require,module,exports){
+},{"./Object.assign":450,"_process":264,"fbjs/lib/warning":600}],548:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -59471,7 +59931,7 @@ function escapeTextContentForBrowser(text) {
 }
 
 module.exports = escapeTextContentForBrowser;
-},{}],547:[function(require,module,exports){
+},{}],549:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -59523,7 +59983,7 @@ function findDOMNode(componentOrElement) {
 
 module.exports = findDOMNode;
 }).call(this,require('_process'))
-},{"./ReactCurrentOwner":463,"./ReactInstanceMap":492,"./ReactMount":496,"_process":264,"fbjs/lib/invariant":586,"fbjs/lib/warning":598}],548:[function(require,module,exports){
+},{"./ReactCurrentOwner":465,"./ReactInstanceMap":494,"./ReactMount":498,"_process":264,"fbjs/lib/invariant":588,"fbjs/lib/warning":600}],550:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -59574,7 +60034,7 @@ function flattenChildren(children) {
 
 module.exports = flattenChildren;
 }).call(this,require('_process'))
-},{"./traverseAllChildren":567,"_process":264,"fbjs/lib/warning":598}],549:[function(require,module,exports){
+},{"./traverseAllChildren":569,"_process":264,"fbjs/lib/warning":600}],551:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -59604,7 +60064,7 @@ var forEachAccumulated = function (arr, cb, scope) {
 };
 
 module.exports = forEachAccumulated;
-},{}],550:[function(require,module,exports){
+},{}],552:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -59655,7 +60115,7 @@ function getEventCharCode(nativeEvent) {
 }
 
 module.exports = getEventCharCode;
-},{}],551:[function(require,module,exports){
+},{}],553:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -59759,7 +60219,7 @@ function getEventKey(nativeEvent) {
 }
 
 module.exports = getEventKey;
-},{"./getEventCharCode":550}],552:[function(require,module,exports){
+},{"./getEventCharCode":552}],554:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -59804,7 +60264,7 @@ function getEventModifierState(nativeEvent) {
 }
 
 module.exports = getEventModifierState;
-},{}],553:[function(require,module,exports){
+},{}],555:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -59834,7 +60294,7 @@ function getEventTarget(nativeEvent) {
 }
 
 module.exports = getEventTarget;
-},{}],554:[function(require,module,exports){
+},{}],556:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -59875,7 +60335,7 @@ function getIteratorFn(maybeIterable) {
 }
 
 module.exports = getIteratorFn;
-},{}],555:[function(require,module,exports){
+},{}],557:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -59949,7 +60409,7 @@ function getNodeForCharacterOffset(root, offset) {
 }
 
 module.exports = getNodeForCharacterOffset;
-},{}],556:[function(require,module,exports){
+},{}],558:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -59983,7 +60443,7 @@ function getTextContentAccessor() {
 }
 
 module.exports = getTextContentAccessor;
-},{"fbjs/lib/ExecutionEnvironment":572}],557:[function(require,module,exports){
+},{"fbjs/lib/ExecutionEnvironment":574}],559:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -60098,7 +60558,7 @@ function instantiateReactComponent(node) {
 
 module.exports = instantiateReactComponent;
 }).call(this,require('_process'))
-},{"./Object.assign":448,"./ReactCompositeComponent":462,"./ReactEmptyComponent":483,"./ReactNativeComponent":499,"_process":264,"fbjs/lib/invariant":586,"fbjs/lib/warning":598}],558:[function(require,module,exports){
+},{"./Object.assign":450,"./ReactCompositeComponent":464,"./ReactEmptyComponent":485,"./ReactNativeComponent":501,"_process":264,"fbjs/lib/invariant":588,"fbjs/lib/warning":600}],560:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -60159,7 +60619,7 @@ function isEventSupported(eventNameSuffix, capture) {
 }
 
 module.exports = isEventSupported;
-},{"fbjs/lib/ExecutionEnvironment":572}],559:[function(require,module,exports){
+},{"fbjs/lib/ExecutionEnvironment":574}],561:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -60200,7 +60660,7 @@ function isTextInputElement(elem) {
 }
 
 module.exports = isTextInputElement;
-},{}],560:[function(require,module,exports){
+},{}],562:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -60236,7 +60696,7 @@ function onlyChild(children) {
 
 module.exports = onlyChild;
 }).call(this,require('_process'))
-},{"./ReactElement":481,"_process":264,"fbjs/lib/invariant":586}],561:[function(require,module,exports){
+},{"./ReactElement":483,"_process":264,"fbjs/lib/invariant":588}],563:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -60263,7 +60723,7 @@ function quoteAttributeValueForBrowser(value) {
 }
 
 module.exports = quoteAttributeValueForBrowser;
-},{"./escapeTextContentForBrowser":546}],562:[function(require,module,exports){
+},{"./escapeTextContentForBrowser":548}],564:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -60280,7 +60740,7 @@ module.exports = quoteAttributeValueForBrowser;
 var ReactMount = require('./ReactMount');
 
 module.exports = ReactMount.renderSubtreeIntoContainer;
-},{"./ReactMount":496}],563:[function(require,module,exports){
+},{"./ReactMount":498}],565:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -60371,7 +60831,7 @@ if (ExecutionEnvironment.canUseDOM) {
 }
 
 module.exports = setInnerHTML;
-},{"fbjs/lib/ExecutionEnvironment":572}],564:[function(require,module,exports){
+},{"fbjs/lib/ExecutionEnvironment":574}],566:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -60412,7 +60872,7 @@ if (ExecutionEnvironment.canUseDOM) {
 }
 
 module.exports = setTextContent;
-},{"./escapeTextContentForBrowser":546,"./setInnerHTML":563,"fbjs/lib/ExecutionEnvironment":572}],565:[function(require,module,exports){
+},{"./escapeTextContentForBrowser":548,"./setInnerHTML":565,"fbjs/lib/ExecutionEnvironment":574}],567:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -60437,7 +60897,7 @@ function shallowCompare(instance, nextProps, nextState) {
 }
 
 module.exports = shallowCompare;
-},{"fbjs/lib/shallowEqual":596}],566:[function(require,module,exports){
+},{"fbjs/lib/shallowEqual":598}],568:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -60481,7 +60941,7 @@ function shouldUpdateReactComponent(prevElement, nextElement) {
 }
 
 module.exports = shouldUpdateReactComponent;
-},{}],567:[function(require,module,exports){
+},{}],569:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -60673,7 +61133,7 @@ function traverseAllChildren(children, callback, traverseContext) {
 
 module.exports = traverseAllChildren;
 }).call(this,require('_process'))
-},{"./ReactCurrentOwner":463,"./ReactElement":481,"./ReactInstanceHandles":491,"./getIteratorFn":554,"_process":264,"fbjs/lib/invariant":586,"fbjs/lib/warning":598}],568:[function(require,module,exports){
+},{"./ReactCurrentOwner":465,"./ReactElement":483,"./ReactInstanceHandles":493,"./getIteratorFn":556,"_process":264,"fbjs/lib/invariant":588,"fbjs/lib/warning":600}],570:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -60783,7 +61243,7 @@ function update(value, spec) {
 
 module.exports = update;
 }).call(this,require('_process'))
-},{"./Object.assign":448,"_process":264,"fbjs/lib/invariant":586,"fbjs/lib/keyOf":591}],569:[function(require,module,exports){
+},{"./Object.assign":450,"_process":264,"fbjs/lib/invariant":588,"fbjs/lib/keyOf":593}],571:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2015, Facebook, Inc.
@@ -61149,7 +61609,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = validateDOMNesting;
 }).call(this,require('_process'))
-},{"./Object.assign":448,"_process":264,"fbjs/lib/emptyFunction":578,"fbjs/lib/warning":598}],570:[function(require,module,exports){
+},{"./Object.assign":450,"_process":264,"fbjs/lib/emptyFunction":580,"fbjs/lib/warning":600}],572:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -61249,7 +61709,7 @@ var CSSCore = {
 
 module.exports = CSSCore;
 }).call(this,require('_process'))
-},{"./invariant":586,"_process":264}],571:[function(require,module,exports){
+},{"./invariant":588,"_process":264}],573:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -61336,7 +61796,7 @@ var EventListener = {
 
 module.exports = EventListener;
 }).call(this,require('_process'))
-},{"./emptyFunction":578,"_process":264}],572:[function(require,module,exports){
+},{"./emptyFunction":580,"_process":264}],574:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -61373,7 +61833,7 @@ var ExecutionEnvironment = {
 };
 
 module.exports = ExecutionEnvironment;
-},{}],573:[function(require,module,exports){
+},{}],575:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -61406,7 +61866,7 @@ function camelize(string) {
 }
 
 module.exports = camelize;
-},{}],574:[function(require,module,exports){
+},{}],576:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -61447,7 +61907,7 @@ function camelizeStyleName(string) {
 }
 
 module.exports = camelizeStyleName;
-},{"./camelize":573}],575:[function(require,module,exports){
+},{"./camelize":575}],577:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -61503,7 +61963,7 @@ function containsNode(_x, _x2) {
 }
 
 module.exports = containsNode;
-},{"./isTextNode":588}],576:[function(require,module,exports){
+},{"./isTextNode":590}],578:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -61589,7 +62049,7 @@ function createArrayFromMixed(obj) {
 }
 
 module.exports = createArrayFromMixed;
-},{"./toArray":597}],577:[function(require,module,exports){
+},{"./toArray":599}],579:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -61676,7 +62136,7 @@ function createNodesFromMarkup(markup, handleScript) {
 
 module.exports = createNodesFromMarkup;
 }).call(this,require('_process'))
-},{"./ExecutionEnvironment":572,"./createArrayFromMixed":576,"./getMarkupWrap":582,"./invariant":586,"_process":264}],578:[function(require,module,exports){
+},{"./ExecutionEnvironment":574,"./createArrayFromMixed":578,"./getMarkupWrap":584,"./invariant":588,"_process":264}],580:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -61715,7 +62175,7 @@ emptyFunction.thatReturnsArgument = function (arg) {
 };
 
 module.exports = emptyFunction;
-},{}],579:[function(require,module,exports){
+},{}],581:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -61738,7 +62198,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = emptyObject;
 }).call(this,require('_process'))
-},{"_process":264}],580:[function(require,module,exports){
+},{"_process":264}],582:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -61765,7 +62225,7 @@ function focusNode(node) {
 }
 
 module.exports = focusNode;
-},{}],581:[function(require,module,exports){
+},{}],583:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -61782,15 +62242,11 @@ module.exports = focusNode;
  * Same as document.activeElement but wraps in a try-catch block. In IE it is
  * not safe to call document.activeElement if there is nothing focused.
  *
- * The activeElement will be null only if the document or document body is not yet defined.
+ * The activeElement will be null only if the document body is not yet defined.
  */
-'use strict';
+"use strict";
 
 function getActiveElement() /*?DOMElement*/{
-  if (typeof document === 'undefined') {
-    return null;
-  }
-
   try {
     return document.activeElement || document.body;
   } catch (e) {
@@ -61799,7 +62255,7 @@ function getActiveElement() /*?DOMElement*/{
 }
 
 module.exports = getActiveElement;
-},{}],582:[function(require,module,exports){
+},{}],584:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -61897,7 +62353,7 @@ function getMarkupWrap(nodeName) {
 
 module.exports = getMarkupWrap;
 }).call(this,require('_process'))
-},{"./ExecutionEnvironment":572,"./invariant":586,"_process":264}],583:[function(require,module,exports){
+},{"./ExecutionEnvironment":574,"./invariant":588,"_process":264}],585:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -61936,7 +62392,7 @@ function getUnboundedScrollPosition(scrollable) {
 }
 
 module.exports = getUnboundedScrollPosition;
-},{}],584:[function(require,module,exports){
+},{}],586:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -61970,7 +62426,7 @@ function hyphenate(string) {
 }
 
 module.exports = hyphenate;
-},{}],585:[function(require,module,exports){
+},{}],587:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -62010,7 +62466,7 @@ function hyphenateStyleName(string) {
 }
 
 module.exports = hyphenateStyleName;
-},{"./hyphenate":584}],586:[function(require,module,exports){
+},{"./hyphenate":586}],588:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -62036,7 +62492,7 @@ module.exports = hyphenateStyleName;
  * will remain to ensure logic does not differ in production.
  */
 
-var invariant = function (condition, format, a, b, c, d, e, f) {
+function invariant(condition, format, a, b, c, d, e, f) {
   if (process.env.NODE_ENV !== 'production') {
     if (format === undefined) {
       throw new Error('invariant requires an error message argument');
@@ -62050,19 +62506,20 @@ var invariant = function (condition, format, a, b, c, d, e, f) {
     } else {
       var args = [a, b, c, d, e, f];
       var argIndex = 0;
-      error = new Error('Invariant Violation: ' + format.replace(/%s/g, function () {
+      error = new Error(format.replace(/%s/g, function () {
         return args[argIndex++];
       }));
+      error.name = 'Invariant Violation';
     }
 
     error.framesToPop = 1; // we don't care about invariant's own frame
     throw error;
   }
-};
+}
 
 module.exports = invariant;
 }).call(this,require('_process'))
-},{"_process":264}],587:[function(require,module,exports){
+},{"_process":264}],589:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -62086,7 +62543,7 @@ function isNode(object) {
 }
 
 module.exports = isNode;
-},{}],588:[function(require,module,exports){
+},{}],590:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -62112,7 +62569,7 @@ function isTextNode(object) {
 }
 
 module.exports = isTextNode;
-},{"./isNode":587}],589:[function(require,module,exports){
+},{"./isNode":589}],591:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -62152,7 +62609,7 @@ function joinClasses(className /*, ... */) {
 }
 
 module.exports = joinClasses;
-},{}],590:[function(require,module,exports){
+},{}],592:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -62203,7 +62660,7 @@ var keyMirror = function (obj) {
 
 module.exports = keyMirror;
 }).call(this,require('_process'))
-},{"./invariant":586,"_process":264}],591:[function(require,module,exports){
+},{"./invariant":588,"_process":264}],593:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -62239,7 +62696,7 @@ var keyOf = function (oneKeyObj) {
 };
 
 module.exports = keyOf;
-},{}],592:[function(require,module,exports){
+},{}],594:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -62291,7 +62748,7 @@ function mapObject(object, callback, context) {
 }
 
 module.exports = mapObject;
-},{}],593:[function(require,module,exports){
+},{}],595:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -62323,7 +62780,7 @@ function memoizeStringOnly(callback) {
 }
 
 module.exports = memoizeStringOnly;
-},{}],594:[function(require,module,exports){
+},{}],596:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -62347,7 +62804,7 @@ if (ExecutionEnvironment.canUseDOM) {
 }
 
 module.exports = performance || {};
-},{"./ExecutionEnvironment":572}],595:[function(require,module,exports){
+},{"./ExecutionEnvironment":574}],597:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -62363,21 +62820,26 @@ module.exports = performance || {};
 'use strict';
 
 var performance = require('./performance');
-var curPerformance = performance;
+
+var performanceNow;
 
 /**
  * Detect if we can use `window.performance.now()` and gracefully fallback to
  * `Date.now()` if it doesn't exist. We need to support Firefox < 15 for now
  * because of Facebook's testing infrastructure.
  */
-if (!curPerformance || !curPerformance.now) {
-  curPerformance = Date;
+if (performance.now) {
+  performanceNow = function () {
+    return performance.now();
+  };
+} else {
+  performanceNow = function () {
+    return Date.now();
+  };
 }
 
-var performanceNow = curPerformance.now.bind(curPerformance);
-
 module.exports = performanceNow;
-},{"./performance":594}],596:[function(require,module,exports){
+},{"./performance":596}],598:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -62428,7 +62890,7 @@ function shallowEqual(objA, objB) {
 }
 
 module.exports = shallowEqual;
-},{}],597:[function(require,module,exports){
+},{}],599:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -62488,7 +62950,7 @@ function toArray(obj) {
 
 module.exports = toArray;
 }).call(this,require('_process'))
-},{"./invariant":586,"_process":264}],598:[function(require,module,exports){
+},{"./invariant":588,"_process":264}],600:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-2015, Facebook, Inc.
@@ -62548,15 +63010,15 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = warning;
 }).call(this,require('_process'))
-},{"./emptyFunction":578,"_process":264}],599:[function(require,module,exports){
+},{"./emptyFunction":580,"_process":264}],601:[function(require,module,exports){
 'use strict';
 
 module.exports = require('./lib/React');
 
-},{"./lib/React":450}],600:[function(require,module,exports){
+},{"./lib/React":452}],602:[function(require,module,exports){
 module.exports = require("./lib/_stream_duplex.js")
 
-},{"./lib/_stream_duplex.js":601}],601:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":603}],603:[function(require,module,exports){
 // a duplex stream is just a stream that is both readable and writable.
 // Since JS doesn't have multiple prototypal inheritance, this class
 // prototypally inherits from Readable, and then parasitically from
@@ -62640,7 +63102,7 @@ function forEach (xs, f) {
   }
 }
 
-},{"./_stream_readable":603,"./_stream_writable":605,"core-util-is":43,"inherits":120,"process-nextick-args":263}],602:[function(require,module,exports){
+},{"./_stream_readable":605,"./_stream_writable":607,"core-util-is":43,"inherits":120,"process-nextick-args":263}],604:[function(require,module,exports){
 // a passthrough stream.
 // basically just the most minimal sort of Transform stream.
 // Every written chunk gets output as-is.
@@ -62669,7 +63131,7 @@ PassThrough.prototype._transform = function(chunk, encoding, cb) {
   cb(null, chunk);
 };
 
-},{"./_stream_transform":604,"core-util-is":43,"inherits":120}],603:[function(require,module,exports){
+},{"./_stream_transform":606,"core-util-is":43,"inherits":120}],605:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -63648,7 +64110,7 @@ function indexOf (xs, x) {
 }
 
 }).call(this,require('_process'))
-},{"./_stream_duplex":601,"_process":264,"buffer":15,"core-util-is":43,"events":99,"inherits":120,"isarray":123,"process-nextick-args":263,"string_decoder/":616,"util":13}],604:[function(require,module,exports){
+},{"./_stream_duplex":603,"_process":264,"buffer":15,"core-util-is":43,"events":99,"inherits":120,"isarray":123,"process-nextick-args":263,"string_decoder/":618,"util":13}],606:[function(require,module,exports){
 // a transform stream is a readable/writable stream where you do
 // something with the data.  Sometimes it's called a "filter",
 // but that's not a great name for it, since that implies a thing where
@@ -63847,7 +64309,7 @@ function done(stream, er) {
   return stream.push(null);
 }
 
-},{"./_stream_duplex":601,"core-util-is":43,"inherits":120}],605:[function(require,module,exports){
+},{"./_stream_duplex":603,"core-util-is":43,"inherits":120}],607:[function(require,module,exports){
 // A bit simpler than readable streams.
 // Implement an async ._write(chunk, encoding, cb), and it'll handle all
 // the drain event emission and buffering.
@@ -64378,10 +64840,10 @@ function endWritable(stream, state, cb) {
   state.ended = true;
 }
 
-},{"./_stream_duplex":601,"buffer":15,"core-util-is":43,"events":99,"inherits":120,"process-nextick-args":263,"util-deprecate":622}],606:[function(require,module,exports){
+},{"./_stream_duplex":603,"buffer":15,"core-util-is":43,"events":99,"inherits":120,"process-nextick-args":263,"util-deprecate":624}],608:[function(require,module,exports){
 module.exports = require("./lib/_stream_passthrough.js")
 
-},{"./lib/_stream_passthrough.js":602}],607:[function(require,module,exports){
+},{"./lib/_stream_passthrough.js":604}],609:[function(require,module,exports){
 var Stream = (function (){
   try {
     return require('st' + 'ream'); // hack to fix a circular dependency issue when used with browserify
@@ -64395,13 +64857,13 @@ exports.Duplex = require('./lib/_stream_duplex.js');
 exports.Transform = require('./lib/_stream_transform.js');
 exports.PassThrough = require('./lib/_stream_passthrough.js');
 
-},{"./lib/_stream_duplex.js":601,"./lib/_stream_passthrough.js":602,"./lib/_stream_readable.js":603,"./lib/_stream_transform.js":604,"./lib/_stream_writable.js":605}],608:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":603,"./lib/_stream_passthrough.js":604,"./lib/_stream_readable.js":605,"./lib/_stream_transform.js":606,"./lib/_stream_writable.js":607}],610:[function(require,module,exports){
 module.exports = require("./lib/_stream_transform.js")
 
-},{"./lib/_stream_transform.js":604}],609:[function(require,module,exports){
+},{"./lib/_stream_transform.js":606}],611:[function(require,module,exports){
 module.exports = require("./lib/_stream_writable.js")
 
-},{"./lib/_stream_writable.js":605}],610:[function(require,module,exports){
+},{"./lib/_stream_writable.js":607}],612:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -64530,7 +64992,7 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"events":99,"inherits":120,"readable-stream/duplex.js":600,"readable-stream/passthrough.js":606,"readable-stream/readable.js":607,"readable-stream/transform.js":608,"readable-stream/writable.js":609}],611:[function(require,module,exports){
+},{"events":99,"inherits":120,"readable-stream/duplex.js":602,"readable-stream/passthrough.js":608,"readable-stream/readable.js":609,"readable-stream/transform.js":610,"readable-stream/writable.js":611}],613:[function(require,module,exports){
 var ClientRequest = require('./lib/request')
 var extend = require('xtend')
 var statusCodes = require('builtin-status-codes')
@@ -64605,7 +65067,7 @@ http.METHODS = [
 	'UNLOCK',
 	'UNSUBSCRIBE'
 ]
-},{"./lib/request":613,"builtin-status-codes":17,"url":620,"xtend":626}],612:[function(require,module,exports){
+},{"./lib/request":615,"builtin-status-codes":17,"url":622,"xtend":628}],614:[function(require,module,exports){
 (function (global){
 exports.fetch = isFunction(global.fetch) && isFunction(global.ReadableByteStream)
 
@@ -64649,7 +65111,7 @@ function isFunction (value) {
 xhr = null // Help gc
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],613:[function(require,module,exports){
+},{}],615:[function(require,module,exports){
 (function (process,global,Buffer){
 // var Base64 = require('Base64')
 var capability = require('./capability')
@@ -64928,7 +65390,7 @@ var unsafeHeaders = [
 ]
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-},{"./capability":612,"./response":614,"_process":264,"buffer":15,"inherits":120,"stream":610}],614:[function(require,module,exports){
+},{"./capability":614,"./response":616,"_process":264,"buffer":15,"inherits":120,"stream":612}],616:[function(require,module,exports){
 (function (process,global,Buffer){
 var capability = require('./capability')
 var inherits = require('inherits')
@@ -65104,15 +65566,15 @@ IncomingMessage.prototype._onXHRProgress = function () {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-},{"./capability":612,"_process":264,"buffer":15,"inherits":120,"stream":610}],615:[function(require,module,exports){
+},{"./capability":614,"_process":264,"buffer":15,"inherits":120,"stream":612}],617:[function(require,module,exports){
 'use strict';
 module.exports = function (str) {
 	return encodeURIComponent(str).replace(/[!'()*]/g, function (c) {
-		return '%' + c.charCodeAt(0).toString(16);
+		return '%' + c.charCodeAt(0).toString(16).toUpperCase();
 	});
 };
 
-},{}],616:[function(require,module,exports){
+},{}],618:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -65335,7 +65797,7 @@ function base64DetectIncompleteChar(buffer) {
   this.charLength = this.charReceived ? 3 : 0;
 }
 
-},{"buffer":15}],617:[function(require,module,exports){
+},{"buffer":15}],619:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -65481,7 +65943,7 @@ function createUncontrollable(mixins, set) {
 }
 
 module.exports = exports['default'];
-},{"./utils":619,"react":599}],618:[function(require,module,exports){
+},{"./utils":621,"react":601}],620:[function(require,module,exports){
 'use strict';
 
 exports.__esModule = true;
@@ -65513,7 +65975,7 @@ function set(component, propName, handler, value, args) {
 
 exports['default'] = _createUncontrollable2['default']([mixin], set);
 module.exports = exports['default'];
-},{"./createUncontrollable":617}],619:[function(require,module,exports){
+},{"./createUncontrollable":619}],621:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -65627,7 +66089,7 @@ function has(o, k) {
   return o ? Object.prototype.hasOwnProperty.call(o, k) : false;
 }
 }).call(this,require('_process'))
-},{"_process":264,"invariant":121,"react":599}],620:[function(require,module,exports){
+},{"_process":264,"invariant":121,"react":601}],622:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -66361,7 +66823,7 @@ Url.prototype.parseHost = function() {
   if (host) this.hostname = host;
 };
 
-},{"./util":621,"punycode":265,"querystring":269}],621:[function(require,module,exports){
+},{"./util":623,"punycode":265,"querystring":269}],623:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -66379,7 +66841,7 @@ module.exports = {
   }
 };
 
-},{}],622:[function(require,module,exports){
+},{}],624:[function(require,module,exports){
 (function (global){
 
 /**
@@ -66450,14 +66912,14 @@ function config (name) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],623:[function(require,module,exports){
+},{}],625:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],624:[function(require,module,exports){
+},{}],626:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -67047,7 +67509,7 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":623,"_process":264,"inherits":120}],625:[function(require,module,exports){
+},{"./support/isBuffer":625,"_process":264,"inherits":120}],627:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-2015, Facebook, Inc.
@@ -67111,7 +67573,7 @@ if (process.env.NODE_ENV !== 'production') {
 module.exports = warning;
 
 }).call(this,require('_process'))
-},{"_process":264}],626:[function(require,module,exports){
+},{"_process":264}],628:[function(require,module,exports){
 module.exports = extend
 
 var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -67132,7 +67594,7 @@ function extend() {
     return target
 }
 
-},{}],627:[function(require,module,exports){
+},{}],629:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -67175,6 +67637,10 @@ var _RadioButton = require('./../controls/RadioButton');
 
 var _RadioButton2 = _interopRequireDefault(_RadioButton);
 
+var _CustomRadioButton = require('./../controls/CustomRadioButton');
+
+var _CustomRadioButton2 = _interopRequireDefault(_CustomRadioButton);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -67183,6 +67649,8 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-mixed-spaces-and-tabs:0*/
 /*eslint no-unused-vars: 0*/
+
+var classSet = 'checkBox checkedCB';
 
 var DatabindingControls = (function (_ControlBase) {
     _inherits(DatabindingControls, _ControlBase);
@@ -67202,6 +67670,7 @@ var DatabindingControls = (function (_ControlBase) {
             prop7: true,
             prop8: 'option2',
             prop9: true,
+            prop10: false,
             options1: [{
                 text: 'option 1',
                 value: 'option1'
@@ -67219,12 +67688,18 @@ var DatabindingControls = (function (_ControlBase) {
     _createClass(DatabindingControls, [{
         key: 'valueChanged',
         value: function valueChanged(value) {
-            //console.log(value);
+            // console.log(value);
+        }
+    }, {
+        key: 'checkOrUncheck',
+        value: function checkOrUncheck() {
+            if (this.state.prop10 == true) classSet = 'checkBox checkedCB';else classSet = 'checkBox';
+            var checkOption = !this.state.prop10;
+            this.setState({ prop10: checkOption });
         }
     }, {
         key: 'render',
         value: function render() {
-
             var labelClass = 'col-xs-2';
             var wrapperClass = 'col-xs-2';
 
@@ -67301,7 +67776,22 @@ var DatabindingControls = (function (_ControlBase) {
                         labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state, 'prop9', this.valueChanged), name: 'prop9', trueText: 'Normal', falseText: 'Abnormal' }),
                     _react2.default.createElement(_reactBootstrap.Input, { type: 'checkbox', label: 'prop9',
                         placeholder: 'prop9', labelClassName: labelClass, wrapperClassName: wrapperClass, checkedLink: this.linkState(this.state, 'prop9') })
-                )
+                ),
+                _react2.default.createElement(
+                    'div',
+                    null,
+                    _react2.default.createElement(
+                        'div',
+                        { className: classSet, onClick: this.checkOrUncheck.bind(this) },
+                        _react2.default.createElement(
+                            'span',
+                            { className: 'tickMark' },
+                            '✔'
+                        )
+                    ),
+                    'Label placed here'
+                ),
+                _react2.default.createElement(_CustomRadioButton2.default, { label: 'Label', status: this.state.prop10 })
             );
         }
     }]);
@@ -67311,7 +67801,7 @@ var DatabindingControls = (function (_ControlBase) {
 
 exports.default = DatabindingControls;
 
-},{"./../controls/ControlBase":730,"./../controls/DatePicker":732,"./../controls/DropDown":733,"./../controls/Label":735,"./../controls/RadioButton":739,"./../controls/StageIndicator":740,"./../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],628:[function(require,module,exports){
+},{"./../controls/ControlBase":734,"./../controls/CustomRadioButton":736,"./../controls/DatePicker":737,"./../controls/DropDown":738,"./../controls/Label":740,"./../controls/RadioButton":744,"./../controls/StageIndicator":745,"./../controls/ToggleButton":747,"react":601,"react-bootstrap":363}],630:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -67380,7 +67870,7 @@ var Developer = (function (_ControlBase) {
 
 exports.default = Developer;
 
-},{"../utils/NotificationManager":766,"./../controls/ControlBase":730,"./DeveloperMenu":629,"react":599}],629:[function(require,module,exports){
+},{"../utils/NotificationManager":773,"./../controls/ControlBase":734,"./DeveloperMenu":631,"react":601}],631:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -67506,6 +67996,11 @@ var Menu = (function (_React$Component) {
                         _reactBootstrap.MenuItem,
                         { href: '#/Developer/SPVTable' },
                         'SPVTable'
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.MenuItem,
+                        { href: '#/Developer/adminChart' },
+                        'adminChart'
                     )
                 )
             );
@@ -67517,7 +68012,7 @@ var Menu = (function (_React$Component) {
 
 module.exports = Menu;
 
-},{"react":599,"react-bootstrap":362}],630:[function(require,module,exports){
+},{"react":601,"react-bootstrap":363}],632:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -67576,7 +68071,7 @@ var LabelTest = (function (_ControlBase) {
 
 exports.default = LabelTest;
 
-},{"./../controls/ControlBase":730,"./../controls/Label":735,"react":599}],631:[function(require,module,exports){
+},{"./../controls/ControlBase":734,"./../controls/Label":740,"react":601}],633:[function(require,module,exports){
 "use strict";
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -67613,7 +68108,7 @@ var Localizer = (function () {
 
 exports.default = Localizer;
 
-},{}],632:[function(require,module,exports){
+},{}],634:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })(); /**
@@ -67660,7 +68155,7 @@ var LocalizerManager = (function () {
 
 exports.default = LocalizerManager;
 
-},{"./Localizer":631,"./resources/resource":634}],633:[function(require,module,exports){
+},{"./Localizer":633,"./resources/resource":636}],635:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -67773,7 +68268,7 @@ var Localization = (function (_ControlBase) {
 
 exports.default = Localization;
 
-},{"./../../controls/ControlBase":730,"./../../controls/ControlButton":731,"./../../controls/Dropdown":734,"./../../controls/Label":735,"./LocalizerManager":632,"react":599}],634:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/ControlButton":735,"./../../controls/Dropdown":739,"./../../controls/Label":740,"./LocalizerManager":634,"react":601}],636:[function(require,module,exports){
 'use strict';
 
 var _resource_en = require('./resource_en');
@@ -67801,27 +68296,27 @@ module.exports = {
     hi: _resource_hi2.default
 };
 
-},{"./resource_en":635,"./resource_hi":636,"./resource_ml":637,"./resource_ta":638}],635:[function(require,module,exports){
+},{"./resource_en":637,"./resource_hi":638,"./resource_ml":639,"./resource_ta":640}],637:[function(require,module,exports){
 'use strict';
 
 module.exports = { BP: 'Blood Pressure' };
 
-},{}],636:[function(require,module,exports){
+},{}],638:[function(require,module,exports){
 'use strict';
 
 module.exports = { BP: 'रक्त चाप' };
 
-},{}],637:[function(require,module,exports){
+},{}],639:[function(require,module,exports){
 'use strict';
 
 module.exports = { BP: 'രക്തസമ്മര്ദ്ദം' };
 
-},{}],638:[function(require,module,exports){
+},{}],640:[function(require,module,exports){
 'use strict';
 
 module.exports = { BP: 'இரத்த அழுத்தம்' };
 
-},{}],639:[function(require,module,exports){
+},{}],641:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -67894,7 +68389,7 @@ var ImportPICME = (function (_ControlBase) {
 
 exports.default = ImportPICME;
 
-},{"./../../controls/ControlBase":730,"csvtojson":44,"react":599,"react-bootstrap":362}],640:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"csvtojson":44,"react":601,"react-bootstrap":363}],642:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -67969,7 +68464,7 @@ var AlertTest = (function (_ControlBase) {
 
 exports.default = AlertTest;
 
-},{"./../../controls/Alert":728,"./../../controls/ControlBase":730,"react":599,"react-bootstrap":362}],641:[function(require,module,exports){
+},{"./../../controls/Alert":732,"./../../controls/ControlBase":734,"react":601,"react-bootstrap":363}],643:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -68069,7 +68564,7 @@ var BindingExample = (function (_ControlBase) {
 
 module.exports = BindingExample;
 
-},{"./../../controls/ControlBase":730,"./Component1":642,"react":599}],642:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./Component1":644,"react":601}],644:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -68128,7 +68623,7 @@ var Component1 = (function (_ControlBase) {
 
 module.exports = Component1;
 
-},{"./../../controls/ControlBase":730,"./Component2":643,"react":599}],643:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./Component2":645,"react":601}],645:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -68213,7 +68708,7 @@ var Component3 = (function (_ControlBase2) {
 
 module.exports = Component2;
 
-},{"./../../controls/ControlBase":730,"react":599}],644:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"react":601}],646:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -68245,7 +68740,7 @@ exports.default = {
     }
 };
 
-},{"../constants/LoginConstants.js":649,"../dispatchers/AppDispatcher.js":650}],645:[function(require,module,exports){
+},{"../constants/LoginConstants.js":651,"../dispatchers/AppDispatcher.js":652}],647:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -68405,7 +68900,7 @@ var AuthenticatedApp = (function (_React$Component) {
 
 exports.default = AuthenticatedApp;
 
-},{"../services/AuthService":651,"../stores/LoginStore":653,"react":599,"react-router":420}],646:[function(require,module,exports){
+},{"../services/AuthService":653,"../stores/LoginStore":655,"react":601,"react-router":422}],648:[function(require,module,exports){
 'use strict';
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
@@ -68495,7 +68990,7 @@ exports.default = function (ComposedComponent) {
     })(_react2.default.Component);
 };
 
-},{"../stores/LoginStore":653,"react":599}],647:[function(require,module,exports){
+},{"../stores/LoginStore":655,"react":601}],649:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -68544,7 +69039,7 @@ exports.default = (0, _AuthenticatedComponent2.default)((function (_React$Compon
     return Home;
 })(_react2.default.Component));
 
-},{"./AuthenticatedComponent":646,"react":599}],648:[function(require,module,exports){
+},{"./AuthenticatedComponent":648,"react":601}],650:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -68650,7 +69145,7 @@ var Login = (function (_ControlBase) {
 
 exports.default = Login;
 
-},{"../../../controls/ControlBase":730,"../../../controls/ControlButton":731,"../services/AuthService":651,"react":599,"react-bootstrap":362}],649:[function(require,module,exports){
+},{"../../../controls/ControlBase":734,"../../../controls/ControlButton":735,"../services/AuthService":653,"react":601,"react-bootstrap":363}],651:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -68665,7 +69160,7 @@ exports.default = {
     LOGOUT_USER: 'LOGOUT_USER'
 };
 
-},{}],650:[function(require,module,exports){
+},{}],652:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -68676,7 +69171,7 @@ var _flux = require('flux');
 
 exports.default = new _flux.Dispatcher();
 
-},{"flux":101}],651:[function(require,module,exports){
+},{"flux":101}],653:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })(); // import request from 'reqwest';
@@ -68756,7 +69251,7 @@ var AuthService = (function () {
 
 exports.default = new AuthService();
 
-},{"../actions/LoginActions":644}],652:[function(require,module,exports){
+},{"../actions/LoginActions":646}],654:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -68820,7 +69315,7 @@ var BaseStore = (function (_EventEmitter) {
 
 exports.default = BaseStore;
 
-},{"../dispatchers/AppDispatcher":650,"events":99}],653:[function(require,module,exports){
+},{"../dispatchers/AppDispatcher":652,"events":99}],655:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -68901,7 +69396,7 @@ var LoginStore = (function (_BaseStore) {
 
 exports.default = new LoginStore();
 
-},{"../constants/LoginConstants":649,"./BaseStore":652}],654:[function(require,module,exports){
+},{"../constants/LoginConstants":651,"./BaseStore":654}],656:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -68989,7 +69484,7 @@ var MenuTest = (function (_React$Component) {
 
 module.exports = MenuTest;
 
-},{"../../components/layout/menu/menu":666,"react":599}],655:[function(require,module,exports){
+},{"../../components/layout/menu/menu":669,"react":601}],657:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -69058,7 +69553,7 @@ var NotificationView = (function (_React$Component) {
 
 module.exports = NotificationView;
 
-},{"react":599}],656:[function(require,module,exports){
+},{"react":601}],658:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -69235,18 +69730,20 @@ var SPVTable = (function (_ControlBase) {
 
 exports.default = SPVTable;
 
-},{"./../../controls/ControlBase":730,"./../../model/SinglePatientViewModel":745,"react":599,"react-bootstrap":362}],657:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../model/SinglePatientViewModel":750,"react":601,"react-bootstrap":363}],659:[function(require,module,exports){
 'use strict';
 
 var APP_NAME = 'Janani';
-var PATIENT_REGISTRATION_URL = 'http://ec2-52-10-19-65.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/register';
-var PATIENT_VISIT_SAVE_URL = 'http://ec2-52-10-19-65.us-west-2.compute.amazonaws.com/FHIRServer/patientVisit/createVisit';
-var PATIENT_VISIT_FETCH_URL = 'http://ec2-52-10-19-65.us-west-2.compute.amazonaws.com/FHIRServer/patientVisit/searchVisits?patientReference=';
-var PATIENT_DETAILS_URL = 'http://ec2-52-10-19-65.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/searchByID?id=';
+var PATIENT_REGISTRATION_URL = '/api/registerPatient'; //'http://ec2-52-10-19-65.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/register';
+var PATIENT_VISIT_SAVE_URL = '/api/saveVisit'; //'http://ec2-52-10-19-65.us-west-2.compute.amazonaws.com/FHIRServer/patientVisit/createVisit';
+var PATIENT_VISIT_FETCH_URL = '/api/getVisits'; //'http://ec2-52-10-19-65.us-west-2.compute.amazonaws.com/FHIRServer/patientVisit/searchVisits?patientReference=';
+var PATIENT_DETAILS_URL = '/api/getPatientDetail'; //'http://ec2-52-10-19-65.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/searchByID?id=';
+var FETCH_SUBCENTER_DETAILS = '/api/getSubCenterDetails';
+var PATIENT_SEARCH_URL = '/api/worklists'; //'http://ec2-52-10-19-65.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/search'
 var REGISTRATION_URL_PATTERN = 'Developer/Registration/RegistrationId';
 
 var VISIT_SUMMARY_URL_PATTERN = 'app/Patient/patientId/VisitSummary/visitId';
-var VISIT_URL_PATTERN = 'app/Patient/patientId/Visit/visitId';
+var VISIT_URL_PATTERN = 'app/Patient/patientId/Visit/visitType/visitId';
 var PATIENT_URL_PATTERN = 'app/Patient/patientId';
 
 var SAVE_EVENT = 'save';
@@ -69260,7 +69757,12 @@ var DONUT_DAY_VALUES = 'DAY_VALUE';
 var DONUT_DAY_LEGENDS = 'DAY_LEGEND';
 var DONUT_WEEK_VALUES = 'WEEK_VALUE';
 var DONUT_WEEK_LEGENDS = 'WEEK_LEGEND';
-
+var FETCH_SUBCENTER = 'FETCH_SUBCENTER';
+var AUTO_SEARCH = 'AUTO_SEARCH';
+var MANUAL_SEARCH = 'MANUAL_SEARCH';
+var NO_DATA_FOUND = 'no data found';
+var SEARCH_TYPE = 'searchType';
+var SEARCH_STRING = 'searchString';
 var ACTION_TYPE = {
     REGISTER_PATIENT_ACTION: 'REGISTER_PATIENT_ACTION',
     SAVE_VISIT_INFO_ACTION: 'SAVE_VISIT_INFO',
@@ -69275,7 +69777,10 @@ var ACTION_TYPE = {
     REFER_LETTER_DATA_FETCH: 'REFER_LETTER_DATA_FETCH',
     GET_TODAYS_WORKLIST: 'GET_TODAYS_WORKLIST',
     GET_WEEKLY_WORKLIST: 'GET_WEEKLY_WORKLIST',
-    GET_TOTAL_WORKLIST: 'GET_TOTAL_WORKLIST'
+    GET_TOTAL_WORKLIST: 'GET_TOTAL_WORKLIST',
+    SUBCENTER_DETAILS_FETCH: 'SUBCENTER_DETAILS_FETCH',
+    GET_SEARCH_RESULTS_WORKLIST: 'GET_SEARCH_RESULTS_WORKLIST',
+    PATIENT_SEARCH_ACTION: 'PATIENT_SEARCH_ACTION'
 };
 
 var ROUTE_PATH = {
@@ -69285,7 +69790,8 @@ var ROUTE_PATH = {
     SINGLE_PATIENT_VIEW: '/app/PatientView',
     REFERRAL_LETTER: '/app/ReferralLetter',
     VISIT_SUMMARY: 'VisitSummary',
-    MO_WORKLIST: '/app/MOWorkList'
+    MO_WORKLIST: '/app/MOWorkList',
+    VISIT_TYPE: 'visitType'
 };
 
 var NOTIFICATION_MESSAGE = {
@@ -69310,11 +69816,11 @@ var DATA_TYPE = { JSON: 'json' };
 var CONTENT_TYPE = { JSON: 'application/json; charset=utf-8' };
 
 var donutDayValues = [{
-    value: 42,
+    value: 0,
     color: '#50b6ff',
     label: 'Today\'s Patients'
 }, {
-    value: 20,
+    value: 0,
     color: '#f95147',
     label: 'High Risk'
 }];
@@ -69325,11 +69831,11 @@ var donutDayKeys = {
 };
 
 var donutWeekValues = [{
-    value: 16,
+    value: 0,
     color: '#50b6ff',
     label: 'This Week\'s Patients'
 }, {
-    value: 10,
+    value: 0,
     color: '#f95147',
     label: 'High Risk'
 }];
@@ -69370,11 +69876,18 @@ module.exports = {
     donutDayValues: donutDayValues,
     donutDayKeys: donutDayKeys,
     donutWeekValues: donutWeekValues,
-    donutWeekKeys: donutWeekKeys
-
+    donutWeekKeys: donutWeekKeys,
+    FETCH_SUBCENTER: FETCH_SUBCENTER,
+    FETCH_SUBCENTER_DETAILS: FETCH_SUBCENTER_DETAILS,
+    AUTO_SEARCH: AUTO_SEARCH,
+    MANUAL_SEARCH: MANUAL_SEARCH,
+    NO_DATA_FOUND: NO_DATA_FOUND,
+    PATIENT_SEARCH_URL: PATIENT_SEARCH_URL,
+    SEARCH_TYPE: SEARCH_TYPE,
+    SEARCH_STRING: SEARCH_STRING
 };
 
-},{}],658:[function(require,module,exports){
+},{}],660:[function(require,module,exports){
 'use strict';
 
 var AppDispatcher = require('../dispatcher/AppDispatcher.js');
@@ -69388,7 +69901,7 @@ module.exports = {
     }
 };
 
-},{"../dispatcher/AppDispatcher.js":743}],659:[function(require,module,exports){
+},{"../dispatcher/AppDispatcher.js":748}],661:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -69454,7 +69967,7 @@ var App = (function (_React$Component) {
 
 module.exports = App;
 
-},{"../utils/NotificationManager":766,"./layout/header/AppHeader":664,"react":599}],660:[function(require,module,exports){
+},{"../utils/NotificationManager":773,"./layout/header/AppHeader":667,"react":601}],662:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -69496,7 +70009,7 @@ var About = (function (_React$Component) {
 
 module.exports = About;
 
-},{"react":599}],661:[function(require,module,exports){
+},{"react":601}],663:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -69517,20 +70030,7 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 // import StageIndicator from './../../../controls/StageIndicator';
 // Input, Row, Label,
 
-/*var patientH1 = {
-    marginLeft: '10px',
-    fontWeight: 'normal',
-    fontSize: '25px'
-};
-
-var bgStyle = {
-    backgroundColor: '#DAF1F9',
-    marginLeft: '-16px',
-    marginTop: '65px',
-    position: 'fixed',
-    width: '100%'
-};
-*/
+var widthPercent = 0;
 
 var PatientBanner = (function (_React$Component) {
 	_inherits(PatientBanner, _React$Component);
@@ -69542,18 +70042,31 @@ var PatientBanner = (function (_React$Component) {
 	}
 
 	_createClass(PatientBanner, [{
+		key: 'componentDidMount',
+		value: function componentDidMount() {
+			widthPercent = '0';
+		}
+	}, {
+		key: 'componentWillUpdate',
+		value: function componentWillUpdate() {
+			widthPercent = _react2.default.findDOMNode(this.refs.progressBar).children[0]['style']['width'];
+			var patientData = this.props.patientData;
+			if (patientData.pregnancyweekValue > 40) {
+				widthPercent = '100';
+			} else {
+				widthPercent = _react2.default.findDOMNode(this.refs.progressBar).children[0]['style']['width'];
+			}
+		}
+	}, {
 		key: 'render',
 		value: function render() {
 			var patientData = this.props.patientData;
-			// let labelClass = 'col-xs-1 text-right';
-			// let dataClass = 'col-xs-1 text-left';
-			var paddLeft = 5;
 			return _react2.default.createElement(
 				'div',
-				{ className: 'col-lg-12 col-sm-12 col-md-12 patient-banner' },
+				{ className: 'col-lg-12 col-sm-12 col-xs-12 col-md-12 patient-banner' },
 				_react2.default.createElement(
 					'div',
-					{ className: 'col-lg-4 col-sm-12 col-md-12 patient-info-bx1' },
+					{ className: 'col-lg-4 col-xs-12 col-md-4 col-sm-4 patient-info-bx1' },
 					_react2.default.createElement(
 						'div',
 						{ className: 'col-sm-12 col-md-12 col-lg-4' },
@@ -69561,7 +70074,7 @@ var PatientBanner = (function (_React$Component) {
 					),
 					_react2.default.createElement(
 						'div',
-						{ className: 'content-body col-lg-8 col-sm-12 col-md-12 device_width' },
+						{ className: 'content-body col-lg-8 col-xs-12 col-md-4 col-sm-4 device_width dividerFirst' },
 						_react2.default.createElement(
 							'div',
 							{ id: 'row' },
@@ -69613,7 +70126,7 @@ var PatientBanner = (function (_React$Component) {
 				),
 				_react2.default.createElement(
 					'div',
-					{ className: 'col-lg-2 col-md-12 col-sm-12 patient-info-bx2' },
+					{ className: 'col-lg-2 col-xs-12 col-md-4 col-sm-4 patient-info-bx2' },
 					_react2.default.createElement(
 						'div',
 						{ className: 'content-body col-sm-12 col-lg-12 col-md-12' },
@@ -69668,7 +70181,7 @@ var PatientBanner = (function (_React$Component) {
 				),
 				_react2.default.createElement(
 					'div',
-					{ className: 'col-lg-2 col-sm-12 col-md-12 patient-info-bx3' },
+					{ className: 'col-lg-3 col-xs-12 col-md-4 col-sm-4 patient-info-bx3' },
 					_react2.default.createElement(
 						'div',
 						{ className: 'content-body col-sm-12' },
@@ -69723,27 +70236,43 @@ var PatientBanner = (function (_React$Component) {
 				),
 				_react2.default.createElement(
 					'div',
-					{ className: 'col-lg-4 col-md-12 col-sm-12' },
+					{ className: 'col-lg-3 col-xs-12 col-md-4 col-sm-4 progressDiv' },
 					_react2.default.createElement(
 						'div',
 						{ className: 'content-body col-lg-8 col-md-12 col-sm-12' },
 						_react2.default.createElement(
 							'div',
 							{ id: 'row', className: 'ps_width' },
-							locale('PregnencyStatus')
+							locale('PregnancyStatus')
 						),
 						_react2.default.createElement(
 							'div',
-							{ id: 'row' },
-							_react2.default.createElement(_reactBootstrap.ProgressBar, { striped: true, bsStyle: 'success', min: 0, max: 100, now: patientData.pregnancyweekValue }),
+							{ className: 'row' },
 							_react2.default.createElement(
 								'div',
-								{ className: 'progress_val', style: { marginLeft: patientData.pregnancyweekValue - paddLeft + '%' } },
-								_react2.default.createElement('div', { className: 'arrow-up' }),
+								{ className: 'col-lg-12' },
 								_react2.default.createElement(
-									'span',
-									{ className: 'label label-success' },
-									patientData.pregnancyweekText
+									'div',
+									{ className: 'progress' },
+									_react2.default.createElement(_reactBootstrap.ProgressBar, { striped: true, bsStyle: 'success', min: 0, max: 40, now: patientData.pregnancyweekValue, ref: 'progressBar' })
+								)
+							)
+						),
+						_react2.default.createElement(
+							'div',
+							{ className: 'row' },
+							_react2.default.createElement(
+								'div',
+								{ className: 'col-lg-12' },
+								_react2.default.createElement(
+									'div',
+									{ className: 'progress_val', style: { marginLeft: widthPercent, transition: 'all 1s ease-in-out;' } },
+									_react2.default.createElement('div', { className: 'arrow-up' }),
+									_react2.default.createElement(
+										'span',
+										{ className: 'label label-success' },
+										patientData.pregnancyweekText
+									)
 								)
 							)
 						)
@@ -69758,7 +70287,528 @@ var PatientBanner = (function (_React$Component) {
 
 module.exports = PatientBanner;
 
-},{"react":599,"react-bootstrap":362}],662:[function(require,module,exports){
+},{"react":601,"react-bootstrap":363}],664:[function(require,module,exports){
+'use strict';
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+Object.defineProperty(exports, "__esModule", {
+	value: true
+});
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _reactBootstrap = require('react-bootstrap');
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+// import ControlBase from './../../../controls/ControlBase';
+
+var AdminChart = (function (_React$Component) {
+	_inherits(AdminChart, _React$Component);
+
+	function AdminChart() {
+		_classCallCheck(this, AdminChart);
+
+		return _possibleConstructorReturn(this, Object.getPrototypeOf(AdminChart).apply(this, arguments));
+	}
+
+	_createClass(AdminChart, [{
+		key: 'render',
+		value: function render() {
+			return _react2.default.createElement(
+				'div',
+				{ className: 'col-lg-12 container Dboard' },
+				_react2.default.createElement(
+					_reactBootstrap.Row,
+					{ className: 'boxes' },
+					_react2.default.createElement(
+						_reactBootstrap.Col,
+						{ lg: 1, xs: 12, className: 'right' },
+						_react2.default.createElement(
+							_reactBootstrap.Row,
+							null,
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 12 },
+								'Select Peroid'
+							)
+						),
+						_react2.default.createElement(
+							_reactBootstrap.Row,
+							null,
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 2 },
+								_react2.default.createElement(
+									'label',
+									{ className: 'date' },
+									'25'
+								)
+							),
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 3 },
+								_react2.default.createElement(
+									'span',
+									{ className: 'monthName' },
+									'NOV'
+								),
+								_react2.default.createElement(
+									'span',
+									{ className: 'yearName' },
+									'2015'
+								)
+							)
+						),
+						_react2.default.createElement(
+							_reactBootstrap.Row,
+							null,
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 2 },
+								' '
+							)
+						)
+					),
+					_react2.default.createElement(
+						_reactBootstrap.Col,
+						{ lg: 2, xs: 12 },
+						_react2.default.createElement(
+							_reactBootstrap.Row,
+							null,
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 12, className: 'text-center' },
+								'Engagements'
+							)
+						),
+						_react2.default.createElement(
+							_reactBootstrap.Row,
+							null,
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 6, className: 'text-center' },
+								'Total HSC'
+							),
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 6 },
+								'Total VHN'
+							)
+						),
+						_react2.default.createElement(
+							_reactBootstrap.Row,
+							null,
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 6, className: 'text-center' },
+								_react2.default.createElement(
+									'label',
+									{ className: 'date' },
+									'25'
+								)
+							),
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 6 },
+								_react2.default.createElement(
+									'label',
+									{ className: 'date' },
+									'25'
+								)
+							)
+						)
+					),
+					_react2.default.createElement(
+						_reactBootstrap.Col,
+						{ lg: 2, xs: 12 },
+						_react2.default.createElement(
+							_reactBootstrap.Row,
+							null,
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 12, className: 'text-center' },
+								'Refference %'
+							)
+						),
+						_react2.default.createElement(
+							_reactBootstrap.Row,
+							null,
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 6, className: 'text-center' },
+								'Risk cases'
+							),
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 6 },
+								'unaccounted'
+							)
+						),
+						_react2.default.createElement(
+							_reactBootstrap.Row,
+							null,
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 6, className: 'text-center' },
+								_react2.default.createElement(
+									'label',
+									{ className: 'date' },
+									'86'
+								)
+							),
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 6 },
+								_react2.default.createElement(
+									'label',
+									{ className: 'date' },
+									'20'
+								)
+							)
+						)
+					),
+					_react2.default.createElement(
+						_reactBootstrap.Col,
+						{ lg: 2, xs: 12 },
+						_react2.default.createElement(
+							_reactBootstrap.Row,
+							null,
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 12, className: 'text-center' },
+								'Mortality rates %'
+							)
+						),
+						_react2.default.createElement(
+							_reactBootstrap.Row,
+							null,
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 6, className: 'text-center' },
+								'IMR'
+							),
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 6 },
+								'MMR'
+							)
+						),
+						_react2.default.createElement(
+							_reactBootstrap.Row,
+							null,
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 6, className: 'text-center' },
+								_react2.default.createElement(
+									'label',
+									{ className: 'date' },
+									'16%'
+								)
+							),
+							_react2.default.createElement(
+								_reactBootstrap.Col,
+								{ lg: 6 },
+								_react2.default.createElement(
+									'label',
+									{ className: 'date' },
+									'18%'
+								)
+							)
+						)
+					),
+					_react2.default.createElement(
+						_reactBootstrap.Col,
+						{ lg: 5, xs: 12 },
+						_react2.default.createElement(
+							_reactBootstrap.Col,
+							{ lg: 4 },
+							_react2.default.createElement(
+								_reactBootstrap.Row,
+								null,
+								_react2.default.createElement(
+									_reactBootstrap.Col,
+									{ lg: 12 },
+									'Registered Patients'
+								)
+							),
+							_react2.default.createElement(
+								_reactBootstrap.Row,
+								null,
+								_react2.default.createElement(
+									_reactBootstrap.Col,
+									{ lg: 12 },
+									_react2.default.createElement(
+										'label',
+										{ className: 'date' },
+										'85471'
+									)
+								)
+							),
+							_react2.default.createElement(
+								_reactBootstrap.Row,
+								null,
+								_react2.default.createElement(
+									_reactBootstrap.Col,
+									{ lg: 2 },
+									' '
+								)
+							)
+						),
+						_react2.default.createElement(
+							_reactBootstrap.Col,
+							{ lg: 8 },
+							_react2.default.createElement(
+								_reactBootstrap.Row,
+								null,
+								_react2.default.createElement(
+									_reactBootstrap.Col,
+									{ lg: 12 },
+									_react2.default.createElement(
+										'form',
+										{ className: 'navbar-form', role: 'search' },
+										_react2.default.createElement(
+											'div',
+											{ className: 'input-group' },
+											_react2.default.createElement('input', { type: 'text', className: 'form-control', placeholder: 'Search', name: 'q' }),
+											_react2.default.createElement(
+												'div',
+												{ className: 'input-group-btn' },
+												_react2.default.createElement(
+													'button',
+													{ className: 'btn btn-default', type: 'submit' },
+													_react2.default.createElement('i', { className: 'glyphicon glyphicon-search' })
+												)
+											)
+										)
+									)
+								)
+							)
+						)
+					)
+				),
+				_react2.default.createElement(
+					_reactBootstrap.Row,
+					null,
+					_react2.default.createElement(
+						_reactBootstrap.Col,
+						{ lg: 6, className: 'text-left print_export' },
+						_react2.default.createElement(
+							'button',
+							{ className: 'btn btn-default', type: 'submit' },
+							'Dashboard'
+						),
+						'  ',
+						_react2.default.createElement(
+							'button',
+							{ className: 'btn btn-default disabled', type: 'submit' },
+							'Mortality Trends'
+						)
+					),
+					_react2.default.createElement(
+						_reactBootstrap.Col,
+						{ lg: 6, className: 'text-right print_export' },
+						_react2.default.createElement(
+							'button',
+							{ className: 'btn btn-default', type: 'submit' },
+							'Export'
+						),
+						'  ',
+						_react2.default.createElement(
+							'button',
+							{ className: 'btn btn-default', type: 'submit' },
+							'Print'
+						)
+					)
+				),
+				_react2.default.createElement(
+					_reactBootstrap.Row,
+					null,
+					_react2.default.createElement(_reactBootstrap.Col, { lg: 1 })
+				),
+				_react2.default.createElement(
+					_reactBootstrap.Col,
+					{ lg: 12, className: 'border' },
+					_react2.default.createElement(
+						_reactBootstrap.Row,
+						{ className: 'col-lg-offset-1' },
+						_react2.default.createElement(
+							_reactBootstrap.Col,
+							{ lg: 5, className: 'right-border' },
+							_react2.default.createElement(
+								_reactBootstrap.Row,
+								null,
+								_react2.default.createElement('br', null),
+								_react2.default.createElement(
+									_reactBootstrap.Col,
+									{ lg: 8 },
+									_react2.default.createElement(
+										'b',
+										null,
+										'VHN Perfomance Index'
+									),
+									' - No of registerations'
+								),
+								_react2.default.createElement(
+									_reactBootstrap.Col,
+									{ lg: 4 },
+									_react2.default.createElement('span', { className: 'glyphicon glyphicon-align-justify' }),
+									'    ',
+									_react2.default.createElement('span', { className: 'glyphicon glyphicon glyphicon-move' }),
+									'    ',
+									_react2.default.createElement(
+										'button',
+										{ className: 'btn btn-default', type: 'submit' },
+										'More'
+									),
+									'    '
+								)
+							),
+							_react2.default.createElement(
+								_reactBootstrap.Row,
+								null,
+								_react2.default.createElement('img', { src: './common/wave.png' })
+							)
+						),
+						_react2.default.createElement(
+							_reactBootstrap.Col,
+							{ lg: 5 },
+							_react2.default.createElement(
+								_reactBootstrap.Row,
+								null,
+								_react2.default.createElement('br', null),
+								_react2.default.createElement(
+									_reactBootstrap.Col,
+									{ lg: 8 },
+									_react2.default.createElement(
+										'b',
+										null,
+										'Referral ratios'
+									)
+								),
+								_react2.default.createElement(
+									_reactBootstrap.Col,
+									{ lg: 4 },
+									_react2.default.createElement('span', { className: 'glyphicon glyphicon-align-justify' }),
+									'    ',
+									_react2.default.createElement('span', { className: 'glyphicon glyphicon glyphicon-move' }),
+									'    ',
+									_react2.default.createElement(
+										'button',
+										{ className: 'btn btn-default', type: 'submit' },
+										'More'
+									),
+									'    '
+								)
+							),
+							_react2.default.createElement(
+								_reactBootstrap.Row,
+								null,
+								_react2.default.createElement('img', { src: './common/bar.png' })
+							)
+						)
+					),
+					_react2.default.createElement(
+						_reactBootstrap.Row,
+						{ className: 'one-border' },
+						_react2.default.createElement(_reactBootstrap.Col, { lg: 1 })
+					),
+					_react2.default.createElement(
+						_reactBootstrap.Row,
+						{ className: 'col-lg-offset-1' },
+						_react2.default.createElement(
+							_reactBootstrap.Col,
+							{ lg: 5, className: 'right-border' },
+							_react2.default.createElement(
+								_reactBootstrap.Row,
+								null,
+								_react2.default.createElement(
+									_reactBootstrap.Col,
+									{ lg: 8 },
+									_react2.default.createElement(
+										'b',
+										null,
+										'Patient profiles '
+									),
+									' - by completions'
+								),
+								_react2.default.createElement(
+									_reactBootstrap.Col,
+									{ lg: 4 },
+									_react2.default.createElement('span', { className: 'glyphicon glyphicon-align-justify' }),
+									'    ',
+									_react2.default.createElement('span', { className: 'glyphicon glyphicon glyphicon-move' }),
+									'    ',
+									_react2.default.createElement(
+										'button',
+										{ className: 'btn btn-default', type: 'submit' },
+										'More'
+									),
+									'    '
+								)
+							),
+							_react2.default.createElement(
+								_reactBootstrap.Row,
+								null,
+								_react2.default.createElement('img', { src: './common/pie.png' })
+							)
+						),
+						_react2.default.createElement(
+							_reactBootstrap.Col,
+							{ lg: 5 },
+							_react2.default.createElement(
+								_reactBootstrap.Row,
+								null,
+								_react2.default.createElement(
+									_reactBootstrap.Col,
+									{ lg: 8 },
+									_react2.default.createElement(
+										'b',
+										null,
+										'Risk ratio analyses'
+									)
+								),
+								_react2.default.createElement(
+									_reactBootstrap.Col,
+									{ lg: 4 },
+									_react2.default.createElement('span', { className: 'glyphicon glyphicon-align-justify' }),
+									'    ',
+									_react2.default.createElement('span', { className: 'glyphicon glyphicon glyphicon-move' }),
+									'    ',
+									_react2.default.createElement(
+										'button',
+										{ className: 'btn btn-default', type: 'submit' },
+										'More'
+									),
+									'    '
+								)
+							),
+							_react2.default.createElement(
+								_reactBootstrap.Row,
+								null,
+								_react2.default.createElement('img', { src: './common/pie1.png' })
+							)
+						)
+					)
+				)
+			);
+		}
+	}]);
+
+	return AdminChart;
+})(_react2.default.Component);
+
+exports.default = AdminChart;
+
+},{"react":601,"react-bootstrap":363}],665:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -69776,14 +70826,20 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 var bannerStyle = {
-    height: '12%',
-    width: '100%'
+    height: '10%',
+    width: '98.5%',
+    zIndex: '999',
+    position: 'fixed'
 
+};
+var behindBannerStyle = {
+    height: '10%',
+    width: '98.5%',
+    marginBottom: '23px'
 };
 var contentStyle = {
     height: '85%',
     width: '100%'
-
 };
 var maindivStyle = {
     height: '1200px',
@@ -69810,9 +70866,10 @@ var BannerContainer = (function (_React$Component) {
                     { style: bannerStyle },
                     this.props.banner
                 ),
+                _react2.default.createElement('div', { style: behindBannerStyle }),
                 _react2.default.createElement(
                     'div',
-                    { style: contentStyle },
+                    { style: contentStyle, className: 'Yscroll' },
                     this.props.children
                 )
             );
@@ -69824,7 +70881,7 @@ var BannerContainer = (function (_React$Component) {
 
 module.exports = BannerContainer;
 
-},{"react":599}],663:[function(require,module,exports){
+},{"react":601}],666:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -69894,7 +70951,7 @@ var PatientContainer = (function (_React$Component) {
 
 exports.default = PatientContainer;
 
-},{"../../../stores/RegistrationStore":751,"../banner/patientBanner":661,"./../container/bannerContainer":662,"react":599}],664:[function(require,module,exports){
+},{"../../../stores/RegistrationStore":757,"../banner/patientBanner":663,"./../container/bannerContainer":665,"react":601}],667:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -69927,6 +70984,12 @@ var StyleHeader = {
     height: '73px',
     backgroundColor: 'black',
     border: '1px solid black',
+    width: '100%',
+    position: 'fixed',
+    zIndex: '99999999999999'
+};
+var behindHeader = {
+    height: '73px',
     width: '100%'
 };
 var appName = {
@@ -69993,7 +71056,8 @@ exports.default = (0, _AuthenticatedComponent2.default)((function (_React$Compon
                         { style: rightNav },
                         _react2.default.createElement(_topMenu2.default, this.props)
                     )
-                )
+                ),
+                _react2.default.createElement('div', { className: 'col-12', style: behindHeader })
             );
         }
     }]);
@@ -70001,7 +71065,7 @@ exports.default = (0, _AuthenticatedComponent2.default)((function (_React$Compon
     return AppHeader;
 })(_react2.default.Component));
 
-},{"./../../../components/layout/menu/topMenu":667,"./../../login/AuthenticatedComponent":670,"react":599}],665:[function(require,module,exports){
+},{"./../../../components/layout/menu/topMenu":670,"./../../login/AuthenticatedComponent":673,"react":601}],668:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -70019,19 +71083,25 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 var StyleHeader = {
-    height: '65px',
-    'backgroundColor': 'black',
-    border: '1px solid black'
+    height: '73px',
+    backgroundColor: 'black',
+    border: '1px solid black',
+    width: '100%',
+    position: 'fixed',
+    zIndex: '99999999999999'
+
 };
 var appName = {
-    'color': '#fff',
-    'paddingLeft': '9px',
-    'paddingTop': '11px',
-    'fontSize': '21px'
+    color: '#fff',
+    paddingLeft: '9px',
+    paddingTop: '11px',
+    fontSize: '28px',
+    fontWeight: 'bold',
+    fontFamily: 'GEInspira'
 };
 var imgHeader = {
-    'marginLeft': '21px',
-    'marginTop': '10px'
+    marginLeft: '21px',
+    marginTop: '10px'
 };
 
 var loginHeader = (function (_React$Component) {
@@ -70064,12 +71134,12 @@ var loginHeader = (function (_React$Component) {
                                 _react2.default.createElement(
                                     'td',
                                     { style: imgHeader },
-                                    _react2.default.createElement('img', { src: 'http://www.aaimh.org/wp-content/uploads/2013/08/mother-child-widget-icon.png', width: '45', height: '45', style: imgHeader, className: 'img-responsive ' })
+                                    _react2.default.createElement('img', { src: './common/logo.png', style: imgHeader, className: 'img-responsive ' })
                                 ),
                                 _react2.default.createElement(
                                     'td',
                                     { style: appName, className: 'header' },
-                                    AppConstants.APP_NAME
+                                    locale(AppConstants.APP_NAME)
                                 )
                             )
                         )
@@ -70085,7 +71155,7 @@ var loginHeader = (function (_React$Component) {
 
 module.exports = loginHeader;
 
-},{"react":599}],666:[function(require,module,exports){
+},{"react":601}],669:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -70214,7 +71284,7 @@ var MenuSideBar = (function (_React$Component) {
 
 module.exports = MenuSideBar;
 
-},{"react":599,"react-bootstrap":362}],667:[function(require,module,exports){
+},{"react":601,"react-bootstrap":363}],670:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -70242,6 +71312,7 @@ var logInfo = {
 var welText = {
     fontFamily: 'GEInspira',
     fontSize: '10px',
+    fontWeight: 'bold',
     marginTop: '42px',
     marginLeft: '-17px',
     color: '#575757'
@@ -70250,6 +71321,7 @@ var welName = {
     fontFamily: 'GEInspira',
     fontSize: '17px',
     marginTop: '-14px',
+    fontWeight: 'bold',
     marginLeft: '-18px',
     color: '#8d8d8d',
     paddingRight: '1px'
@@ -70268,8 +71340,9 @@ var imgSpec = {
 var dropHeader = {
     'float': 'right',
     marginTop: '-18px',
-    marginRight: '38px',
+    marginRight: '45px',
     fontFamily: 'GEInspira',
+    fontWeight: 'bold',
     fontSize: '15px',
     color: '#000000',
     marginLeft: '28px'
@@ -70278,10 +71351,11 @@ var dropHeader = {
 var dropHeaderLog = {
     float: 'right',
     marginTop: '-18px',
-    marginRight: '46px',
+    marginRight: '49px',
     fontFamily: 'GEInspira',
     fontSize: '15px',
-    color: '#000000'
+    color: '#000000',
+    fontWeight: 'bold'
 };
 var menuStyle = {
     borderBottom: 'solid 1px #F8F8F8',
@@ -70367,7 +71441,7 @@ var Menu = (function (_React$Component) {
 
 module.exports = Menu;
 
-},{"react":599,"react-bootstrap":362}],668:[function(require,module,exports){
+},{"react":601,"react-bootstrap":363}],671:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -70434,13 +71508,14 @@ var Notifications = (function (_React$Component) {
     _createClass(Notifications, [{
         key: 'closeToast',
         value: function closeToast(toast) {
-            //Notify parent
+            // Notify parent
             if (this.props.closeToast) this.props.closeToast(toast.props.data);
         }
     }, {
         key: 'render',
         value: function render() {
             var toasts = [];
+            var position = { marginTop: '70px' };
             var _iteratorNormalCompletion = true;
             var _didIteratorError = false;
             var _iteratorError = undefined;
@@ -70476,7 +71551,7 @@ var Notifications = (function (_React$Component) {
             this.state.toasts = toasts;
             return _react2.default.createElement(
                 'div',
-                { id: notificationWrapperId, className: 'toast-top-right', 'aria-live': 'polite', role: 'alert' },
+                { id: notificationWrapperId, className: 'toast-top-right', style: position, 'aria-live': 'polite', role: 'alert' },
                 this.state.toasts
             );
         }
@@ -70487,7 +71562,7 @@ var Notifications = (function (_React$Component) {
 
 exports.default = Notifications;
 
-},{"react":599}],669:[function(require,module,exports){
+},{"react":601}],672:[function(require,module,exports){
 "use strict";
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -70553,7 +71628,7 @@ var Spinner = (function (_React$Component) {
 
 exports.default = Spinner;
 
-},{"react":599}],670:[function(require,module,exports){
+},{"react":601}],673:[function(require,module,exports){
 'use strict';
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
@@ -70641,7 +71716,7 @@ exports.default = function (ComposedComponent) {
     })(_react2.default.Component);
 };
 
-},{"../../stores/LoginStore":749,"react":599}],671:[function(require,module,exports){
+},{"../../stores/LoginStore":755,"react":601}],674:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -70692,7 +71767,7 @@ var Login = (function (_React$Component) {
 
 module.exports = Login;
 
-},{"../layout/header/LoginHeader":665,"./LoginForm":672,"react":599}],672:[function(require,module,exports){
+},{"../layout/header/LoginHeader":668,"./LoginForm":675,"react":601}],675:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -70778,7 +71853,6 @@ var LoginForm = (function (_React$Component) {
     }, {
         key: 'login',
         value: function login() {
-            // window.location='#/app';
             AppAction.executeAction(ActionType.LOGIN_USER, {
                 jwt: this.state
             });
@@ -70787,18 +71861,22 @@ var LoginForm = (function (_React$Component) {
         key: 'render',
         value: function render() {
             var loginStyle = {
-                maxWidth: '332px',
+                maxWidth: '345px',
                 marginTop: '100px',
-                background: '#FFF',
-                border: 'solid #CFCFCF 5px',
-                padding: '20px',
-                borderRadius: '10px'
+                background: 'url(./login/bgImg.png)',
+                padding: '30px',
+                borderRadius: '10px',
+                backgroundSize: '100% 100%'
             };
 
-            var errorStyle = {
-                'font-size': '14px',
-                color: 'red',
-                textAlign: 'center'
+            var userIcon = {
+                background: 'url(./login/user_icon.png) no-repeat scroll 7px 7px',
+                paddingLeft: '30px'
+            };
+
+            var passwordIcon = {
+                background: 'url(./login/lock_icon.png) no-repeat scroll 7px 7px',
+                paddingLeft: '30px'
             };
 
             var containerStyle = {
@@ -70809,7 +71887,7 @@ var LoginForm = (function (_React$Component) {
 
             var labelFont = {
                 'font-size': '16px',
-                'font-family': 'Century Gothic'
+                'font-family': 'GEInspira'
             };
 
             var passwordLabel = {
@@ -70819,9 +71897,9 @@ var LoginForm = (function (_React$Component) {
             };
 
             var rememberPasswordLabel = {
-                'font-size': '14px',
-                opacity: '0.6',
-                paddingLeft: '0px'
+                'font-size': '15px',
+                paddingLeft: '0px',
+                fontWeight: 'lighter'
             };
 
             var btn = {
@@ -70831,36 +71909,38 @@ var LoginForm = (function (_React$Component) {
                 color: '#fff'
             };
 
-            var checkbox = { width: '30px' };
-
-            var inner_addon = { position: 'relative' };
-
-            var innerPosition = {
-                position: 'absolute',
-                pointerEvents: 'none',
-                padding: '35px 0px 0px 10px',
-                left: '0px'
-            };
-
             var showPassword = {
                 paddingLeft: '20px',
-                marginLeft: '248px',
-                marginTop: '-61px',
-                height: '31px',
+                marginLeft: '84%',
+                marginTop: '-65px',
+                height: '20px',
                 width: '15px',
-                border: 'white'
+                border: 'white',
+                background: 'white',
+                outline: '0'
             };
 
             var outerPosition = {
-                position: 'absolute',
                 pointerEvents: 'none',
-                padding: '35px 0px 0px 257px',
-                left: '0px'
+                paddingLeft: '20px',
+                marginLeft: '87%',
+                marginTop: '-65px',
+                background: 'url(./login/eye_icon.png) no-repeat scroll 56% 0px'
             };
 
-            var placeholderPosition = { paddingLeft: '35px' };
+            var roleStyle = {
+                marginTop: '-20px'
+            };
 
-            var errorPanel = { height: '16px' };
+            var selectStyle = {
+                background: 'url(./login/downArrow_icon.png) 96% no-repeat',
+                'appearance': 'none',
+                '-moz-appearance': 'none', /* Firefox */
+                '-webkit-appearance': 'none' /* Safari and Chrome */
+                , 'font-size': '16px',
+                'font-family': 'GEInspira',
+                paddingLeft: '3px'
+            };
 
             return _react2.default.createElement(
                 'div',
@@ -70869,49 +71949,36 @@ var LoginForm = (function (_React$Component) {
                     'div',
                     { className: 'login jumbotron center-block', style: loginStyle },
                     _react2.default.createElement(
-                        'div',
-                        { style: errorPanel },
-                        _react2.default.createElement(
-                            'span',
-                            { style: errorStyle },
-                            this.state.errorSpan
-                        )
-                    ),
-                    _react2.default.createElement('label', null),
-                    _react2.default.createElement(
                         'form',
                         { role: 'form', style: labelFont },
                         _react2.default.createElement(
                             'div',
-                            { className: 'form-group  left-addon', style: inner_addon },
+                            { className: 'form-group' },
                             _react2.default.createElement(
                                 'label',
                                 { htmlFor: 'username' },
                                 'Username'
                             ),
-                            _react2.default.createElement('i', { className: 'glyphicon glyphicon-user', style: innerPosition }),
-                            _react2.default.createElement('input', { type: 'text', className: 'form-control', id: 'username', value: this.state.user, placeholder: 'Username', ref: 'user', onChange: this.usernameChanged.bind(this), style: placeholderPosition }),
-                            _react2.default.createElement('i', { className: 'glyphicon glyphicons-eye-open' })
+                            _react2.default.createElement('input', { type: 'text', className: 'form-control', id: 'username', value: this.state.user, placeholder: 'Username', ref: 'user', onChange: this.usernameChanged.bind(this), style: userIcon })
                         ),
                         _react2.default.createElement(
                             'div',
-                            { className: 'form-group left-addon', style: inner_addon },
+                            { className: 'form-group' },
                             _react2.default.createElement(
                                 'label',
                                 { htmlFor: 'password' },
                                 'Password'
                             ),
-                            _react2.default.createElement('i', { className: 'glyphicon glyphicon-lock', style: innerPosition }),
-                            _react2.default.createElement('input', { type: 'password', className: 'form-control', id: 'password', ref: 'password', value: this.state.password, placeholder: 'Password', onChange: this.passwordChanged.bind(this), style: placeholderPosition }),
+                            _react2.default.createElement('input', { type: 'password', className: 'form-control', id: 'password', ref: 'password', value: this.state.password, placeholder: 'Password', onChange: this.passwordChanged.bind(this), style: passwordIcon }),
                             _react2.default.createElement(
                                 'button',
                                 { className: 'btn btn-default', style: showPassword, onClick: this.showPassword },
-                                _react2.default.createElement('i', { className: 'glyphicon glyphicon-eye-open', style: outerPosition })
+                                _react2.default.createElement('i', { style: outerPosition })
                             )
                         ),
                         _react2.default.createElement(
                             'div',
-                            { className: 'form-group' },
+                            { className: 'form-group', style: roleStyle },
                             _react2.default.createElement(
                                 'label',
                                 { htmlFor: 'role' },
@@ -70919,7 +71986,7 @@ var LoginForm = (function (_React$Component) {
                             ),
                             _react2.default.createElement(
                                 'select',
-                                { value: this.state.role, className: 'form-control', id: 'role', ref: 'role', onChange: this.handleChange.bind(this) },
+                                { value: this.state.role, style: selectStyle, className: 'form-control', id: 'role', ref: 'role', onChange: this.handleChange.bind(this) },
                                 _react2.default.createElement(
                                     'option',
                                     { value: '' },
@@ -70952,7 +72019,7 @@ var LoginForm = (function (_React$Component) {
                             ),
                             _react2.default.createElement(
                                 'select',
-                                { value: this.state.language, className: 'form-control', id: 'language', ref: 'language', onChange: this.handleChangeLanguage.bind(this) },
+                                { value: this.state.language, style: selectStyle, className: 'form-control', id: 'language', ref: 'language', onChange: this.handleChangeLanguage.bind(this) },
                                 _react2.default.createElement(
                                     'option',
                                     { value: 'en' },
@@ -70967,23 +72034,25 @@ var LoginForm = (function (_React$Component) {
                         ),
                         _react2.default.createElement(
                             'div',
-                            null,
-                            _react2.default.createElement('input', { type: 'checkbox', id: 'checkbox', ref: 'checkbox', style: checkbox }),
-                            '  ',
+                            { className: 'form-group login-style' },
+                            _react2.default.createElement('input', { type: 'checkbox', id: 'check' }),
                             _react2.default.createElement(
-                                'span',
-                                { style: rememberPasswordLabel },
-                                'Remember Password?'
+                                'label',
+                                { style: rememberPasswordLabel, htmlFor: 'check' },
+                                'Remember password?'
                             )
                         ),
-                        _react2.default.createElement('br', null),
                         _react2.default.createElement(
                             'div',
                             { className: 'form-group' },
                             _react2.default.createElement(
                                 'button',
                                 { type: 'submit', className: 'btn form-control', style: btn, onClick: this.validateLogin.bind(this) },
-                                'LOGIN'
+                                _react2.default.createElement(
+                                    'b',
+                                    null,
+                                    'LOGIN'
+                                )
                             ),
                             ' '
                         ),
@@ -71018,7 +72087,7 @@ var LoginForm = (function (_React$Component) {
 
 module.exports = LoginForm;
 
-},{"./../../stores/LoginStore":749,"react":599}],673:[function(require,module,exports){
+},{"./../../stores/LoginStore":755,"react":601}],676:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -71057,13 +72126,17 @@ var _server = require('react-dom/server');
 
 var _server2 = _interopRequireDefault(_server);
 
-var _jspdfBrowserify = require('jspdf-browserify');
-
-var _jspdfBrowserify2 = _interopRequireDefault(_jspdfBrowserify);
-
 var _ReferralPrint = require('./ReferralPrint.js');
 
 var _ReferralPrint2 = _interopRequireDefault(_ReferralPrint);
+
+var _VisitSummary = require('./../visit-summary/VisitSummary');
+
+var _VisitSummary2 = _interopRequireDefault(_VisitSummary);
+
+var _VisitSummaryStore = require('../../stores/VisitSummaryStore');
+
+var _VisitSummaryStore2 = _interopRequireDefault(_VisitSummaryStore);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -71073,7 +72146,10 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-unused-vars: 0*/
 
+//import jspdf from 'jspdf-browserify';
+
 var StyleHeader = {
+    media: 'print',
     backgroundColor: '#CCCCCC',
     border: '1px solid black',
     marginTop: '3px',
@@ -71120,6 +72196,9 @@ var ReferralLetter = (function (_ControlBase) {
         _this.state = { patientData: {} };
         _ReferLetterStore2.default.addChangeListener(AppConstants.FETCH_EVENT, _this.notifyPatientFetch.bind(_this));
         AppAction.executeAction(ActionType.REFER_LETTER_DATA_FETCH, null);
+
+        _VisitSummaryStore2.default.addChangeListener(AppConstants.FETCH_EVENT, _this.retrieveVisitData.bind(_this));
+        AppAction.executeAction(ActionType.VISIT_SUMMARY_FETCH, null);
         return _this;
     }
 
@@ -71129,12 +72208,30 @@ var ReferralLetter = (function (_ControlBase) {
             this.setState({ patientData: data.args });
         }
     }, {
+        key: 'retrieveVisitData',
+        value: function retrieveVisitData(visitSummaryData) {
+
+            this.setState({ visitSummary: visitSummaryData.args });
+            // this.state.visitSummary = visitSummaryData.args;
+            this.forceUpdate();
+        }
+    }, {
         key: 'exportToPdf',
         value: function exportToPdf() {
-            var html = _server2.default.renderToString(_react2.default.createElement(_ReferralPrint2.default, { patientInfo: this.state.patientData, referralInfo: this.state.patientData }));
-            var doc = new _jspdfBrowserify2.default();
+            var printContents = _server2.default.renderToString(_react2.default.createElement(_ReferralPrint2.default, { patientInfo: this.state.patientData, referralInfo: this.state.patientData }));
+            var summaryContents = _server2.default.renderToString(_react2.default.createElement(_VisitSummary2.default, { visitSummarydata: this.state.visitSummary }));
+            printContents = printContents + summaryContents;
+
+            var win = window.open('', '', 'left=0,top=0,width=800,height=900');
+            win.document.write(printContents);
+            win.focus();
+            win.print();
+            win.close();
+
+            /*var html = ReactDOMServer.renderToString(<ReferralPrint patientInfo={this.state.patientData} referralInfo={this.state.patientData} />);
+            var doc = new jspdf();
             doc.fromHTML(html);
-            doc.output('dataurlnewwindow');
+            doc.output('dataurlnewwindow');*/
         }
     }, {
         key: 'render',
@@ -71313,7 +72410,7 @@ var ReferralLetter = (function (_ControlBase) {
                                     { className: 'referral' },
                                     _react2.default.createElement(_reactBootstrap.Input, { type: 'textarea', label: locale('CurrentMedication'), className: 'editable', placeholder: locale('PleaseEenter'), labelClassName: 'col-xs-5 marginMinus',
                                         wrapperClassName: 'col-xs-7', valueLink: this.linkState(this.state.patientData, 'CurrentMedication') }),
-                                    ' '
+                                    '   '
                                 )
                             )
                         ),
@@ -71410,16 +72507,16 @@ var ReferralLetter = (function (_ControlBase) {
 
 exports.default = ReferralLetter;
 
-},{"../../stores/ReferLetterStore":750,"./../../controls/ControlBase":730,"./../../controls/DatePicker":732,"./../../controls/DropDown":733,"./../login/AuthenticatedComponent":670,"./ReferralPrint.js":674,"jspdf-browserify":125,"react":599,"react-bootstrap":362,"react-dom/server":375}],674:[function(require,module,exports){
-"use strict";
+},{"../../stores/ReferLetterStore":756,"../../stores/VisitSummaryStore":760,"./../../controls/ControlBase":734,"./../../controls/DatePicker":737,"./../../controls/DropDown":738,"./../login/AuthenticatedComponent":673,"./../visit-summary/VisitSummary":690,"./ReferralPrint.js":677,"react":601,"react-bootstrap":363,"react-dom/server":377}],677:[function(require,module,exports){
+'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
 Object.defineProperty(exports, "__esModule", {
-	value: true
+				value: true
 });
 
-var _react = require("react");
+var _react = require('react');
 
 var _react2 = _interopRequireDefault(_react);
 
@@ -71431,260 +72528,367 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-mixed-spaces-and-tabs:0*/
 
+var StyleHeader = {
+				media: 'print',
+				paddingLeft: '30px',
+				'font-family': 'GEInspira',
+				fontWeight: '300'
+};
+
+var styleContent = {
+				media: 'print',
+				marginLeft: '5%',
+				'font-family': 'GEInspira',
+				fontWeight: '200'
+};
+
+var styleBottom = {
+				media: 'print',
+				marginLeft: '50%',
+				paddingLeft: '30px',
+				'font-family': 'GEInspira',
+				fontWeight: '300'
+};
+
+var styleCenter = {
+				marginLeft: '40%',
+				fontWeight: '600'
+};
+
 var ReferralPrint = (function (_React$Component) {
-	_inherits(ReferralPrint, _React$Component);
+				_inherits(ReferralPrint, _React$Component);
 
-	function ReferralPrint() {
-		_classCallCheck(this, ReferralPrint);
+				function ReferralPrint() {
+								_classCallCheck(this, ReferralPrint);
 
-		return _possibleConstructorReturn(this, Object.getPrototypeOf(ReferralPrint).call(this));
-	}
+								return _possibleConstructorReturn(this, Object.getPrototypeOf(ReferralPrint).call(this));
+				}
 
-	_createClass(ReferralPrint, [{
-		key: "render",
-		value: function render() {
-			var patientData = this.props.patientInfo;
-			var referralOptions = this.props.referralInfo;
-			return _react2.default.createElement(
-				"div",
-				null,
-				_react2.default.createElement(
-					"pre",
-					null,
-					"To,"
-				),
-				_react2.default.createElement(
-					"span",
-					null,
-					referralOptions.referredTo
-				),
-				_react2.default.createElement(
-					"pre",
-					null,
-					"District Government Hospital, Perambalur Sir/Madam, I am referring this patient for further management. I request you to kindly do the needful and provide the feedback for further follow-up through the patient."
-				),
-				_react2.default.createElement(
-					"div",
-					{ id: "patient-Info-container" },
-					_react2.default.createElement(
-						"div",
-						{ className: "col-lg-12" },
-						_react2.default.createElement(
-							"div",
-							{ className: "row" },
-							_react2.default.createElement(
-								"div",
-								{ className: "col-md-2" },
-								locale('Name'),
-								": ",
-								_react2.default.createElement(
-									"span",
-									null,
-									patientData.name
-								)
-							),
-							_react2.default.createElement(
-								"div",
-								{ className: "col-md-3" },
-								locale('SpouseName'),
-								": ",
-								_react2.default.createElement(
-									"span",
-									null,
-									patientData.spouseName
-								)
-							),
-							_react2.default.createElement(
-								"div",
-								{ className: "col-md-2" },
-								locale('Age'),
-								": ",
-								_react2.default.createElement(
-									"span",
-									null,
-									patientData.age
-								)
-							),
-							_react2.default.createElement(
-								"div",
-								{ className: "col-md-3" },
-								locale('ContactNo'),
-								": ",
-								_react2.default.createElement(
-									"span",
-									null,
-									patientData.emergencyContactPhn
-								),
-								" "
-							),
-							_react2.default.createElement(
-								"div",
-								{ className: "col-md-2" },
-								locale('BloodGroup'),
-								": ",
-								_react2.default.createElement(
-									"span",
-									null,
-									patientData.bloodGroup
-								)
-							)
-						),
-						_react2.default.createElement(
-							"div",
-							{ className: "row" },
-							_react2.default.createElement(
-								"div",
-								{ className: "col-md-2" },
-								locale('PatientID'),
-								": ",
-								_react2.default.createElement(
-									"span",
-									null,
-									patientData.patientId
-								)
-							),
-							_react2.default.createElement(
-								"div",
-								{ className: "col-md-3" },
-								locale('PICMEID'),
-								": ",
-								_react2.default.createElement(
-									"span",
-									null,
-									patientData.picmeID
-								)
-							),
-							_react2.default.createElement(
-								"div",
-								{ className: "col-md-2" },
-								locale('SubCenterName'),
-								": ",
-								_react2.default.createElement(
-									"span",
-									null,
-									patientData.subCentreName
-								),
-								"r"
-							),
-							_react2.default.createElement(
-								"div",
-								{ className: "col-md-3" },
-								locale('PHCName'),
-								": ",
-								_react2.default.createElement(
-									"span",
-									null,
-									patientData.phcName
-								),
-								" "
-							)
-						)
-					)
-				),
-				_react2.default.createElement(
-					"div",
-					{ id: "Advanced-referral-details" },
-					_react2.default.createElement(
-						"div",
-						{ className: "row" },
-						_react2.default.createElement(
-							"div",
-							{ "class": "col-sm-4" },
-							_react2.default.createElement(
-								"span",
-								null,
-								"Referral reason"
-							)
-						),
-						_react2.default.createElement(
-							"div",
-							{ "class": "col-sm-4" },
-							referralOptions.reasonForReferral
-						)
-					),
-					_react2.default.createElement(
-						"div",
-						{ className: "row" },
-						_react2.default.createElement(
-							"div",
-							{ "class": "col-sm-4" },
-							_react2.default.createElement(
-								"span",
-								null,
-								"Information on referral provided to institution"
-							)
-						),
-						_react2.default.createElement(
-							"div",
-							{ "class": "col-sm-4" },
-							referralOptions.OnformationOnReferral
-						)
-					),
-					_react2.default.createElement(
-						"div",
-						{ className: "row" },
-						_react2.default.createElement(
-							"div",
-							{ "class": "col-sm-4" },
-							_react2.default.createElement(
-								"span",
-								null,
-								"Mode of transport"
-							)
-						),
-						_react2.default.createElement(
-							"div",
-							{ "class": "col-sm-4" },
-							referralOptions.modeOfTransport
-						)
-					),
-					_react2.default.createElement(
-						"div",
-						{ className: "row" },
-						_react2.default.createElement(
-							"div",
-							{ "class": "col-sm-4" },
-							_react2.default.createElement(
-								"span",
-								null,
-								"Referral Date and time"
-							)
-						),
-						_react2.default.createElement(
-							"div",
-							{ "class": "col-sm-4" },
-							referralOptions.referredOn
-						)
-					),
-					_react2.default.createElement(
-						"div",
-						{ className: "row" },
-						_react2.default.createElement(
-							"div",
-							{ "class": "col-sm-4" },
-							_react2.default.createElement(
-								"span",
-								null,
-								"Patient Consent obtained"
-							)
-						),
-						_react2.default.createElement(
-							"div",
-							{ "class": "col-sm-4" },
-							referralOptions.patientConsent
-						)
-					)
-				)
-			);
-		}
-	}]);
+				_createClass(ReferralPrint, [{
+								key: 'render',
+								value: function render() {
+												var patientData = this.props.patientInfo;
+												var referralOptions = this.props.referralInfo;
+												return _react2.default.createElement(
+																'div',
+																null,
+																_react2.default.createElement(
+																				'div',
+																				null,
+																				_react2.default.createElement('br', null),
+																				_react2.default.createElement('br', null)
+																),
+																_react2.default.createElement(
+																				'label',
+																				{ style: styleCenter },
+																				' ',
+																				locale('Referral_Letter'),
+																				' '
+																),
+																_react2.default.createElement(
+																				'div',
+																				null,
+																				_react2.default.createElement('br', null),
+																				_react2.default.createElement('br', null)
+																),
+																_react2.default.createElement(
+																				'div',
+																				{ style: StyleHeader },
+																				_react2.default.createElement(
+																								'div',
+																								null,
+																								'To,'
+																				),
+																				_react2.default.createElement(
+																								'div',
+																								null,
+																								'Dr. ',
+																								referralOptions.referredTo
+																				),
+																				_react2.default.createElement(
+																								'div',
+																								null,
+																								'District Government Hospital,'
+																				),
+																				_react2.default.createElement(
+																								'div',
+																								null,
+																								'Perambalur'
+																				)
+																),
+																_react2.default.createElement(
+																				'div',
+																				null,
+																				_react2.default.createElement('br', null)
+																),
+																_react2.default.createElement(
+																				'div',
+																				null,
+																				_react2.default.createElement('br', null)
+																),
+																_react2.default.createElement(
+																				'div',
+																				{ style: StyleHeader },
+																				'Sir/Madam,'
+																),
+																_react2.default.createElement(
+																				'div',
+																				null,
+																				_react2.default.createElement('br', null)
+																),
+																_react2.default.createElement(
+																				'div',
+																				{ style: styleContent },
+																				'    ',
+																				_react2.default.createElement(
+																								'p',
+																								null,
+																								'I am referring this patient for further management. I request you to kindly do the needful and provide the feedback for further follow-up through the patient. '
+																				)
+																),
+																_react2.default.createElement(
+																				'div',
+																				null,
+																				_react2.default.createElement('br', null),
+																				_react2.default.createElement('br', null),
+																				_react2.default.createElement('br', null)
+																),
+																_react2.default.createElement(
+																				'div',
+																				null,
+																				_react2.default.createElement(
+																								'div',
+																								{ id: 'patient-Info', style: styleContent },
+																								_react2.default.createElement(
+																												'label',
+																												null,
+																												locale('Name'),
+																												': ',
+																												_react2.default.createElement(
+																																'span',
+																																null,
+																																patientData.name
+																												)
+																								),
+																								'    ',
+																								_react2.default.createElement(
+																												'label',
+																												null,
+																												locale('SpouseName'),
+																												': ',
+																												_react2.default.createElement(
+																																'span',
+																																null,
+																																patientData.spouseName
+																												)
+																								),
+																								'    ',
+																								_react2.default.createElement(
+																												'label',
+																												null,
+																												locale('Age'),
+																												': ',
+																												_react2.default.createElement(
+																																'span',
+																																null,
+																																patientData.age
+																												)
+																								),
+																								'    ',
+																								_react2.default.createElement(
+																												'label',
+																												null,
+																												locale('ContactNo'),
+																												': ',
+																												_react2.default.createElement(
+																																'span',
+																																null,
+																																patientData.emergencyContactPhn
+																												),
+																												' '
+																								),
+																								_react2.default.createElement(
+																												'div',
+																												null,
+																												_react2.default.createElement('br', null)
+																								),
+																								_react2.default.createElement(
+																												'label',
+																												null,
+																												locale('BloodGroup'),
+																												': ',
+																												_react2.default.createElement(
+																																'span',
+																																null,
+																																patientData.bloodGroup
+																												)
+																								),
+																								'    ',
+																								_react2.default.createElement(
+																												'label',
+																												null,
+																												locale('PatientID'),
+																												': ',
+																												_react2.default.createElement(
+																																'span',
+																																null,
+																																patientData.patientId
+																												)
+																								),
+																								'    ',
+																								_react2.default.createElement(
+																												'label',
+																												null,
+																												locale('PICMEID'),
+																												': ',
+																												_react2.default.createElement(
+																																'span',
+																																null,
+																																patientData.picmeID
+																												)
+																								)
+																				),
+																				_react2.default.createElement(
+																								'div',
+																								{ id: 'Referral-Info', style: styleContent },
+																								_react2.default.createElement(
+																												'div',
+																												null,
+																												_react2.default.createElement('br', null)
+																								),
+																								_react2.default.createElement(
+																												'div',
+																												{ className: 'col-md-2' },
+																												locale('ReasonForReferral'),
+																												': ',
+																												_react2.default.createElement(
+																																'span',
+																																null,
+																																referralOptions.reasonForReferral
+																												)
+																								),
+																								_react2.default.createElement(
+																												'div',
+																												null,
+																												_react2.default.createElement('br', null)
+																								),
+																								_react2.default.createElement(
+																												'div',
+																												{ className: 'col-md-2' },
+																												locale('Information_on_Referral_provided_to_institution_referred'),
+																												': ',
+																												_react2.default.createElement(
+																																'span',
+																																null,
+																																referralOptions.OnformationOnReferral
+																												)
+																								),
+																								_react2.default.createElement(
+																												'div',
+																												null,
+																												_react2.default.createElement('br', null)
+																								),
+																								_react2.default.createElement(
+																												'div',
+																												{ className: 'col-md-2' },
+																												locale('ModeOfTransport'),
+																												': ',
+																												_react2.default.createElement(
+																																'span',
+																																null,
+																																referralOptions.modeOfTransport
+																												)
+																								),
+																								_react2.default.createElement(
+																												'div',
+																												null,
+																												_react2.default.createElement('br', null)
+																								),
+																								_react2.default.createElement(
+																												'div',
+																												{ className: 'col-md-2' },
+																												locale('RefferedOn'),
+																												': ',
+																												_react2.default.createElement(
+																																'span',
+																																null,
+																																referralOptions.referredOn
+																												)
+																								),
+																								_react2.default.createElement(
+																												'div',
+																												null,
+																												_react2.default.createElement('br', null)
+																								),
+																								_react2.default.createElement(
+																												'div',
+																												{ className: 'col-md-2' },
+																												locale('PatientConsentObtained'),
+																												': ',
+																												_react2.default.createElement(
+																																'span',
+																																null,
+																																referralOptions.patientConsent
+																												)
+																								)
+																				),
+																				_react2.default.createElement(
+																								'div',
+																								null,
+																								_react2.default.createElement(
+																												'div',
+																												null,
+																												_react2.default.createElement('br', null),
+																												_react2.default.createElement('br', null)
+																								),
+																								_react2.default.createElement(
+																												'label',
+																												{ style: styleContent },
+																												' PHC Seal : '
+																								),
+																								_react2.default.createElement(
+																												'div',
+																												{ style: styleBottom },
+																												_react2.default.createElement(
+																																'label',
+																																null,
+																																'Signature of the Medical Officer'
+																												),
+																												_react2.default.createElement(
+																																'div',
+																																null,
+																																_react2.default.createElement('br', null)
+																												),
+																												_react2.default.createElement(
+																																'label',
+																																null,
+																																locale('PHCName'),
+																																' : ',
+																																referralOptions.phcName
+																												),
+																												_react2.default.createElement(
+																																'div',
+																																null,
+																																_react2.default.createElement('br', null)
+																												),
+																												_react2.default.createElement(
+																																'label',
+																																null,
+																																'Date :'
+																												)
+																								)
+																				)
+																)
+												);
+								}
+				}]);
 
-	return ReferralPrint;
+				return ReferralPrint;
 })(_react2.default.Component);
 
 exports.default = ReferralPrint;
 
-},{"react":599}],675:[function(require,module,exports){
+},{"react":601}],678:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -71734,7 +72938,7 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 /*eslint no-mixed-spaces-and-tabs:0*/
 
 var gravidas = [{
-    value: '0',
+    value: '',
     text: 'G'
 }, {
     value: '1',
@@ -71769,8 +72973,11 @@ var gravidas = [{
 }];
 
 var paras = [{
-    value: '0',
+    value: '',
     text: 'P'
+}, {
+    value: '0',
+    text: 'P0'
 }, {
     value: '1',
     text: 'P1'
@@ -71804,8 +73011,11 @@ var paras = [{
 }];
 
 var abortions = [{
-    value: '0',
+    value: '',
     text: 'A'
+}, {
+    value: '0',
+    text: 'A0'
 }, {
     value: '1',
     text: 'A1'
@@ -71839,8 +73049,11 @@ var abortions = [{
 }];
 
 var liveBirths = [{
-    value: '0',
+    value: '',
     text: 'L'
+}, {
+    value: '0',
+    text: 'L0'
 }, {
     value: '1',
     text: 'L1'
@@ -71897,17 +73110,43 @@ var CurrentPregnancy = (function (_ControlBase) {
                 value: 'Select BloodGroup',
                 text: locale('Select_Blood_Group')
             }, {
-                value: 'Opve',
+                value: 'O-',
+                text: 'O-'
+            }, {
+                value: 'O+',
                 text: 'O+'
             }, {
-                value: 'Onve',
-                text: 'O-'
+                value: 'A−',
+                text: 'A−'
+            }, {
+                value: 'A+',
+                text: 'A+'
+            }, {
+                value: 'B−',
+                text: 'B−'
+            }, {
+                value: 'B+',
+                text: 'B+'
+            }, {
+                value: 'AB−',
+                text: 'AB−'
+            }, {
+                value: 'AB+',
+                text: 'AB+'
             }];
 
             var toggleLabelClass = 'col-xs-8 zeroLeftPadding';
             var toggleWrapperClass = 'col-xs-3';
-            var wcDropDown = 'col-xs-2 zeroLeftPadding';
+            var wcDropDown = 'col-xs-12 zeroLeftPadding';
             var dateIcon = _react2.default.createElement(_reactBootstrap.Image, { className: 'editable', src: './registration/calendar.png' });
+            var disableFlag = false;
+            var obstetricComp = undefined;
+            if (!this.state.context.gravida) {
+                disableFlag = true;
+                obstetricComp = _react2.default.createElement(_ObstetricComponent2.default, { className: 'editable custom_font', wrapperClassName: wcDropDown, gravidaCount: this.state.context.gravida, paraCount: '', abortionCount: '', liveBirthCount: '' });
+            } else {
+                obstetricComp = _react2.default.createElement(_ObstetricComponent2.default, { className: 'editable custom_font', wrapperClassName: wcDropDown, gravidaCount: this.state.context.gravida, paraCount: this.state.context.para, abortionCount: this.state.context.abortion, liveBirthCount: this.state.context.liveBirth });
+            }
             return _react2.default.createElement(
                 'div',
                 { className: 'wrapper' },
@@ -71916,10 +73155,10 @@ var CurrentPregnancy = (function (_ControlBase) {
                     null,
                     _react2.default.createElement(
                         _reactBootstrap.Row,
-                        null,
+                        { className: 'currDrop' },
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 5 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('PregnancyAcceptedWillingly'), labelClassName: toggleLabelClass, wrapperClassName: toggleWrapperClass, valueLink: this.linkState(this.state.context, 'isPregrnancyWanted') }),
                             _react2.default.createElement('br', null),
                             _react2.default.createElement('br', null),
@@ -71931,9 +73170,13 @@ var CurrentPregnancy = (function (_ControlBase) {
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
-                            _react2.default.createElement(_reactBootstrap.Input, { type: 'checkbox', label: locale('isHighRisk'),
-                                placeholder: locale('isHighRisk'), labelClassName: '', className: 'editable', wrapperClassName: '', checkedLink: this.linkState(this.state.context, 'highRiskMother') }),
+                            { lg: 4, sm: 12, xs: 12 },
+                            _react2.default.createElement('input', { type: 'checkbox', id: 'riskMom', checkedLink: this.linkState(this.state.context, 'highRiskMother') }),
+                            _react2.default.createElement(
+                                'label',
+                                { htmlFor: 'riskMom', className: 'noFontWeight' },
+                                locale('isHighRisk')
+                            ),
                             _react2.default.createElement(_reactBootstrap.Input, { type: 'textarea', className: 'editable', valueLink: this.linkState(this.state.context, 'highRiskMotherComments') })
                         )
                     ),
@@ -71959,16 +73202,36 @@ var CurrentPregnancy = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 10 },
-                            _react2.default.createElement(_DropDown2.default, { className: 'editable', wrapperClassName: wcDropDown, options: gravidas, valueLink: this.linkState(this.state.context, 'gravida') }),
-                            _react2.default.createElement(_DropDown2.default, { className: 'editable', wrapperClassName: wcDropDown, options: paras, valueLink: this.linkState(this.state.context, 'para') }),
-                            _react2.default.createElement(_DropDown2.default, { className: 'editable', wrapperClassName: wcDropDown, options: abortions, valueLink: this.linkState(this.state.context, 'abortion') }),
-                            _react2.default.createElement(_DropDown2.default, { className: 'editable', wrapperClassName: wcDropDown, options: liveBirths, valueLink: this.linkState(this.state.context, 'liveBirth') }),
-                            _react2.default.createElement(_ObstetricComponent2.default, { className: 'editable custom_font', wrapperClassName: wcDropDown, gravidaCount: this.state.context.gravida,
-                                paraCount: this.state.context.para, abortionCount: this.state.context.abortion, liveBirthCount: this.state.context.liveBirth }),
+                            { lg: 2, md: 3, xs: 12 },
+                            _react2.default.createElement(_DropDown2.default, { className: 'editable', options: gravidas, valueLink: this.linkState(this.state.context, 'gravida') })
+                        ),
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 2, md: 3, xs: 12 },
+                            _react2.default.createElement(_DropDown2.default, { className: 'editable', options: paras, disabled: disableFlag, valueLink: this.linkState(this.state.context, 'para') })
+                        ),
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 2, md: 3, xs: 12 },
+                            _react2.default.createElement(_DropDown2.default, { className: 'editable', options: abortions, disabled: disableFlag, valueLink: this.linkState(this.state.context, 'abortion') })
+                        ),
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 2, md: 3, xs: 12 },
+                            _react2.default.createElement(_DropDown2.default, { className: 'editable', options: liveBirths, disabled: disableFlag, valueLink: this.linkState(this.state.context, 'liveBirth') })
+                        ),
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 1, md: 3, xs: 12 },
+                            ' ',
+                            obstetricComp
+                        ),
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 2, md: 3, xs: 12 },
                             _react2.default.createElement(
                                 'div',
-                                { className: 'col-lg-offset-9 obsterics' },
+                                { className: 'obsterics' },
                                 _react2.default.createElement(_reactBootstrap.Image, { wrapperClassName: wcDropDown, src: './registration/edit_icon.png' })
                             )
                         )
@@ -71983,7 +73246,7 @@ var CurrentPregnancy = (function (_ControlBase) {
 
 exports.default = CurrentPregnancy;
 
-},{"./../../controls/ControlBase":730,"./../../controls/DatePicker":732,"./../../controls/DropDown":733,"./../../controls/LabeledControl":736,"./../../controls/ToggleButton":742,"./ObstetricComponent":678,"react":599,"react-bootstrap":362}],676:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/DatePicker":737,"./../../controls/DropDown":738,"./../../controls/LabeledControl":741,"./../../controls/ToggleButton":747,"./ObstetricComponent":681,"react":601,"react-bootstrap":363}],679:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -72018,6 +73281,10 @@ var _LabeledControl = require('./../../controls/LabeledControl');
 
 var _LabeledControl2 = _interopRequireDefault(_LabeledControl);
 
+var _RegistrationStore = require('./../../stores/RegistrationStore');
+
+var _RegistrationStore2 = _interopRequireDefault(_RegistrationStore);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -72033,12 +73300,84 @@ var MotherDemographics = (function (_ControlBase) {
     function MotherDemographics() {
         _classCallCheck(this, MotherDemographics);
 
-        return _possibleConstructorReturn(this, Object.getPrototypeOf(MotherDemographics).call(this));
+        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(MotherDemographics).call(this));
+
+        _this.state = {
+            subCentreIds: [{
+                value: 'Select Sub-centerID',
+                text: locale('Select_Subcenter_ID')
+            }],
+            subCentreNames: [{
+                value: 'Select Sub-centerName',
+                text: locale('Select_Subcenter_Name')
+            }],
+            vhnNames: [{
+                value: 'Select VHNName',
+                text: locale('Select_VHN_Name')
+            }]
+        };
+        return _this;
     }
 
     _createClass(MotherDemographics, [{
+        key: 'componentDidMount',
+        value: function componentDidMount() {
+            var subCentreDetails = this.state.context.subCenterData;
+
+            var _iteratorNormalCompletion = true;
+            var _didIteratorError = false;
+            var _iteratorError = undefined;
+
+            try {
+                for (var _iterator = subCentreDetails[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+                    var value = _step.value;
+
+                    var subCentreList = {};
+                    subCentreList.text = value.subcentreId;
+                    subCentreList.value = value.subcentreId;
+                    this.state.subCentreIds.push(subCentreList);
+                }
+            } catch (err) {
+                _didIteratorError = true;
+                _iteratorError = err;
+            } finally {
+                try {
+                    if (!_iteratorNormalCompletion && _iterator.return) {
+                        _iterator.return();
+                    }
+                } finally {
+                    if (_didIteratorError) {
+                        throw _iteratorError;
+                    }
+                }
+            }
+
+            this.forceUpdate();
+        }
+    }, {
+        key: 'subCentreHandler',
+        value: function subCentreHandler() {
+            var subCentreId = this.state.context.subCentreID;
+            var subCentreOptions = this.state.subCentreNames;
+            var vhnNameOptions = this.state.vhnNames;
+
+            //populate subcentreName dropDown
+            var subCentreList = _RegistrationStore2.default.getSubcentreName(this.state.context.subCenterData, subCentreId);
+            this.state.context.subCentreName = subCentreList[0].value;
+            subCentreOptions.splice(1, subCentreOptions.length - 1);
+            for (var i in subCentreList) {
+                this.state.subCentreNames.push(subCentreList[i]);
+            } //populate vhn dropDown
+            var vhnList = _RegistrationStore2.default.getVHNList(this.state.context.subCenterData, subCentreId);
+            vhnNameOptions.splice(1, vhnNameOptions.length - 1);
+            for (var j in vhnList) {
+                this.state.vhnNames.push(vhnList[j]);
+            }this.forceUpdate();
+        }
+    }, {
         key: 'childRender',
         value: function childRender() {
+
             var labelClass = '';
             var wrapperClass = '';
             var wcDropDown = 'col-xs-2';
@@ -72047,66 +73386,164 @@ var MotherDemographics = (function (_ControlBase) {
                 value: 'Select Village',
                 text: locale('SelVill')
             }, {
-                value: 'Village1',
-                text: 'Village1'
+                value: 'Ammapalayam',
+                text: 'Ammapalayam'
             }, {
-                value: 'Village2',
-                text: 'Village2'
+                value: 'Kurumbalur',
+                text: 'Kurumbalur'
+            }, {
+                value: 'Kalpadi',
+                text: 'Kalpadi'
+            }, {
+                value: 'Ladapuram',
+                text: 'Ladapuram'
+            }, {
+                value: 'Velur',
+                text: 'Velur'
+            }, {
+                value: 'Elambalur',
+                text: 'Elambalur'
+            }, {
+                value: 'Esanai',
+                text: 'Esanai'
+            }, {
+                value: 'Anukkur',
+                text: 'Anukkur'
+            }, {
+                value: 'V.Kalathur',
+                text: 'V.Kalathur'
+            }, {
+                value: 'Arumbavur',
+                text: 'Arumbavur'
+            }, {
+                value: 'Pasumbalur',
+                text: 'Pasumbalur'
+            }, {
+                value: 'Poolambadi',
+                text: 'Poolambadi'
+            }, {
+                value: 'Neikuppai',
+                text: 'Neikuppai'
+            }, {
+                value: 'Karai',
+                text: 'Karai'
+            }, {
+                value: 'Padalur',
+                text: 'Padalur'
+            }, {
+                value: 'Chettikulam',
+                text: 'Chettikulam'
+            }, {
+                value: 'Melamathur',
+                text: 'Melamathur'
+            }, {
+                value: 'Adhanur',
+                text: 'Adhanur'
+            }, {
+                value: 'Thungapuram',
+                text: 'Thungapuram'
+            }, {
+                value: 'Kunnam',
+                text: 'Kunnam'
+            }, {
+                value: 'Athiyur',
+                text: 'Athiyur'
+            }, {
+                value: 'L.K.Kadu',
+                text: 'L.K.Kadu'
+            }, {
+                value: 'V.K.Puram',
+                text: 'V.K.Puram'
+            }];
+
+            var pincode = [{
+                value: 'Select Pincode',
+                text: locale('SelPincode')
+            }, {
+                value: '621101',
+                text: '621101'
+            }, {
+                value: '621107',
+                text: '621107'
+            }, {
+                value: '621113',
+                text: '621113'
+            }, {
+                value: '621121',
+                text: '621121'
+            }, {
+                value: '621104',
+                text: '621104'
+            }, {
+                value: '621212',
+                text: '621212'
+            }, {
+                value: '621219',
+                text: '621219'
+            }, {
+                value: '621219',
+                text: '621219'
+            }, {
+                value: '621117',
+                text: '621117'
+            }, {
+                value: '621103',
+                text: '621103'
+            }, {
+                value: '621117',
+                text: '621117'
+            }, {
+                value: '621110',
+                text: '621110'
+            }, {
+                value: '621116',
+                text: '621116'
+            }, {
+                value: '621109',
+                text: '621109'
+            }, {
+                value: '621109',
+                text: '621109'
+            }, {
+                value: '621104',
+                text: '621104'
+            }, {
+                value: '621708',
+                text: '621708'
+            }, {
+                value: '621708',
+                text: '621708'
+            }, {
+                value: '621115',
+                text: '621115'
+            }, {
+                value: '621708',
+                text: '621708'
+            }, {
+                value: '621108',
+                text: '621108'
+            }, {
+                value: '621108',
+                text: '621108'
+            }, {
+                value: '621115',
+                text: '621115'
             }];
 
             var cities = [{
                 value: 'Select City',
                 text: locale('SelCity')
             }, {
-                value: 'City1',
-                text: 'City1'
-            }, {
-                value: 'City2',
-                text: 'City2'
+                value: 'Perambalur',
+                text: 'Perambalur'
             }];
 
             var states = [{
                 value: 'Select State',
                 text: locale('SelState')
             }, {
-                value: 'State1',
-                text: 'State2'
-            }, {
-                value: 'State2',
-                text: 'State2'
-            }];
-
-            var subCentreIds = [{
-                value: 'Select Sub-centerID',
-                text: locale('Select_Subcenter_ID')
-            }, {
-                value: 'Sub-centerID1',
-                text: 'Sub-center ID 1'
-            }, {
-                value: 'Sub-centerID2',
-                text: 'Sub-center ID 2'
-            }];
-
-            var subCentreNames = [{
-                value: 'Select Sub-centerName',
-                text: locale('Select_Subcenter_Name')
-            }, {
-                value: 'Sub-centerName1',
-                text: 'Sub-center Name 1'
-            }, {
-                value: 'Sub-centerName2',
-                text: 'Sub-center Name 2'
-            }];
-
-            var vhnNames = [{
-                value: 'Select VHNName',
-                text: locale('Select_VHN_Name')
-            }, {
-                value: 'VHNName1',
-                text: 'VHN Name 1'
-            }, {
-                value: 'VHNName2',
-                text: 'VHN Name 2'
+                value: 'Tamil Nadu',
+                text: 'Tamil Nadu'
             }];
 
             return _react2.default.createElement(
@@ -72120,23 +73557,28 @@ var MotherDemographics = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_reactBootstrap.Input, { type: 'textarea', label: locale('AddressLine1'), className: 'editable', placeholder: locale('EnterAddLine1'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context, 'addrs1') }),
                             _react2.default.createElement(_reactBootstrap.Input, { type: 'textarea', label: locale('AddressLine2'), className: 'editable', placeholder: locale('EnterAddLine2'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context, 'addrs2') }),
                             _react2.default.createElement(_reactBootstrap.Input, { type: 'textarea', label: locale('AddressLine3'), className: 'editable', placeholder: locale('EnterAddLine3'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context, 'addrs3') }),
-                            _react2.default.createElement(_reactBootstrap.Input, { type: 'checkbox', label: locale('TempAddressSame'),
-                                placeholder: 'TempAddressSame', labelClassName: labelClass, className: 'editable', wrapperClassName: wrapperClass, checkedLink: this.linkState(this.state.context, 'temporaryAddrSameAsPermanent') })
+                            _react2.default.createElement('input', { type: 'checkbox', id: 'TempAddressSame', checkedLink: this.linkState(this.state.context, 'temporaryAddrSameAsPermanent') }),
+                            _react2.default.createElement(
+                                'label',
+                                { htmlFor: 'TempAddressSame', className: 'noFontWeight' },
+                                locale('TempAddressSame')
+                            )
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12, className: 'regDrop' },
                             _react2.default.createElement(_DropDown2.default, { label: locale('Village'), className: 'editable', placeholder: locale('SelVill'), labelClassName: labelClass,
                                 options: villages, valueLink: this.linkState(this.state.context, 'village') }),
                             _react2.default.createElement(_DropDown2.default, { label: locale('City'), className: 'editable', placeholder: locale('SellCity'), labelClassName: labelClass,
                                 options: cities, valueLink: this.linkState(this.state.context, 'city') }),
                             _react2.default.createElement(_DropDown2.default, { label: locale('State'), className: 'editable', placeholder: locale('SelState'), labelClassName: labelClass,
                                 options: states, valueLink: this.linkState(this.state.context, 'state') }),
-                            _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', label: locale('Pincode'), className: 'editable', placeholder: locale('EnterPIN'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context, 'pincode') })
+                            _react2.default.createElement(_DropDown2.default, { label: locale('Pincode'), className: 'editable', placeholder: locale('SelPincode'), labelClassName: labelClass,
+                                options: pincode, valueLink: this.linkState(this.state.context, 'pincode') })
                         )
                     ),
                     _react2.default.createElement(
@@ -72154,24 +73596,24 @@ var MotherDemographics = (function (_ControlBase) {
                     ),
                     _react2.default.createElement(
                         _reactBootstrap.Row,
-                        null,
+                        { className: 'regSecDrop' },
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 3, md: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_DropDown2.default, { label: locale('Sub_Center_ID'), className: 'editable', placeholder: locale('Select_Subcenter_ID'), labelClassName: labelClass,
-                                options: subCentreIds, valueLink: this.linkState(this.state.context, 'subCentreID') })
+                                options: this.state.subCentreIds, valueLink: this.linkState(this.state.context, 'subCentreID', this.subCentreHandler.bind(this)) })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 3, md: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_DropDown2.default, { label: locale('Sub_Center_Name'), className: 'editable', placeholder: locale('Select_Subcenter_Name'), labelClassName: labelClass,
-                                options: subCentreNames, valueLink: this.linkState(this.state.context, 'subCentreName') })
+                                options: this.state.subCentreNames, valueLink: this.linkState(this.state.context, 'subCentreName') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 3, md: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_DropDown2.default, { label: locale('VHN_Name'), className: 'editable', placeholder: locale('Select_VHN_Name'), labelClassName: labelClass,
-                                options: vhnNames, valueLink: this.linkState(this.state.context, 'vhnName') })
+                                options: this.state.vhnNames, valueLink: this.linkState(this.state.context, 'vhnName') })
                         )
                     )
                 )
@@ -72184,7 +73626,7 @@ var MotherDemographics = (function (_ControlBase) {
 
 exports.default = MotherDemographics;
 
-},{"./../../controls/ControlBase":730,"./../../controls/DropDown":733,"./../../controls/LabeledControl":736,"./../../controls/TextBox":741,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],677:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/DropDown":738,"./../../controls/LabeledControl":741,"./../../controls/TextBox":746,"./../../controls/ToggleButton":747,"./../../stores/RegistrationStore":757,"react":601,"react-bootstrap":363}],680:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -72255,7 +73697,7 @@ var MotherGeneralInfo = (function (_ControlBase) {
 						null,
 						_react2.default.createElement(
 							_reactBootstrap.Col,
-							{ xs: 4 },
+							{ lg: 4, sm: 12, xs: 12 },
 							_react2.default.createElement(
 								'div',
 								{ className: 'space' },
@@ -72274,7 +73716,7 @@ var MotherGeneralInfo = (function (_ControlBase) {
 						),
 						_react2.default.createElement(
 							_reactBootstrap.Col,
-							{ xs: 4 },
+							{ lg: 4, sm: 12, xs: 12 },
 							_react2.default.createElement(
 								'div',
 								{ className: 'space' },
@@ -72288,7 +73730,7 @@ var MotherGeneralInfo = (function (_ControlBase) {
 						),
 						_react2.default.createElement(
 							_reactBootstrap.Col,
-							{ xs: 4 },
+							{ lg: 4, sm: 12, xs: 12 },
 							_react2.default.createElement(
 								_reactBootstrap.Input,
 								{ label: locale('Photo'), className: 'center-block' },
@@ -72328,7 +73770,7 @@ var MotherGeneralInfo = (function (_ControlBase) {
 						null,
 						_react2.default.createElement(
 							_reactBootstrap.Col,
-							{ xs: 4 },
+							{ lg: 4, sm: 12, xs: 12 },
 							_react2.default.createElement(
 								'div',
 								{ className: 'space' },
@@ -72338,7 +73780,7 @@ var MotherGeneralInfo = (function (_ControlBase) {
 						),
 						_react2.default.createElement(
 							_reactBootstrap.Col,
-							{ xs: 4 },
+							{ lg: 4, sm: 12, xs: 12 },
 							_react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', label: locale('PICMEID'), className: 'editable', placeholder: locale('EnterPICMEID'), valueLink: this.linkState(this.state.context, 'picmeID') })
 						)
 					)
@@ -72354,7 +73796,7 @@ exports.default = MotherGeneralInfo;
 
 module.exports = MotherGeneralInfo;
 
-},{"./../../controls/ControlBase":730,"./../../controls/DatePicker":732,"./../../controls/TextBox":741,"react":599,"react-bootstrap":362}],678:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/DatePicker":737,"./../../controls/TextBox":746,"react":601,"react-bootstrap":363}],681:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -72460,7 +73902,7 @@ var ObstetricComponent = (function (_ControlBase) {
 
 exports.default = ObstetricComponent;
 
-},{"../../controls/ControlBase":730,"react":599}],679:[function(require,module,exports){
+},{"../../controls/ControlBase":734,"react":601}],682:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -72527,7 +73969,7 @@ var PregnancyHistory = (function (_ControlBase) {
 
 exports.default = PregnancyHistory;
 
-},{"../visit/ObstetricHistory":703,"./../../controls/ControlBase":730,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],680:[function(require,module,exports){
+},{"../visit/ObstetricHistory":707,"./../../controls/ControlBase":734,"./../../controls/ToggleButton":747,"react":601,"react-bootstrap":363}],683:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -72604,10 +74046,13 @@ var Registration = (function (_ControlBase) {
             title: locale('PrimaryInformationTitle'),
             patientData: {}
             // patientData: RegistrationStore.getPatientData()
+
         };
         _RegistrationStore2.default.addChangeListener(AppConstants.SAVE_EVENT, _this.notifyPatientRegistration.bind(_this));
         _RegistrationStore2.default.addChangeListener(AppConstants.FETCH_EVENT, _this.notifyPatientFetch.bind(_this));
+        _RegistrationStore2.default.addChangeListener(AppConstants.FETCH_SUBCENTER, _this.notifySubcenterFetch.bind(_this));
         AppAction.executeAction(ActionType.REGISTERED_PATIENT_FETCH, null);
+        AppAction.executeAction(ActionType.SUBCENTER_DETAILS_FETCH, null);
         return _this;
     }
 
@@ -72626,6 +74071,12 @@ var Registration = (function (_ControlBase) {
             this.state.patientData = data.args;
             this.forceUpdate();
         }
+    }, {
+        key: 'notifySubcenterFetch',
+        value: function notifySubcenterFetch(data) {
+            this.state.subCenterData = data.args;
+            this.forceUpdate();
+        }
         // save button action.
 
     }, {
@@ -72636,6 +74087,9 @@ var Registration = (function (_ControlBase) {
     }, {
         key: 'render',
         value: function render() {
+            if (this.state.subCenterData) {
+                this.state.patientData.subCenterData = this.state.subCenterData;
+            }
             var data = {
                 options: [{
                     text: locale('PrimaryInformation'),
@@ -72651,8 +74105,8 @@ var Registration = (function (_ControlBase) {
                     title: locale('CurrentPregnancyTitle')
                 } /*,
                   {
-                   text: locale('PregnancyHistory'),
-                   target: PregnancyHistory
+                  text: locale('PregnancyHistory'),
+                  target: PregnancyHistory
                   }*/
                 ]
             };
@@ -72661,10 +74115,10 @@ var Registration = (function (_ControlBase) {
                 { className: 'regWrapper' },
                 _react2.default.createElement(
                     _reactBootstrap.Row,
-                    { className: 'registrationHeader' },
+                    { className: 'registrationHeader positionFixed' },
                     _react2.default.createElement(
                         _reactBootstrap.Col,
-                        { xs: 4, className: 'regHeaderTitle' },
+                        { lg: 6, sm: 12, xs: 12, className: 'regHeaderTitle pull-left' },
                         _react2.default.createElement(
                             'b',
                             null,
@@ -72673,7 +74127,7 @@ var Registration = (function (_ControlBase) {
                     ),
                     _react2.default.createElement(
                         _reactBootstrap.Col,
-                        { xs: 8, className: 'headerBtnWrapper' },
+                        { lg: 6, sm: 12, xs: 12, className: 'headerBtnWrapper pull-right' },
                         _react2.default.createElement(
                             _reactBootstrap.Button,
                             { bsSize: 'large', onClick: this.handleSaveAction.bind(this), className: 'saveHeaderBtn' },
@@ -72686,6 +74140,10 @@ var Registration = (function (_ControlBase) {
                         )
                     )
                 ),
+                _react2.default.createElement('div', { style: {
+                        height: '75px',
+                        width: '100%'
+                    } }),
                 _react2.default.createElement(
                     'div',
                     null,
@@ -72709,13 +74167,13 @@ var Registration = (function (_ControlBase) {
 
 exports.default = Registration;
 
-},{"../../stores/RegistrationStore":751,"./../../controls/ControlBase":730,"./../layout/menu/menu":666,"./CurrentPregnancy":675,"./MotherDemographics":676,"./MotherGeneralInfo":677,"./PregnancyHistory":679,"react":599,"react-bootstrap":362}],681:[function(require,module,exports){
+},{"../../stores/RegistrationStore":757,"./../../controls/ControlBase":734,"./../layout/menu/menu":669,"./CurrentPregnancy":678,"./MotherDemographics":679,"./MotherGeneralInfo":680,"./PregnancyHistory":682,"react":601,"react-bootstrap":363}],684:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
 Object.defineProperty(exports, "__esModule", {
-    value: true
+				value: true
 });
 
 var _react = require('react');
@@ -72728,10 +74186,6 @@ var _ControlBase3 = _interopRequireDefault(_ControlBase2);
 
 var _reactBootstrap = require('react-bootstrap');
 
-var _SinglePatientViewModel = require('./../../model/SinglePatientViewModel');
-
-var _SinglePatientViewModel2 = _interopRequireDefault(_SinglePatientViewModel);
-
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -72743,76 +74197,67 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 //var ddTitle=locale('Add_Visit');
 
 var DropDownSplit = (function (_ControlBase) {
-    _inherits(DropDownSplit, _ControlBase);
+				_inherits(DropDownSplit, _ControlBase);
 
-    function DropDownSplit() {
-        _classCallCheck(this, DropDownSplit);
+				function DropDownSplit() {
+								_classCallCheck(this, DropDownSplit);
 
-        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(DropDownSplit).call(this));
+								return _possibleConstructorReturn(this, Object.getPrototypeOf(DropDownSplit).call(this));
+				}
 
-        _this.data = _SinglePatientViewModel2.default.getSinglePatientViewData();
-        _this.state = {
-            ddTitle: locale('Add_Visit')
-        };
-        return _this;
-    }
+				_createClass(DropDownSplit, [{
+								key: 'onFormChange',
+								value: function onFormChange() {}
+				}, {
+								key: 'childRender',
+								value: function childRender() {
+												var ddTitle = locale('Add_Visit');
+												return _react2.default.createElement(
+																'div',
+																null,
+																_react2.default.createElement(
+																				_reactBootstrap.SplitButton,
+																				{ className: 'splitButton btn btn-default custom_drop', id: 'split-button-pull-right', title: ddTitle, onClick: this.onFormChange.bind(this) },
+																				_react2.default.createElement(
+																								_reactBootstrap.MenuItem,
+																								{ href: '#' + Route.PATIENT + '/' + this.props.patientId + '/' + Route.VISIT + '/ANC1/-1', eventKey: '1' },
+																								locale('ANC1')
+																				),
+																				_react2.default.createElement(_reactBootstrap.MenuItem, { divider: true }),
+																				_react2.default.createElement(
+																								_reactBootstrap.MenuItem,
+																								{ href: '#' + Route.PATIENT + '/' + this.props.patientId + '/' + Route.VISIT + '/ANC2/-1', eventKey: '2' },
+																								locale('ANC2')
+																				),
+																				_react2.default.createElement(_reactBootstrap.MenuItem, { divider: true }),
+																				_react2.default.createElement(
+																								_reactBootstrap.MenuItem,
+																								{ href: '#' + Route.PATIENT + '/' + this.props.patientId + '/' + Route.VISIT + '/ANC3/-1', eventKey: '3' },
+																								locale('ANC3')
+																				),
+																				_react2.default.createElement(_reactBootstrap.MenuItem, { divider: true }),
+																				_react2.default.createElement(
+																								_reactBootstrap.MenuItem,
+																								{ eventKey: '4' },
+																								locale('PNC')
+																				),
+																				_react2.default.createElement(_reactBootstrap.MenuItem, { divider: true }),
+																				_react2.default.createElement(
+																								_reactBootstrap.MenuItem,
+																								{ eventKey: '5' },
+																								locale('General_Consultation')
+																				)
+																)
+												);
+								}
+				}]);
 
-    _createClass(DropDownSplit, [{
-        key: 'onFormChange',
-        value: function onFormChange() {}
-    }, {
-        key: 'onMenuClickANC',
-        value: function onMenuClickANC() {}
-    }, {
-        key: 'onMenuClickPNC',
-        value: function onMenuClickPNC() {
-            //ddTitle=locale('PNC');
-            this.setState(locale('PNC'));
-        }
-    }, {
-        key: 'onMenuClickGC',
-        value: function onMenuClickGC() {
-            //ddTitle=locale('General_Consultation');
-            this.setState(locale('General_Consultation'));
-        }
-    }, {
-        key: 'childRender',
-        value: function childRender() {
-            var ddTitle = locale('Add_Visit');
-            return _react2.default.createElement(
-                'div',
-                null,
-                _react2.default.createElement(
-                    _reactBootstrap.SplitButton,
-                    { className: 'splitButton btn btn-default custom_drop', id: 'split-button-pull-right', title: ddTitle, onClick: this.onFormChange.bind(this) },
-                    _react2.default.createElement(
-                        _reactBootstrap.MenuItem,
-                        { href: '#' + Route.PATIENT + '/' + this.data.patientId + '/' + Route.VISIT + '/-1', eventKey: '1', onClick: this.onMenuClickANC.bind(this) },
-                        locale('ANC')
-                    ),
-                    _react2.default.createElement(_reactBootstrap.MenuItem, { divider: true }),
-                    _react2.default.createElement(
-                        _reactBootstrap.MenuItem,
-                        { eventKey: '2', onClick: this.onMenuClickPNC.bind(this) },
-                        locale('PNC')
-                    ),
-                    _react2.default.createElement(_reactBootstrap.MenuItem, { divider: true }),
-                    _react2.default.createElement(
-                        _reactBootstrap.MenuItem,
-                        { eventKey: '3', onClick: this.onMenuClickGC.bind(this) },
-                        locale('General_Consultation')
-                    )
-                )
-            );
-        }
-    }]);
-
-    return DropDownSplit;
+				return DropDownSplit;
 })(_ControlBase3.default);
 
 exports.default = DropDownSplit;
 
-},{"./../../controls/ControlBase":730,"./../../model/SinglePatientViewModel":745,"react":599,"react-bootstrap":362}],682:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"react":601,"react-bootstrap":363}],685:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -72877,7 +74322,7 @@ var SPVTable = (function (_ControlBase) {
                 lastUpdated = visits[i].lastUpdated;
                 enteredBy = visits[i].enteredBy;
                 summary = _react2.default.createElement(_reactBootstrap.Image, { className: 'img-responsive center-block ', src: './patient/summary_icon.png', onClick: this.navigate(Route.PATIENT + '/' + this.props.patientId + '/' + Route.VISIT_SUMMARY + '/' + visits[i].visitId) });
-                view = _react2.default.createElement(_reactBootstrap.Image, { className: 'img-responsive center-block', src: './patient/view_icon.png', onClick: this.navigate(Route.PATIENT + '/' + this.props.patientId + '/' + Route.VISIT + '/' + visits[i].visitId) });
+                view = _react2.default.createElement(_reactBootstrap.Image, { className: 'img-responsive center-block', src: './patient/view_icon.png', onClick: this.navigate(Route.PATIENT + '/' + this.props.patientId + '/' + Route.VISIT + '/' + type + '/' + visits[i].visitId) });
                 contents.push(_react2.default.createElement(
                     'tr',
                     null,
@@ -72979,7 +74424,7 @@ var SPVTable = (function (_ControlBase) {
 
 exports.default = SPVTable;
 
-},{"./../../controls/ControlBase":730,"./../../model/SinglePatientViewModel":745,"react":599,"react-bootstrap":362}],683:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../model/SinglePatientViewModel":750,"react":601,"react-bootstrap":363}],686:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -73103,7 +74548,7 @@ var SinglePatientView = (function (_ControlBase) {
 
 exports.default = SinglePatientView;
 
-},{"../../stores/SinglePatientStore":752,"./../../controls/ControlBase":730,"./../layout/container/patientContainer":663,"./../layout/menu/menu":666,"./VisitInformation":684,"react":599}],684:[function(require,module,exports){
+},{"../../stores/SinglePatientStore":758,"./../../controls/ControlBase":734,"./../layout/container/patientContainer":666,"./../layout/menu/menu":669,"./VisitInformation":687,"react":601}],687:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -73215,7 +74660,7 @@ var VisitInformation = (function (_ControlBase) {
                         _react2.default.createElement(_WholeVisits2.default, { history: this.props.history, data: this.state.data }),
                         _react2.default.createElement(_ArrowedMenu2.default, { options: trimesterContents, value: this.state.data.selectedVisitType.weekType, onChange: this.trimesterClicked.bind(this) }),
                         _react2.default.createElement(_Alert2.default, { options: this.state.data.risks, valueLink: this.linkState(this.state.data, 'isRiskOpen') }),
-                        _react2.default.createElement(_VisitsPerWeekRange2.default, { visitType: this.state.data.selectedVisitType }),
+                        _react2.default.createElement(_VisitsPerWeekRange2.default, { visitType: this.state.data.selectedVisitType, patientId: this.state.data.patientId }),
                         _react2.default.createElement(_SPVTable2.default, { trimesterClicked: clickIndex, visits: this.state.data.selectedVisitType.visits, patientId: this.state.data.patientId, history: this.props.history })
                     )
                 );
@@ -73230,7 +74675,7 @@ var VisitInformation = (function (_ControlBase) {
 
 exports.default = VisitInformation;
 
-},{"./../../components/layout/spinner/Spinner":669,"./../../controls/Alert":728,"./../../controls/ArrowedMenu":729,"./../../controls/ControlBase":730,"./../../model/SinglePatientViewModel":745,"./SPVTable":682,"./VisitsPerWeekRange":685,"./WholeVisits":686,"react":599,"react-bootstrap":362}],685:[function(require,module,exports){
+},{"./../../components/layout/spinner/Spinner":672,"./../../controls/Alert":732,"./../../controls/ArrowedMenu":733,"./../../controls/ControlBase":734,"./../../model/SinglePatientViewModel":750,"./SPVTable":685,"./VisitsPerWeekRange":688,"./WholeVisits":689,"react":601,"react-bootstrap":363}],688:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -73285,7 +74730,7 @@ var VisitsPerWeekRange = (function (_ControlBase) {
 					null,
 					_react2.default.createElement(
 						_reactBootstrap.Col,
-						{ xs: 8 },
+						{ xs: 12, lg: 9 },
 						_react2.default.createElement(
 							'span',
 							{ style: label },
@@ -73318,7 +74763,7 @@ var VisitsPerWeekRange = (function (_ControlBase) {
 						),
 						_react2.default.createElement(
 							'span',
-							{ style: label },
+							null,
 							_react2.default.createElement(
 								'label',
 								{ className: 'visitsPerWeekRangeVisitCount left-block', bsSize: 'xsmall' },
@@ -73333,7 +74778,7 @@ var VisitsPerWeekRange = (function (_ControlBase) {
 						),
 						_react2.default.createElement(
 							'span',
-							{ style: label },
+							null,
 							_react2.default.createElement(
 								'label',
 								{ className: 'visitsPerWeekRangeVisitCount left-block', bsSize: 'xsmall' },
@@ -73349,14 +74794,14 @@ var VisitsPerWeekRange = (function (_ControlBase) {
 					),
 					_react2.default.createElement(
 						_reactBootstrap.Col,
-						{ xs: 4 },
+						{ xs: 12, lg: 3 },
 						_react2.default.createElement(
 							'div',
 							{ style: divDropDown },
 							' ',
 							_react2.default.createElement(
 								_DropDownSplit2.default,
-								null,
+								{ patientId: this.props.patientId },
 								' '
 							),
 							' '
@@ -73372,7 +74817,7 @@ var VisitsPerWeekRange = (function (_ControlBase) {
 
 exports.default = VisitsPerWeekRange;
 
-},{"./../../controls/ControlBase":730,"./DropDownSplit":681,"react":599,"react-bootstrap":362}],686:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./DropDownSplit":684,"react":601,"react-bootstrap":363}],689:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -73501,7 +74946,7 @@ var WholeVisits = (function (_ControlBase) {
 
 exports.default = WholeVisits;
 
-},{"./../../controls/ControlBase":730,"react":599,"react-bootstrap":362}],687:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"react":601,"react-bootstrap":363}],690:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -73515,10 +74960,6 @@ var _react = require('react');
 var _react2 = _interopRequireDefault(_react);
 
 var _reactBootstrap = require('react-bootstrap');
-
-var _VisitSummaryStore = require('../../stores/VisitSummaryStore');
-
-var _VisitSummaryStore2 = _interopRequireDefault(_VisitSummaryStore);
 
 var _StageIndicator = require('./../../controls/StageIndicator');
 
@@ -73590,23 +75031,10 @@ var VisitSummary = (function (_ControlBase) {
     function VisitSummary() {
         _classCallCheck(this, VisitSummary);
 
-        // this.state = {visitSummary: visitSummaryData};
-
-        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(VisitSummary).call(this));
-
-        _VisitSummaryStore2.default.addChangeListener(AppConstants.FETCH_EVENT, _this.retrieveVisitData.bind(_this));
-        AppAction.executeAction(ActionType.VISIT_SUMMARY_FETCH, null);
-        return _this;
+        return _possibleConstructorReturn(this, Object.getPrototypeOf(VisitSummary).call(this));
     }
 
     _createClass(VisitSummary, [{
-        key: 'retrieveVisitData',
-        value: function retrieveVisitData(visitSummaryData) {
-            this.setState({ visitSummary: visitSummaryData.args });
-            // this.state.visitSummary = visitSummaryData.args;
-            // this.forceUpdate();
-        }
-    }, {
         key: 'printData',
         value: function printData() {
             //       console.log(this.state.visitSummary);
@@ -73614,6 +75042,7 @@ var VisitSummary = (function (_ControlBase) {
     }, {
         key: 'render',
         value: function render() {
+            this.state.visitSummary = this.props.visitSummarydata;
             // let visitData = this.state.visitSummary;
             var labelClass = 'col-xs-6';
             if (this.state.visitSummary) {
@@ -73666,7 +75095,7 @@ var VisitSummary = (function (_ControlBase) {
                                 _react2.default.createElement(
                                     _reactBootstrap.Col,
                                     { xs: 6 },
-                                    _react2.default.createElement(_reactBootstrap.Input, { label: locale('SubCenterName'), labelClassName: labelClass }),
+                                    _react2.default.createElement(_reactBootstrap.Input, { label: locale('Sub_Center'), labelClassName: labelClass }),
                                     _react2.default.createElement(
                                         'p',
                                         { style: contentStyle },
@@ -73676,7 +75105,7 @@ var VisitSummary = (function (_ControlBase) {
                                 _react2.default.createElement(
                                     _reactBootstrap.Col,
                                     { xs: 6 },
-                                    _react2.default.createElement(_reactBootstrap.Input, { label: locale('PHCName'), labelClassName: labelClass }),
+                                    _react2.default.createElement(_reactBootstrap.Input, { label: locale('PHC'), labelClassName: labelClass }),
                                     _react2.default.createElement(
                                         'p',
                                         { style: contentStyle },
@@ -74057,11 +75486,6 @@ var VisitSummary = (function (_ControlBase) {
                                 { xs: 8 },
                                 locale('Printed_on_pdf_generation_date')
                             )
-                        ),
-                        _react2.default.createElement(
-                            _reactBootstrap.Button,
-                            { bsSize: 'large', onClick: this.printData.bind(this), className: 'saveHeaderBtn' },
-                            locale('Print')
                         )
                     )
                 );
@@ -74099,7 +75523,102 @@ var VisitSummary = (function (_ControlBase) {
 
 exports.default = VisitSummary;
 
-},{"../../stores/VisitSummaryStore":754,"./../../controls/ControlBase":730,"./../../controls/StageIndicator":740,"react":599,"react-bootstrap":362}],688:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/StageIndicator":745,"react":601,"react-bootstrap":363}],691:[function(require,module,exports){
+'use strict';
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _jspdfBrowserify = require('jspdf-browserify');
+
+var _jspdfBrowserify2 = _interopRequireDefault(_jspdfBrowserify);
+
+var _VisitSummary = require('./VisitSummary');
+
+var _VisitSummary2 = _interopRequireDefault(_VisitSummary);
+
+var _ControlBase2 = require('./../../controls/ControlBase');
+
+var _ControlBase3 = _interopRequireDefault(_ControlBase2);
+
+var _server = require('react-dom/server');
+
+var _server2 = _interopRequireDefault(_server);
+
+var _reactBootstrap = require('react-bootstrap');
+
+var _VisitSummaryStore = require('../../stores/VisitSummaryStore');
+
+var _VisitSummaryStore2 = _interopRequireDefault(_VisitSummaryStore);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-unused-vars: 0*/
+
+var VisitSummaryPage = (function (_ControlBase) {
+    _inherits(VisitSummaryPage, _ControlBase);
+
+    function VisitSummaryPage() {
+        _classCallCheck(this, VisitSummaryPage);
+
+        // this.state = {visitSummary: visitSummaryData};
+
+        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(VisitSummaryPage).call(this));
+
+        _VisitSummaryStore2.default.addChangeListener(AppConstants.FETCH_EVENT, _this.retrieveVisitData.bind(_this));
+        AppAction.executeAction(ActionType.VISIT_SUMMARY_FETCH, null);
+        return _this;
+    }
+
+    _createClass(VisitSummaryPage, [{
+        key: 'retrieveVisitData',
+        value: function retrieveVisitData(visitSummaryData) {
+
+            this.setState({ visitSummary: visitSummaryData.args });
+            // this.state.visitSummary = visitSummaryData.args;
+            this.forceUpdate();
+        }
+    }, {
+        key: 'exportToPdf',
+        value: function exportToPdf() {
+            var html = _server2.default.renderToString(_react2.default.createElement(_VisitSummary2.default, { visitSummarydata: this.state.visitSummary }));
+            var doc = new _jspdfBrowserify2.default();
+            doc.fromHTML(html);
+            doc.output('dataurlnewwindow');
+        }
+    }, {
+        key: 'render',
+        value: function render() {
+            return _react2.default.createElement(
+                'div',
+                null,
+                _react2.default.createElement(_VisitSummary2.default, { visitSummarydata: this.state.visitSummary }),
+                _react2.default.createElement(
+                    'div',
+                    { className: 'style-right' },
+                    _react2.default.createElement(_reactBootstrap.Input, { type: 'button', value: 'Print As PDF', onClick: this.exportToPdf.bind(this) })
+                )
+            );
+        }
+    }]);
+
+    return VisitSummaryPage;
+})(_ControlBase3.default);
+
+exports.default = VisitSummaryPage;
+
+},{"../../stores/VisitSummaryStore":760,"./../../controls/ControlBase":734,"./VisitSummary":690,"jspdf-browserify":125,"react":601,"react-bootstrap":363,"react-dom/server":377}],692:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -74155,10 +75674,10 @@ var AbdominalExamination = (function (_ControlBase) {
         key: 'childRender',
         value: function childRender() {
 
-            var labelClass = 'col-xs-3 alignLeft';
-            var wcTextArea = 'col-xs-2';
-            var wcNumber = 'col-xs-2';
-            var wcDropDown = 'col-xs-2';
+            var labelClass = 'col-xs-12 col-lg-4 alignLeft';
+            var wcTextArea = 'col-xs-12 col-lg-4';
+            var wcNumber = 'col-xs-12 col-lg-4';
+            var wcDropDown = 'col-xs-12 col-lg-4';
 
             var foetalLie = [{
                 value: 'Longitudinal',
@@ -74189,6 +75708,9 @@ var AbdominalExamination = (function (_ControlBase) {
             }];
 
             var FoetalMovements = [{
+                value: '',
+                text: locale('Select')
+            }, {
                 value: 'Yes',
                 text: locale('Yes')
             }, {
@@ -74198,53 +75720,85 @@ var AbdominalExamination = (function (_ControlBase) {
 
             return _react2.default.createElement(
                 'div',
-                { className: 'wrapper custom_row' },
+                { className: 'wrapperStyle custom_row' },
                 _react2.default.createElement(
                     'form',
                     { className: 'form-horizontal' },
                     _react2.default.createElement(
                         _reactBootstrap.Row,
                         null,
-                        _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', label: locale('InspectationOfScarsOrAbdominalFindings'), placeholder: 'Abdominal Findings', labelClassName: labelClass, wrapperClassName: wcTextArea, valueLink: this.linkState(this.state.context.AbdominalExamination, 'InspectationOfScars') })
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 6, sm: 12, xs: 12, className: 'paddingStyleBottom' },
+                            _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', className: 'paddingStyleBottom', label: locale('InspectationOfScarsOrAbdominalFindings'), placeholder: 'Abdominal Findings', labelClassName: labelClass, wrapperClassName: wcTextArea, valueLink: this.linkState(this.state.context.AbdominalExamination, 'InspectationOfScars') })
+                        )
                     ),
                     _react2.default.createElement(
                         _reactBootstrap.Row,
                         null,
-                        _react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('FundalHeightInCM'), placeholder: 'Height cms', labelClassName: labelClass, wrapperClassName: wcNumber, valueLink: this.linkState(this.state.context.AbdominalExamination, 'FundalHeightInCMS') })
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 6, sm: 12, xs: 12, className: 'paddingStyleBottom' },
+                            _react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('FundalHeightInCM'), className: 'paddingStyleBottom', placeholder: 'Height cms', labelClassName: labelClass, wrapperClassName: wcNumber, valueLink: this.linkState(this.state.context.AbdominalExamination, 'FundalHeightInCMS') })
+                        )
                     ),
                     _react2.default.createElement(
                         _reactBootstrap.Row,
                         null,
-                        _react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('FundalHeight'), placeholder: 'Height weeks', labelClassName: labelClass, wrapperClassName: wcNumber, valueLink: this.linkState(this.state.context.AbdominalExamination, 'FundalHeightInWeeks') })
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 6, sm: 12, xs: 12, className: 'paddingStyleBottom' },
+                            _react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('FundalHeight'), className: 'paddingStyleBottom', placeholder: 'Height weeks', labelClassName: labelClass, wrapperClassName: wcNumber, valueLink: this.linkState(this.state.context.AbdominalExamination, 'FundalHeightInWeeks') })
+                        )
                     ),
                     _react2.default.createElement(
                         _reactBootstrap.Row,
                         null,
-                        _react2.default.createElement(_DropDown2.default, { label: locale('FoetalLie'), placeholder: 'select', labelClassName: labelClass,
-                            wrapperClassName: wcDropDown, options: foetalLie, valueLink: this.linkState(this.state.context.AbdominalExamination, 'FoetalLie') })
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 6, sm: 12, xs: 12, className: 'paddingStyleBottom' },
+                            _react2.default.createElement(_DropDown2.default, { label: locale('FoetalLie'), className: 'paddingStyleBottom', placeholder: 'select', labelClassName: labelClass,
+                                wrapperClassName: wcDropDown, options: foetalLie, valueLink: this.linkState(this.state.context.AbdominalExamination, 'FoetalLie') })
+                        )
                     ),
                     _react2.default.createElement(
                         _reactBootstrap.Row,
                         null,
-                        _react2.default.createElement(_DropDown2.default, { label: locale('FoetalPresentation'), placeholder: 'select', labelClassName: labelClass,
-                            wrapperClassName: wcDropDown, options: foetalPresentation, valueLink: this.linkState(this.state.context.AbdominalExamination, 'Foetalpresentation') })
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 6, sm: 12, xs: 12, className: 'paddingStyleBottom' },
+                            _react2.default.createElement(_DropDown2.default, { label: locale('FoetalPresentation'), className: 'paddingStyleBottom', placeholder: 'select', labelClassName: labelClass,
+                                wrapperClassName: wcDropDown, options: foetalPresentation, valueLink: this.linkState(this.state.context.AbdominalExamination, 'Foetalpresentation') })
+                        )
                     ),
                     _react2.default.createElement(
                         _reactBootstrap.Row,
                         null,
-                        _react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('FHS'), placeholder: 'Foetal heart Rate', labelClassName: labelClass, wrapperClassName: wcNumber, valueLink: this.linkState(this.state.context.AbdominalExamination, 'FHS') })
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 6, sm: 12, xs: 12, className: 'paddingStyleBottom' },
+                            _react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('FHS'), className: 'paddingStyleBottom', placeholder: 'Foetal heart Rate', labelClassName: labelClass, wrapperClassName: wcNumber, valueLink: this.linkState(this.state.context.AbdominalExamination, 'FHS') })
+                        )
                     ),
                     _react2.default.createElement(
                         _reactBootstrap.Row,
                         null,
-                        _react2.default.createElement(_DropDown2.default, { label: locale('SingleVsMultiplePregnancy'), placeholder: 'select', labelClassName: labelClass,
-                            wrapperClassName: wcDropDown, options: pregnancy, valueLink: this.linkState(this.state.context.AbdominalExamination, 'SingleVsMultiplePregnancy') })
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 6, sm: 12, xs: 12, className: 'paddingStyleBottom' },
+                            _react2.default.createElement(_DropDown2.default, { label: locale('SingleVsMultiplePregnancy'), className: 'paddingStyleBottom', placeholder: 'select', labelClassName: labelClass,
+                                wrapperClassName: wcDropDown, options: pregnancy, valueLink: this.linkState(this.state.context.AbdominalExamination, 'SingleVsMultiplePregnancy') })
+                        )
                     ),
                     _react2.default.createElement(
                         _reactBootstrap.Row,
                         null,
-                        _react2.default.createElement(_DropDown2.default, { label: locale('FoetalMovements'), placeholder: 'select', labelClassName: labelClass,
-                            wrapperClassName: wcDropDown, options: FoetalMovements, valueLink: this.linkState(this.state.context.AbdominalExamination, 'FoetalMovements') })
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 6, sm: 12, xs: 12, className: 'paddingStyleBottom' },
+                            _react2.default.createElement(_DropDown2.default, { label: locale('FoetalMovements'), className: 'paddingStyleBottom', placeholder: 'select', labelClassName: labelClass,
+                                wrapperClassName: wcDropDown, options: FoetalMovements, valueLink: this.linkState(this.state.context.AbdominalExamination, 'FoetalMovements') })
+                        )
                     )
                 )
             );
@@ -74256,7 +75810,7 @@ var AbdominalExamination = (function (_ControlBase) {
 
 exports.default = AbdominalExamination;
 
-},{"./../../controls/ControlBase":730,"./../../controls/DropDown":733,"react":599,"react-bootstrap":362}],689:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/DropDown":738,"react":601,"react-bootstrap":363}],693:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -74288,10 +75842,6 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-unused-vars: 0*/
 /*eslint no-mixed-spaces-and-tabs:0*/
 
-var accPanelStyle1 = {
-    border: '2px solid #B9E3FF'
-};
-
 var Allergies = (function (_ControlBase) {
     _inherits(Allergies, _ControlBase);
 
@@ -74304,19 +75854,19 @@ var Allergies = (function (_ControlBase) {
     _createClass(Allergies, [{
         key: 'childRender',
         value: function childRender() {
-            var labelClass = 'col-xs-5 alignLeft';
-            var wrapperClass = 'col-xs-2';
+            var labelClass = 'col-xs-12 col-lg-5 alignLeft';
+            var wrapperClass = 'col-xs-12 col-lg-4';
             var isDrugTextbox = _react2.default.createElement('span', null);
             var isFoodTextbox = _react2.default.createElement('span', null);
             var isEnvTextbox = _react2.default.createElement('span', null);
 
-            if (this.state.context.Allergies.isDrug) isDrugTextbox = _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', label: '', className: 'editable', placeholder: locale('If_yes_please_indicate'), valueLink: this.linkState(this.state.context.Allergies, 'drugAllergyDetail') });
-            if (this.state.context.Allergies.isFood) isFoodTextbox = _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', label: '', className: 'editable', placeholder: locale('If_yes_please_indicate'), valueLink: this.linkState(this.state.context.Allergies, 'foodAllergyDetail') });
-            if (this.state.context.Allergies.isEnv) isEnvTextbox = _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', label: '', className: 'editable', placeholder: locale('If_yes_please_indicate'), valueLink: this.linkState(this.state.context.Allergies, 'envAllergyDetail') });
+            if (this.state.context.Allergies.isDrug) isDrugTextbox = _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', label: '', className: 'editable col-lg-4 col-xs-12 col-sm-12', placeholder: locale('If_yes_please_indicate'), valueLink: this.linkState(this.state.context.Allergies, 'drugAllergyDetail') });
+            if (this.state.context.Allergies.isFood) isFoodTextbox = _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', label: '', className: 'editable col-lg-4 col-xs-12 col-sm-12', placeholder: locale('If_yes_please_indicate'), valueLink: this.linkState(this.state.context.Allergies, 'foodAllergyDetail') });
+            if (this.state.context.Allergies.isEnv) isEnvTextbox = _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', label: '', className: 'editable col-lg-4 col-xs-12 col-sm-12', placeholder: locale('If_yes_please_indicate'), valueLink: this.linkState(this.state.context.Allergies, 'envAllergyDetail') });
 
             return _react2.default.createElement(
                 'div',
-                { className: 'wrapper', style: accPanelStyle1 },
+                { className: 'wrapperStyle' },
                 _react2.default.createElement(
                     'form',
                     { className: 'form-horizontal custom_row' },
@@ -74325,12 +75875,12 @@ var Allergies = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('DrugAllergies'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.Allergies, 'isDrug') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12 },
                             isDrugTextbox
                         )
                     ),
@@ -74339,12 +75889,12 @@ var Allergies = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('FoodAllergies'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.Allergies, 'isFood') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12 },
                             isFoodTextbox
                         )
                     ),
@@ -74353,12 +75903,12 @@ var Allergies = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('EnviornmentalAllergies'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.Allergies, 'isEnv') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12 },
                             isEnvTextbox
                         )
                     )
@@ -74372,13 +75922,13 @@ var Allergies = (function (_ControlBase) {
 
 exports.default = Allergies;
 
-},{"./../../controls/ControlBase":730,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],690:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/ToggleButton":747,"react":601,"react-bootstrap":363}],694:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
 Object.defineProperty(exports, "__esModule", {
-				value: true
+	value: true
 });
 
 var _react = require('react');
@@ -74409,62 +75959,154 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 /*eslint no-unused-vars: 0*/
 
 var BreastExamination = (function (_ControlBase) {
-				_inherits(BreastExamination, _ControlBase);
+	_inherits(BreastExamination, _ControlBase);
 
-				function BreastExamination() {
-								_classCallCheck(this, BreastExamination);
+	function BreastExamination() {
+		_classCallCheck(this, BreastExamination);
 
-								return _possibleConstructorReturn(this, Object.getPrototypeOf(BreastExamination).call(this));
-				}
+		return _possibleConstructorReturn(this, Object.getPrototypeOf(BreastExamination).call(this));
+	}
 
-				_createClass(BreastExamination, [{
-								key: 'childRender',
-								value: function childRender() {
-												var labelClass1 = 'col-xs-2';
-												var wrapperClass1 = 'col-xs-6';
+	_createClass(BreastExamination, [{
+		key: 'childRender',
+		value: function childRender() {
+			var labelClass = 'col-xs-12';
+			var titleLabelClass = 'col-xs-5 alignLeft';
+			var wrapperClass = 'col-xs-7';
+			return _react2.default.createElement(
+				'form',
+				{ className: 'form-horizontal' },
+				_react2.default.createElement(
+					_reactBootstrap.Row,
+					null,
+					_react2.default.createElement(
+						_reactBootstrap.Col,
+						{ xs: 5 },
+						_react2.default.createElement(_reactBootstrap.Input, { label: locale('RightBreast'), placeholder: 'Right Breast', labelClassName: titleLabelClass, wrapperClassName: wrapperClass }),
+						_react2.default.createElement(
+							'div',
+							null,
+							_react2.default.createElement('input', { type: 'checkbox', id: 'lr_Normal', checkedLink: this.linkState(this.state.context.BreastExamination.RightBreast, 'Normal') }),
+							_react2.default.createElement(
+								'label',
+								{ htmlFor: 'lr_Normal', className: 'noFontWeight col-xs-12' },
+								locale('Normal')
+							)
+						),
+						_react2.default.createElement(
+							'div',
+							null,
+							_react2.default.createElement('input', { type: 'checkbox', id: 'lr_RetractedNipple', checkedLink: this.linkState(this.state.context.BreastExamination.RightBreast, 'RetractedNipple') }),
+							_react2.default.createElement(
+								'label',
+								{ htmlFor: 'lr_RetractedNipple', className: 'noFontWeight col-xs-12' },
+								locale('RetractedNipple')
+							)
+						),
+						_react2.default.createElement(
+							'div',
+							null,
+							_react2.default.createElement('input', { type: 'checkbox', id: 'lr_Nodule', checkedLink: this.linkState(this.state.context.BreastExamination.RightBreast, 'Nodule') }),
+							_react2.default.createElement(
+								'label',
+								{ htmlFor: 'lr_Nodule', className: 'noFontWeight col-xs-12' },
+								locale('Nodule')
+							)
+						),
+						_react2.default.createElement(
+							'div',
+							null,
+							_react2.default.createElement('input', { type: 'checkbox', id: 'lr_Lump', checkedLink: this.linkState(this.state.context.BreastExamination.RightBreast, 'Lump') }),
+							_react2.default.createElement(
+								'label',
+								{ htmlFor: 'lr_Lump', className: 'noFontWeight col-xs-12' },
+								locale('Lump')
+							)
+						),
+						_react2.default.createElement(
+							'div',
+							null,
+							_react2.default.createElement('input', { type: 'checkbox', id: 'lr_Scar', checkedLink: this.linkState(this.state.context.BreastExamination.RightBreast, 'Scar') }),
+							_react2.default.createElement(
+								'label',
+								{ htmlFor: 'lr_Scar', className: 'noFontWeight col-xs-12' },
+								locale('Scar')
+							)
+						)
+					),
+					_react2.default.createElement(
+						_reactBootstrap.Col,
+						{ xs: 5 },
+						_react2.default.createElement(_reactBootstrap.Input, { label: locale('LeftBreast'), placeholder: 'Left Breast', labelClassName: titleLabelClass, wrapperClassName: wrapperClass }),
+						_react2.default.createElement(
+							'div',
+							null,
+							_react2.default.createElement('input', { type: 'checkbox', id: 'rt_Normal', checkedLink: this.linkState(this.state.context.BreastExamination.LeftBreast, 'Normal') }),
+							_react2.default.createElement(
+								'label',
+								{ htmlFor: 'rt_Normal', className: 'noFontWeight col-xs-12' },
+								locale('Normal')
+							)
+						),
+						_react2.default.createElement(
+							'div',
+							null,
+							_react2.default.createElement('input', { type: 'checkbox', id: 'rt_RetractedNipple', checkedLink: this.linkState(this.state.context.BreastExamination.LeftBreast, 'RetractedNipple') }),
+							_react2.default.createElement(
+								'label',
+								{ htmlFor: 'rt_RetractedNipple', className: 'noFontWeight col-xs-12' },
+								locale('RetractedNipple')
+							)
+						),
+						_react2.default.createElement(
+							'div',
+							null,
+							_react2.default.createElement('input', { type: 'checkbox', id: 'rt_Nodule', checkedLink: this.linkState(this.state.context.BreastExamination.LeftBreast, 'Nodule') }),
+							_react2.default.createElement(
+								'label',
+								{ htmlFor: 'rt_Nodule', className: 'noFontWeight col-xs-12' },
+								locale('Nodule')
+							)
+						),
+						_react2.default.createElement(
+							'div',
+							null,
+							_react2.default.createElement('input', { type: 'checkbox', id: 'rt_Lump', checkedLink: this.linkState(this.state.context.BreastExamination.LeftBreast, 'Lump') }),
+							_react2.default.createElement(
+								'label',
+								{ htmlFor: 'rt_Lump', className: 'noFontWeight col-xs-12' },
+								locale('Lump')
+							)
+						),
+						_react2.default.createElement(
+							'div',
+							null,
+							_react2.default.createElement('input', { type: 'checkbox', id: 'rt_Scar', checkedLink: this.linkState(this.state.context.BreastExamination.LeftBreast, 'Scar') }),
+							_react2.default.createElement(
+								'label',
+								{ htmlFor: 'rt_Scar', className: 'noFontWeight col-xs-12' },
+								locale('Scar')
+							)
+						)
+					)
+				)
+			);
+		}
+	}]);
 
-												var labelClass = 'col-xs-6';
-												var wrapperClass = 'col-xs-10';
-												return _react2.default.createElement(
-																'form',
-																{ className: 'form-horizontal' },
-																_react2.default.createElement(
-																				_reactBootstrap.Row,
-																				null,
-																				_react2.default.createElement(
-																								_reactBootstrap.Col,
-																								{ xs: 5 },
-																								_react2.default.createElement(_reactBootstrap.Input, { label: locale('RightBreast'), placeholder: 'Right Breast', labelClassName: labelClass1, wrapperClassName: wrapperClass1 }),
-																								_react2.default.createElement(_reactBootstrap.Input, { type: 'checkbox', label: locale('Normal'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.BreastExamination.RightBreast, 'Normal') }),
-																								_react2.default.createElement(_reactBootstrap.Input, { type: 'checkbox', label: locale('RetractedNipple'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.BreastExamination.RightBreast, 'RetractedNipple') }),
-																								_react2.default.createElement(_reactBootstrap.Input, { type: 'checkbox', label: locale('Nodule'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.BreastExamination.RightBreast, 'Nodule') }),
-																								_react2.default.createElement(_reactBootstrap.Input, { type: 'checkbox', label: locale('Lump'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.BreastExamination.RightBreast, 'Lump') }),
-																								_react2.default.createElement(_reactBootstrap.Input, { type: 'checkbox', label: locale('Scar'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.BreastExamination.RightBreast, 'Scar') })
-																				),
-																				_react2.default.createElement(
-																								_reactBootstrap.Col,
-																								{ xs: 5 },
-																								_react2.default.createElement(_reactBootstrap.Input, { label: locale('LeftBreast'), placeholder: 'Left Breast', labelClassName: labelClass1, wrapperClassName: wrapperClass1 }),
-																								_react2.default.createElement(_reactBootstrap.Input, { type: 'checkbox', label: locale('Normal'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.BreastExamination.LeftBreast, 'Normal') }),
-																								_react2.default.createElement(_reactBootstrap.Input, { type: 'checkbox', label: locale('RetractedNipple'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.BreastExamination.LeftBreast, 'RetractedNipple') }),
-																								_react2.default.createElement(_reactBootstrap.Input, { type: 'checkbox', label: locale('Nodule'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.BreastExamination.LeftBreast, 'Nodule') }),
-																								_react2.default.createElement(_reactBootstrap.Input, { type: 'checkbox', label: locale('Lump'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.BreastExamination.LeftBreast, 'Lump') }),
-																								_react2.default.createElement(_reactBootstrap.Input, { type: 'checkbox', label: locale('Scar'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.BreastExamination.LeftBreast, 'Scar') })
-																				)
-																)
-												);
-								}
-				}]);
-
-				return BreastExamination;
+	return BreastExamination;
 })(_ControlBase3.default);
 
 exports.default = BreastExamination;
 
-},{"./../../controls/ControlBase":730,"./../../controls/LabeledControlList":737,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],691:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/LabeledControlList":742,"./../../controls/ToggleButton":747,"react":601,"react-bootstrap":363}],695:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+var _reactDom = require('react-dom');
+
+var _reactDom2 = _interopRequireDefault(_reactDom);
 
 var _react = require('react');
 
@@ -74517,9 +76159,10 @@ var Comments = (function (_ControlBase) {
     _createClass(Comments, [{
         key: 'childRender',
         value: function childRender() {
+
             return _react2.default.createElement(
                 'div',
-                { className: 'wrapper' },
+                { className: 'wrapper whiteBg' },
                 _react2.default.createElement(
                     'form',
                     null,
@@ -74538,8 +76181,26 @@ var Comments = (function (_ControlBase) {
                                 'div',
                                 { className: 'space' },
                                 ' ',
-                                _react2.default.createElement('textarea', { rows: '10', cols: '100', placeholder: locale('EnterComments'), className: 'textareaComments', valueLink: this.linkState(this.state.context.Comments, 'GeneralComments') }),
+                                _react2.default.createElement('textarea', { rows: '10', ref: 'commentsText', valueLink: this.linkState(this.state.context.Comments, 'GeneralComments'), placeholder: locale('EnterComments'), className: 'textareaComments col-lg-8 col-xs-12' }),
                                 ' '
+                            )
+                        )
+                    ),
+                    _react2.default.createElement(
+                        'div',
+                        { className: 'previousComments' },
+                        _react2.default.createElement(_reactBootstrap.Input, { className: 'editable', label: locale('PreviousComments') })
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Row,
+                        { className: 'preCommentsBox' },
+                        _react2.default.createElement(
+                            'div',
+                            { className: 'col-xs-12' },
+                            _react2.default.createElement(
+                                'span',
+                                { className: 'col-xs-12 preContents' },
+                                this.state.context.Comments.previousVisitComments
                             )
                         )
                     )
@@ -74553,7 +76214,7 @@ var Comments = (function (_ControlBase) {
 
 module.exports = Comments;
 
-},{"./../../controls/ControlBase":730,"./../../controls/DropDown":733,"./../../controls/LabeledControlList":737,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],692:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/DropDown":738,"./../../controls/LabeledControlList":742,"./../../controls/ToggleButton":747,"react":601,"react-bootstrap":363,"react-dom":376}],696:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -74576,6 +76237,10 @@ var _ControlBase2 = require('./../../controls/ControlBase');
 
 var _ControlBase3 = _interopRequireDefault(_ControlBase2);
 
+var _DropDown = require('./../../controls/DropDown');
+
+var _DropDown2 = _interopRequireDefault(_DropDown);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -74584,10 +76249,6 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-mixed-spaces-and-tabs:0*/
 /*eslint no-unused-vars: 0*/
-
-var accPanelStyle1 = {
-    border: '2px solid #B9E3FF'
-};
 
 var CurrentIllnessHistory = (function (_ControlBase) {
     _inherits(CurrentIllnessHistory, _ControlBase);
@@ -74605,11 +76266,46 @@ var CurrentIllnessHistory = (function (_ControlBase) {
             var labelClassFirst = 'col-xs-4 alignLeft';
             var labelClassSecond = 'col-xs-3 alignLeft';
             var labelClassThird = 'col-xs-7 alignLeft';
-            var wrapperClass = 'col-xs-2';
+            var wrapperClass = 'col-xs-4';
 
+            var FoetalMomentsoptions = [{
+                value: 'Select',
+                text: locale('Select')
+            }, {
+                value: 'Yes',
+                text: locale('Yes')
+            }, {
+                value: 'Decreased',
+                text: locale('Decreased')
+            }, {
+                value: 'Absent',
+                text: locale('Absent')
+            }];
+            var foetalMoments = _react2.default.createElement('span', null);
+            var foetalMoments_textbox = [];
+
+            if (this.state.context.CurrentIllnessHistory.foetalMoments == 'Yes') {
+                foetalMoments_textbox = _react2.default.createElement(_reactBootstrap.Input, { type: 'text', label: locale(''), label: locale('CountPer12Hrs'), placeholder: '', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'foetalMomentsCountPer12Hrs') });
+            }
+            if (this.state.context.visitType == 'ANC2' || this.state.context.visitType == 'ANC3') {
+                foetalMoments = _react2.default.createElement(
+                    _reactBootstrap.Row,
+                    null,
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 4, xs: 12 },
+                        _react2.default.createElement(_DropDown2.default, { label: locale('FoetalMoments'), placeholder: 'select', labelClassName: 'col-lg-4 col-xs-12 alignLeft', wrapperClassName: 'col-lg-6 col-xs-12', options: FoetalMomentsoptions, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'foetalMoments') })
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 4, xs: 12 },
+                        foetalMoments_textbox
+                    )
+                );
+            }
             return _react2.default.createElement(
                 'div',
-                { className: 'wrapper', style: accPanelStyle1 },
+                { className: 'wrapperStyle' },
                 _react2.default.createElement(
                     'form',
                     { className: 'form-horizontal custom_row' },
@@ -74618,17 +76314,17 @@ var CurrentIllnessHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('Nausea'), labelClassName: labelClassFirst, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'Nausea') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 3 },
+                            { lg: 4, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('Fever'), labelClassName: 'col-xs-5 alignLeft', wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'Fever') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 5 },
+                            { lg: 4, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('GenSwellingOfTheBodyPuffinessOfTheFace'), labelClassName: labelClassThird, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'GeneralisedSwellingOfTheBody_PuffinessOfTheFace') })
                         )
                     ),
@@ -74637,17 +76333,17 @@ var CurrentIllnessHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('Vomiting'), labelClassName: labelClassFirst, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'Vomiting') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 3 },
+                            { lg: 4, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('PersistentVomiting'), labelClassName: 'col-xs-5 alignLeft', wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'PersistentVomiting') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 5 },
+                            { lg: 4, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('SevereHeadacheAndBlurringOfVision'), labelClassName: labelClassThird, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'SevereHeadacheAndBlurringOfVision') })
                         )
                     ),
@@ -74656,17 +76352,17 @@ var CurrentIllnessHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('Heartburn'), labelClassName: labelClassFirst, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'Heartburn') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 3 },
+                            { lg: 4, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('AbnormalVaginalDischargeOrItching'), labelClassName: 'col-xs-5 alignLeft', wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'AbnormalVaginalDischarge_itching') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 5 },
+                            { lg: 4, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('BurningSensationDuringMicturition'), labelClassName: labelClassThird, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'PassingSmallerAmountsOfUrineAndBurningSensationDuringMicturition') })
                         )
                     ),
@@ -74675,17 +76371,17 @@ var CurrentIllnessHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('Constipation'), labelClassName: labelClassFirst, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'Constipation') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 3 },
+                            { lg: 4, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('PalpitationsEasyFatigability'), labelClassName: 'col-xs-5 alignLeft', wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'PalpitationsEasyFatigability') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 5 },
+                            { lg: 4, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('VaginalBleeding'), labelClassName: labelClassThird, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'VaginalBleeding') })
                         )
                     ),
@@ -74694,20 +76390,21 @@ var CurrentIllnessHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('IncreasedFrequencyOfUrination'), labelClassName: labelClassFirst, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'IncreasedFrequencyOfUrination') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 3 },
+                            { lg: 4, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('BreathlessnessAtRestOnMildExertion'), labelClassName: 'col-xs-5 alignLeft', wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'Breathlessness') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 5 },
+                            { lg: 4, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('LeakingOfWateryFluidPerVaginum'), labelClassName: labelClassThird, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.CurrentIllnessHistory, 'LeakingOfWateryFluidPerVaginum_PV') })
                         )
-                    )
+                    ),
+                    foetalMoments
                 )
             );
         }
@@ -74718,13 +76415,13 @@ var CurrentIllnessHistory = (function (_ControlBase) {
 
 module.exports = CurrentIllnessHistory;
 
-},{"./../../controls/ControlBase":730,"./../../controls/LabeledControlList":737,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],693:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/DropDown":738,"./../../controls/LabeledControlList":742,"./../../controls/ToggleButton":747,"react":601,"react-bootstrap":363}],697:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
 Object.defineProperty(exports, "__esModule", {
-				value: true
+    value: true
 });
 
 var _react = require('react');
@@ -74758,85 +76455,103 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-unused-vars: 0*/
 /*eslint no-mixed-spaces-and-tabs:0*/
 
+var currentPregnancyVisit = {
+    backgroundColor: '#FFFFFF'
+};
+
 var CurrentPregnancy = (function (_ControlBase) {
-				_inherits(CurrentPregnancy, _ControlBase);
+    _inherits(CurrentPregnancy, _ControlBase);
 
-				function CurrentPregnancy() {
-								_classCallCheck(this, CurrentPregnancy);
+    function CurrentPregnancy() {
+        _classCallCheck(this, CurrentPregnancy);
 
-								return _possibleConstructorReturn(this, Object.getPrototypeOf(CurrentPregnancy).call(this));
-				}
+        return _possibleConstructorReturn(this, Object.getPrototypeOf(CurrentPregnancy).call(this));
+    }
 
-				_createClass(CurrentPregnancy, [{
-								key: 'eddHandler',
-								value: function eddHandler() {
-												var paramLmpDate = Utils.convertToDate(this.state.context.CurrentPregnancy.LMP, 'dd/mm/yyyy');
-												this.state.context.CurrentPregnancy.EDD = Utils.convertToDateString(Utils.calculateEDD(paramLmpDate));
-												this.forceUpdate();
-								}
-				}, {
-								key: 'childRender',
-								value: function childRender() {
-												var toggleLabelClass = 'col-xs-8 zeroLeftPadding';
-												var toggleWrapperClass = 'col-xs-3';
-												var dateIcon = _react2.default.createElement(_reactBootstrap.Image, { className: 'editable', src: './registration/calendar.png' });
-												return _react2.default.createElement(
-																'div',
-																{ className: 'wrapper' },
-																_react2.default.createElement(
-																				'form',
-																				null,
-																				_react2.default.createElement(
-																								_reactBootstrap.Row,
-																								null,
-																								_react2.default.createElement(
-																												_reactBootstrap.Row,
-																												null,
-																												_react2.default.createElement(
-																																_reactBootstrap.Col,
-																																{ xs: 3 },
-																																_react2.default.createElement(_ToggleButton2.default, { label: locale('PregnancyAcceptedWillingly'), labelClassName: toggleLabelClass, wrapperClassName: toggleWrapperClass, valueLink: this.linkState(this.state.context.CurrentPregnancy, 'PregnancyWanted') }),
-																																_react2.default.createElement('br', null),
-																																_react2.default.createElement('br', null),
-																																_react2.default.createElement('br', null)
-																												)
-																								),
-																								_react2.default.createElement(
-																												_reactBootstrap.Row,
-																												null,
-																												_react2.default.createElement(
-																																_reactBootstrap.Col,
-																																{ xs: 3 },
-																																_react2.default.createElement(_DatePicker2.default, { placeholder: 'DD/MM/YYYY', className: 'editable', label: locale('DateofLMP'), subLabel: locale('First_Day_Of_Last_Mentsrual_Period'), valueLink: this.linkState(this.state.context.CurrentPregnancy, 'LMP', this.eddHandler.bind(this)) })
-																												),
-																												_react2.default.createElement(_reactBootstrap.Col, { xs: 1 }),
-																												_react2.default.createElement(
-																																_reactBootstrap.Col,
-																																{ xs: 3 },
-																																_react2.default.createElement(_DatePicker2.default, { placeholder: 'DD/MM/YYYY', className: 'editable', label: locale('ExpectedDateOfDelivery'), valueLink: this.linkState(this.state.context.CurrentPregnancy, 'EDD') })
-																												)
-																								),
-																								_react2.default.createElement(
-																												_reactBootstrap.Row,
-																												null,
-																												_react2.default.createElement(
-																																_reactBootstrap.Col,
-																																{ xs: 3 },
-																																_react2.default.createElement(_DatePicker2.default, { placeholder: 'DD/MM/YYYY', className: 'editable', label: locale('EDDByUSG'), subLabel: locale('If_already_done'), valueLink: this.linkState(this.state.context.CurrentPregnancy, 'EDD_USG') })
-																												)
-																								)
-																				)
-																)
-												);
-								}
-				}]);
+    _createClass(CurrentPregnancy, [{
+        key: 'eddHandler',
+        value: function eddHandler() {
+            var paramLmpDate = Utils.convertToDate(this.state.context.CurrentPregnancy.LMP, 'dd/mm/yyyy');
+            this.state.context.CurrentPregnancy.EDD = Utils.convertToDateString(Utils.calculateEDD(paramLmpDate));
+            this.forceUpdate();
+        }
+    }, {
+        key: 'childRender',
+        value: function childRender() {
+            var toggleLabelClass = 'col-xs-8 zeroLeftPadding';
+            var toggleWrapperClass = 'col-xs-3';
+            var dateIcon = _react2.default.createElement(_reactBootstrap.Image, { src: './registration/calendar.png' });
+            var dateOfQuickening = _react2.default.createElement('span', null);
 
-				return CurrentPregnancy;
+            if (this.state.context.visitType == 'ANC2' || this.state.context.visitType == 'ANC3') {
+                dateOfQuickening = _react2.default.createElement(_DatePicker2.default, { placeholder: 'DD/MM/YYYY', className: 'editable', label: locale('DateofQuickening'), valueLink: this.linkState(this.state.context.CurrentPregnancy, 'quickeningDate') });
+            }
+
+            return _react2.default.createElement(
+                'div',
+                { className: 'wrapper', style: currentPregnancyVisit },
+                _react2.default.createElement(
+                    'form',
+                    null,
+                    _react2.default.createElement(
+                        _reactBootstrap.Row,
+                        null,
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 4, sm: 12, xs: 12 },
+                            _react2.default.createElement(_ToggleButton2.default, { label: locale('PregnancyAcceptedWillingly'), labelClassName: toggleLabelClass, wrapperClassName: toggleWrapperClass, valueLink: this.linkState(this.state.context.CurrentPregnancy, 'PregnancyWanted') }),
+                            _react2.default.createElement('br', null),
+                            _react2.default.createElement('br', null),
+                            _react2.default.createElement('br', null)
+                        )
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Row,
+                        null,
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 4, sm: 12, xs: 12 },
+                            _react2.default.createElement(_DatePicker2.default, { placeholder: 'DD/MM/YYYY', className: 'editable', label: locale('DateofLMP'), subLabel: locale('First_Day_Of_Last_Mentsrual_Period'), valueLink: this.linkState(this.state.context.CurrentPregnancy, 'LMP', this.eddHandler.bind(this)) })
+                        ),
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 4, sm: 12, xs: 12 },
+                            _react2.default.createElement(_DatePicker2.default, { placeholder: 'DD/MM/YYYY', className: 'editable', label: locale('ExpectedDateOfDelivery'), valueLink: this.linkState(this.state.context.CurrentPregnancy, 'EDD') })
+                        )
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Row,
+                        null,
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 4, sm: 12, xs: 12 },
+                            _react2.default.createElement(_DatePicker2.default, { placeholder: 'DD/MM/YYYY', className: 'editable', label: locale('EDDByUSG'), subLabel: locale('If_already_done'), valueLink: this.linkState(this.state.context.CurrentPregnancy, 'EDD_USG') })
+                        ),
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 4, sm: 12, xs: 12 },
+                            dateOfQuickening
+                        )
+                    ),
+                    _react2.default.createElement('br', null),
+                    _react2.default.createElement('br', null),
+                    _react2.default.createElement('br', null),
+                    _react2.default.createElement('br', null),
+                    _react2.default.createElement('br', null),
+                    _react2.default.createElement('br', null),
+                    _react2.default.createElement('br', null),
+                    _react2.default.createElement('br', null)
+                )
+            );
+        }
+    }]);
+
+    return CurrentPregnancy;
 })(_ControlBase3.default);
 
 exports.default = CurrentPregnancy;
 
-},{"./../../controls/ControlBase":730,"./../../controls/DatePicker":732,"./../../controls/LabeledControl":736,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],694:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/DatePicker":737,"./../../controls/LabeledControl":741,"./../../controls/ToggleButton":747,"react":601,"react-bootstrap":363}],698:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -74867,10 +76582,6 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-unused-vars: 0*/
 
-var accPanelStyle1 = {
-    border: '2px solid #B9E3FF'
-};
-
 var FamilyHistory = (function (_ControlBase) {
     _inherits(FamilyHistory, _ControlBase);
 
@@ -74887,7 +76598,7 @@ var FamilyHistory = (function (_ControlBase) {
             var wrapperClass = 'col-xs-4';
             return _react2.default.createElement(
                 'div',
-                { className: 'wrapper', style: accPanelStyle1 },
+                { className: 'wrapperStyle' },
                 _react2.default.createElement(
                     'form',
                     { className: 'form-horizontal custom_row' },
@@ -74896,17 +76607,17 @@ var FamilyHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('HighBP'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.FamilyHistory, 'Highbloodpressurehypertension') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('Tuberculosis'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.FamilyHistory, 'Tuberculosis') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('CongeniatlMalfomationsInImmediateFamily'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.FamilyHistory, 'CongeniatlMalfomationsinimmediatefamily') })
                         )
                     ),
@@ -74915,12 +76626,12 @@ var FamilyHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('Diabetes'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.FamilyHistory, 'Diabetes') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('TwinsInImmediateFamily'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.FamilyHistory, 'TwinsinimmediateFamily') })
                         )
                     )
@@ -74934,7 +76645,7 @@ var FamilyHistory = (function (_ControlBase) {
 
 exports.default = FamilyHistory;
 
-},{"./../../controls/ControlBase":730,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],695:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/ToggleButton":747,"react":601,"react-bootstrap":363}],699:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -74984,11 +76695,11 @@ var GeneralExamination = (function (_ControlBase) {
 				_createClass(GeneralExamination, [{
 								key: 'childRender',
 								value: function childRender() {
-												var labelClass = 'col-xs-3 alignLeft';
-												var wrapperClass = 'col-xs-2';
+												var labelClass = 'col-xs-4 alignLeft';
+												var wrapperClass = 'col-xs-6';
 												return _react2.default.createElement(
 																'div',
-																{ className: 'wrapper custom_row' },
+																{ className: 'wrapperStyle custom_row' },
 																_react2.default.createElement(
 																				'form',
 																				{ className: 'form-horizontal' },
@@ -74997,12 +76708,12 @@ var GeneralExamination = (function (_ControlBase) {
 																								null,
 																								_react2.default.createElement(
 																												_reactBootstrap.Col,
-																												{ xs: 6 },
+																												{ lg: 6, sm: 12, xs: 12, className: 'paddingStyleBottom' },
 																												_react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('HeightIncms'), placeholder: 'Height in cms', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.GeneralExamination, 'Height') })
 																								),
 																								_react2.default.createElement(
 																												_reactBootstrap.Col,
-																												{ xs: 6 },
+																												{ lg: 6, sm: 12, xs: 12, className: 'paddingStyleBottom' },
 																												_react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('RespiratoryRatePM'), placeholder: 'Respiratory Rate per min', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.GeneralExamination, 'RespiratoryRate') })
 																								)
 																				),
@@ -75011,12 +76722,12 @@ var GeneralExamination = (function (_ControlBase) {
 																								null,
 																								_react2.default.createElement(
 																												_reactBootstrap.Col,
-																												{ xs: 6 },
+																												{ lg: 6, sm: 12, xs: 12, className: 'paddingStyleBottom' },
 																												_react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('WeightInKgs'), placeholder: 'Weight in Kgs', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.GeneralExamination, 'Weight') })
 																								),
 																								_react2.default.createElement(
 																												_reactBootstrap.Col,
-																												{ xs: 6 },
+																												{ lg: 6, sm: 12, xs: 12 },
 																												_react2.default.createElement(_ToggleButton2.default, { label: locale('Oedema'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.GeneralExamination, 'Oedema') })
 																								)
 																				),
@@ -75025,13 +76736,13 @@ var GeneralExamination = (function (_ControlBase) {
 																								null,
 																								_react2.default.createElement(
 																												_reactBootstrap.Col,
-																												{ xs: 6 },
+																												{ lg: 6, sm: 12, xs: 12 },
 																												_react2.default.createElement(_ToggleButton2.default, { label: locale('Pallor'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.GeneralExamination, 'Pallor') })
 																								),
 																								_react2.default.createElement(
 																												_reactBootstrap.Col,
-																												{ xs: 6 },
-																												_react2.default.createElement(_reactBootstrap.Input, { type: 'text', label: locale('BP'), placeholder: 'Blood Pressure', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.GeneralExamination, 'BloodPressure') })
+																												{ lg: 6, sm: 12, xs: 12, className: 'paddingStyleBottom' },
+																												_react2.default.createElement(_reactBootstrap.Input, { type: 'text', label: locale('BP'), placeholder: '00/00', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.GeneralExamination, 'BloodPressure') })
 																								)
 																				),
 																				_react2.default.createElement(
@@ -75039,12 +76750,12 @@ var GeneralExamination = (function (_ControlBase) {
 																								null,
 																								_react2.default.createElement(
 																												_reactBootstrap.Col,
-																												{ xs: 6 },
+																												{ lg: 6, sm: 12, xs: 12 },
 																												_react2.default.createElement(_ToggleButton2.default, { label: locale('Jaundice'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.GeneralExamination, 'Jaundice') })
 																								),
 																								_react2.default.createElement(
 																												_reactBootstrap.Col,
-																												{ xs: 6 },
+																												{ lg: 6, sm: 12, xs: 12, className: 'paddingStyleBottom' },
 																												_react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('TemperatureInFarenheit'), placeholder: 'Temperature in farenheit', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.GeneralExamination, 'TemperatureInFarenheit') })
 																								)
 																				),
@@ -75053,12 +76764,12 @@ var GeneralExamination = (function (_ControlBase) {
 																								null,
 																								_react2.default.createElement(
 																												_reactBootstrap.Col,
-																												{ xs: 6 },
+																												{ lg: 6, sm: 12, xs: 12, className: 'paddingStyleBottom' },
 																												_react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('Pulse'), placeholder: 'Pulse', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.GeneralExamination, 'Pulse') })
 																								),
 																								_react2.default.createElement(
 																												_reactBootstrap.Col,
-																												{ xs: 6 },
+																												{ lg: 6, sm: 12, xs: 12 },
 																												_react2.default.createElement(_ToggleButton2.default, { label: locale('TooWeakToGetOutOfBed'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.GeneralExamination, 'TooWeak') })
 																								)
 																				)
@@ -75072,7 +76783,7 @@ var GeneralExamination = (function (_ControlBase) {
 
 exports.default = GeneralExamination;
 
-},{"./../../controls/ControlBase":730,"./../../controls/LabeledControl":736,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],696:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/LabeledControl":741,"./../../controls/ToggleButton":747,"react":601,"react-bootstrap":363}],700:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -75108,8 +76819,6 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-mixed-spaces-and-tabs:0*/
 /*eslint no-unused-vars: 0*/
 
-var accPanelStyle1 = { border: '2px solid #B9E3FF', 'padding': '39px' };
-
 var HabbitsSocialHistory = (function (_ControlBase) {
     _inherits(HabbitsSocialHistory, _ControlBase);
 
@@ -75126,26 +76835,26 @@ var HabbitsSocialHistory = (function (_ControlBase) {
             var wrapperClass = 'col-xs-2';
             return _react2.default.createElement(
                 'div',
-                { className: 'wrapper' },
+                { className: 'wrapperStyle' },
                 _react2.default.createElement(
                     'form',
-                    { className: 'form-horizontal  custom_row', style: accPanelStyle1 },
+                    { className: 'form-horizontal  custom_row' },
                     _react2.default.createElement(
                         _reactBootstrap.Row,
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('Tobacco'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.HabbitsSocialHistory, 'Tobacco') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('Drugs'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.HabbitsSocialHistory, 'Drugs') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('Smoking'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.HabbitsSocialHistory, 'Smoking') })
                         )
                     ),
@@ -75154,7 +76863,7 @@ var HabbitsSocialHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('Alcohol'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.HabbitsSocialHistory, 'Alcohol') })
                         )
                     )
@@ -75168,7 +76877,7 @@ var HabbitsSocialHistory = (function (_ControlBase) {
 
 exports.default = HabbitsSocialHistory;
 
-},{"./../../controls/ControlBase":730,"./../../controls/LabeledControlList":737,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],697:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/LabeledControlList":742,"./../../controls/ToggleButton":747,"react":601,"react-bootstrap":363}],701:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -75214,23 +76923,63 @@ var LabOrders = (function (_ControlBase) {
         value: function childRender() {
             var labelClass = 'col-xs-3 alignLeft';
             var wrapperClass = 'col-xs-2';
+
+            var recommendationandgct = _react2.default.createElement('span', null);
+            var hbandbloodsugar = _react2.default.createElement('span', null);
+            if (this.state.context.visitType == 'ANC2' || this.state.context.visitType == 'ANC3') {
+
+                recommendationandgct = _react2.default.createElement(
+                    _reactBootstrap.Row,
+                    null,
+                    ' ',
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 4, sm: 12, xs: 12 },
+                        _react2.default.createElement(_ToggleButton2.default, { label: locale('Recommendationforanomalyscan'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.LabOrder, 'recommendAnomalyScan') })
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 4, sm: 12, xs: 12 },
+                        _react2.default.createElement(_ToggleButton2.default, { label: locale('GCT'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.LabOrder, 'GCT') })
+                    )
+                );
+
+                hbandbloodsugar = _react2.default.createElement(
+                    _reactBootstrap.Row,
+                    null,
+                    ' ',
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 4, sm: 12, xs: 12 },
+                        '  ',
+                        _react2.default.createElement(_ToggleButton2.default, { label: locale('HbRepeat'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.LabOrder, 'HbRepeat') })
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 4, sm: 12, xs: 12 },
+                        _react2.default.createElement(_ToggleButton2.default, { label: locale('BloodSugarRepeat'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.LabOrder, 'BloodSugarRepeat') })
+                    )
+                );
+            }
+
             return _react2.default.createElement(
                 'div',
-                { className: 'wrapper custom_row' },
+                { className: 'wrapperStyle custom_row' },
                 _react2.default.createElement(
                     'form',
                     { className: 'form-horizontal' },
+                    hbandbloodsugar,
                     _react2.default.createElement(
                         _reactBootstrap.Row,
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('BloodGroup_including_RhFactor'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.LabOrder, 'BloodGroup_including_RhFactor') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('VDRL_RPR'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.LabOrder, 'VDRL_RPR') })
                         )
                     ),
@@ -75239,12 +76988,12 @@ var LabOrders = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('HIV_testing'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.LabOrder, 'HIV_testing') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('Rapid_Malaria_Test'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.LabOrder, 'Rapid_Malaria_Test') })
                         )
                     ),
@@ -75253,12 +77002,12 @@ var LabOrders = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('BloodSugar'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.LabOrder, 'BloodSugar') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('HbsAg'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.LabOrder, 'HbsAg') })
                         )
                     ),
@@ -75267,15 +77016,16 @@ var LabOrders = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('CBC_with_ESR'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.LabOrder, 'CBC_with_ESR') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('PeripheralSmear'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.LabOrder, 'PeripheralSmear') })
                         )
-                    )
+                    ),
+                    recommendationandgct
                 )
             );
         }
@@ -75286,7 +77036,7 @@ var LabOrders = (function (_ControlBase) {
 
 module.exports = LabOrders;
 
-},{"./../../controls/ControlBase":730,"./../../controls/LabeledControlList":737,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],698:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/LabeledControlList":742,"./../../controls/ToggleButton":747,"react":601,"react-bootstrap":363}],702:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -75334,8 +77084,8 @@ var LabResults = (function (_ControlBase) {
     _createClass(LabResults, [{
         key: 'childRender',
         value: function childRender() {
-            var labelClass = 'col-xs-3 alignLeft';
-            var wrapperClass = 'col-xs-3';
+            var labelClass = 'col-xs-12 col-lg-4 alignLeft';
+            var wrapperClass = 'col-xs-12 col-lg-4';
 
             var UPToptions = [{
                 value: 'SelectUPT',
@@ -75356,9 +77106,18 @@ var LabResults = (function (_ControlBase) {
                 text: locale('Negative')
             }];
 
+            var usg = _react2.default.createElement('span', null);
+            var upt = _react2.default.createElement('span', null);
+
+            if (this.state.context.visitType == 'ANC2' || this.state.context.visitType == 'ANC3') {
+                usg = _react2.default.createElement(_ToggleButton2.default, { label: locale('USG'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.LabResults, 'USG') });
+            } else if (this.state.context.visitType == 'ANC1') {
+                upt = _react2.default.createElement(_DropDown2.default, { label: locale('UPT'), placeholder: 'select UPT', labelClassName: labelClass, wrapperClassName: wrapperClass, options: UPToptions, valueLink: this.linkState(this.state.context.LabResults, 'UPT') });
+            }
+
             return _react2.default.createElement(
                 'div',
-                { className: 'wrapper custom_row' },
+                { className: 'wrapperStyle custom_row' },
                 _react2.default.createElement(
                     'form',
                     { className: 'form-horizontal' },
@@ -75367,12 +77126,13 @@ var LabResults = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
-                            _react2.default.createElement(_DropDown2.default, { label: locale('UPT'), placeholder: 'select UPT', labelClassName: labelClass, wrapperClassName: wrapperClass, options: UPToptions, valueLink: this.linkState(this.state.context.LabResults, 'SelectUPT') })
+                            { lg: 4, sm: 12, xs: 12, className: 'paddingStyleBottom' },
+                            upt,
+                            usg
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 4, sm: 12, xs: 12, className: 'paddingStyleBottom' },
                             _react2.default.createElement(_reactBootstrap.Input, { type: 'text', label: locale('Hb'), placeholder: 'Hb', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.LabResults, 'Hb') })
                         )
                     ),
@@ -75381,12 +77141,12 @@ var LabResults = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('UrineSugar'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.LabResults, 'UrineSugar') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 4, sm: 12, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('UrineProteins'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.LabResults, 'UrineProteins') })
                         )
                     ),
@@ -75395,9 +77155,8 @@ var LabResults = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
-                            _react2.default.createElement(_DropDown2.default, { label: locale('RapidMalariaTest'), placeholder: 'select', labelClassName: labelClass,
-                                wrapperClassName: wrapperClass, options: RapidMalariaTestoptions, valueLink: this.linkState(this.state.context.LabResults, 'RapidMalariaTest') })
+                            { lg: 4, sm: 12, xs: 12 },
+                            _react2.default.createElement(_DropDown2.default, { label: locale('RapidMalariaTest'), placeholder: 'select', labelClassName: 'col-xs-12 col-lg-4 alignLeft', wrapperClassName: wrapperClass, options: RapidMalariaTestoptions, valueLink: this.linkState(this.state.context.LabResults, 'RapidMalariaTest') })
                         )
                     )
                 )
@@ -75410,7 +77169,7 @@ var LabResults = (function (_ControlBase) {
 
 module.exports = LabResults;
 
-},{"./../../controls/ControlBase":730,"./../../controls/DropDown":733,"./../../controls/LabeledControlList":737,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],699:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/DropDown":738,"./../../controls/LabeledControlList":742,"./../../controls/ToggleButton":747,"react":601,"react-bootstrap":363}],703:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -75491,7 +77250,7 @@ var LabResultsAndOrders = (function (_ControlBase) {
 
 exports.default = LabResultsAndOrders;
 
-},{"../../controls/ControlBase.js":730,"../../stores/VisitStore":753,"./LabOrders":697,"./LabResults":698,"react":599,"react-bootstrap":362}],700:[function(require,module,exports){
+},{"../../controls/ControlBase.js":734,"../../stores/VisitStore":759,"./LabOrders":701,"./LabResults":702,"react":601,"react-bootstrap":363}],704:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -75617,7 +77376,7 @@ var MedicalHistory = (function (_ControlBase) {
 
 exports.default = MedicalHistory;
 
-},{"../../controls/ControlBase.js":730,"../../stores/VisitStore":753,"./Allergies":689,"./CurrentIllnessHistory":692,"./FamilyHistory":694,"./HabbitsSocialHistory":696,"./MenstrualHistory":702,"./ObstetricHistory":703,"./PastMedicalHistory":704,"react":599,"react-bootstrap":362}],701:[function(require,module,exports){
+},{"../../controls/ControlBase.js":734,"../../stores/VisitStore":759,"./Allergies":693,"./CurrentIllnessHistory":696,"./FamilyHistory":698,"./HabbitsSocialHistory":700,"./MenstrualHistory":706,"./ObstetricHistory":707,"./PastMedicalHistory":708,"react":601,"react-bootstrap":363}],705:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -75657,15 +77416,80 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-mixed-spaces-and-tabs:0*/
 /*eslint no-unused-vars: 0*/
 
+var customStyle = { marginLeft: '1%' };
+
 var DeliveryLocationoptions = [{
     value: 'Select',
     text: 'Select'
 }, {
-    value: 'PHC Name',
-    text: locale('PHCName')
+    value: 'Ammapalayam',
+    text: 'Ammapalayam'
 }, {
-    value: 'PHC Name',
-    text: locale('PHCName')
+    value: 'Kurumbalur',
+    text: 'Kurumbalur'
+}, {
+    value: 'Kalpadi',
+    text: 'Kalpadi'
+}, {
+    value: 'Ladapuram',
+    text: 'Ladapuram'
+}, {
+    value: 'Velur',
+    text: 'Velur'
+}, {
+    value: 'Elambalur',
+    text: 'Elambalur'
+}, {
+    value: 'Esanai',
+    text: 'Esanai'
+}, {
+    value: 'Anukkur',
+    text: 'Anukkur'
+}, {
+    value: 'V.Kalathur',
+    text: 'V.Kalathur'
+}, {
+    value: 'Arumbavur',
+    text: 'Arumbavur'
+}, {
+    value: 'Pasumbalur',
+    text: 'Pasumbalur'
+}, {
+    value: 'Poolambadi',
+    text: 'Poolambadi'
+}, {
+    value: 'Neikuppai',
+    text: 'Neikuppai'
+}, {
+    value: 'Karai',
+    text: 'Karai'
+}, {
+    value: 'Padalur',
+    text: 'Padalur'
+}, {
+    value: 'Chettikulam',
+    text: 'Chettikulam'
+}, {
+    value: 'Melamathur',
+    text: 'Melamathur'
+}, {
+    value: 'Adhanur',
+    text: 'Adhanur'
+}, {
+    value: 'Thungapuram',
+    text: 'Thungapuram'
+}, {
+    value: 'Kunnam',
+    text: 'Kunnam'
+}, {
+    value: 'Athiyur',
+    text: 'Athiyur'
+}, {
+    value: 'L.K.Kadu',
+    text: 'L.K.Kadu'
+}, {
+    value: 'V.K.Puram',
+    text: 'V.K.Puram'
 }];
 
 var MedicalPrescriptions = (function (_ControlBase) {
@@ -75680,28 +77504,175 @@ var MedicalPrescriptions = (function (_ControlBase) {
     _createClass(MedicalPrescriptions, [{
         key: 'childRender',
         value: function childRender() {
-            var labelClass = 'col-xs-3 alignLeft';
-            var wrapperClass = 'col-xs-2';
+            var labelClass = 'col-xs-12 col-lg-4 alignLeft';
+            var wrapperClass = 'col-xs-12 col-lg-4';
             var isInj_TT_IM = _react2.default.createElement('span', null);
-            if (this.state.context.MedicalPrescriptions.Inj_TT_IM) isInj_TT_IM = _react2.default.createElement(_DatePicker2.default, { placeholder: 'DD/MM/YYYY', className: 'editable', label: 'Date of Injection ', labelClassName: 'col-xs-4 marginMinus', wrapperClassName: 'col-xs-5', valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'injTT0_5mlIMDate') });
+            var isInj_TT_IM_Date = _react2.default.createElement('span', null);
+            var isInj_TT_IM_Quantity = _react2.default.createElement('span', null);
+            var iFA_Tablets_Dispensed = _react2.default.createElement('span', null);
+            var iFA_Tablets_Dispensed_Date = _react2.default.createElement('span', null);
+            var iFA_Tablets_Dispensed_Quantity = _react2.default.createElement('span', null);
+            var albendazole = _react2.default.createElement('span', null);
+            var albendazole_Date = _react2.default.createElement('span', null);
+            var albendazole_Dispensed_Quantity = _react2.default.createElement('span', null);
+            var folicAcid_Tablets_dispensed = _react2.default.createElement('span', null);
+            var folicAcidSupplimentIFADate = _react2.default.createElement('span', null);
+            var folicAcidTablet_Quantity = _react2.default.createElement('span', null);
+            var counsellingDietDate = _react2.default.createElement('span', null);
+
+            if (this.state.context.MedicalPrescriptions.Inj_TT_IM) {
+                isInj_TT_IM_Date = _react2.default.createElement(_DatePicker2.default, { placeholder: 'DD/MM/YYYY', className: 'editable', label: 'Date of Injection ', labelClassName: 'col-lg-3 col-xs-12 marginMinus', wrapperClassName: 'col-lg-3 col-xs-12', valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'injTT0_5mlIMDate') });
+                isInj_TT_IM_Quantity = _react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('QuantityDispensed'), placeholder: 'Quantity Dispensed', labelClassName: 'col-lg-3 col-xs-12 marginMinus', wrapperClassName: 'col-lg-3 col-xs-12', valueLink: this.linkState(this.state.context.GeneralExamination, 'Height') });
+            }
+            if (this.state.context.MedicalPrescriptions.IFA_Tablets_Dispensed) {
+                iFA_Tablets_Dispensed_Date = _react2.default.createElement(_DatePicker2.default, { placeholder: 'DD/MM/YYYY', className: 'editable', label: 'Date dispensed ', labelClassName: 'col-lg-3 col-xs-12 marginMinus', wrapperClassName: 'col-lg-3 col-xs-12', valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'IFA_Tablets_Dispensed_Date') });
+                iFA_Tablets_Dispensed_Quantity = _react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('QuantityDispensed'), placeholder: 'Quantity Dispensed', labelClassName: 'col-lg-3 col-xs-12 marginMinus', wrapperClassName: 'col-lg-3 col-xs-12', valueLink: this.linkState(this.state.context.GeneralExamination, 'iFATabletsDispensedQuantity') });
+            }
+            if (this.state.context.MedicalPrescriptions.Albendazole) {
+                albendazole_Date = _react2.default.createElement(_DatePicker2.default, { placeholder: 'DD/MM/YYYY', className: 'editable', label: 'Date dispensed', labelClassName: 'col-lg-3 col-xs-12 marginMinus', wrapperClassName: 'col-lg-3 col-xs-12', valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'Albendazole_Date') });
+                albendazole_Dispensed_Quantity = _react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('QuantityDispensed'), placeholder: 'Quantity Dispensed', labelClassName: 'col-lg-3 col-xs-12 marginMinus', wrapperClassName: 'col-lg-3 col-xs-12', valueLink: this.linkState(this.state.context.GeneralExamination, 'albendazoledispensedQuantity') });
+            }
+            if (this.state.context.MedicalPrescriptions.folicAcidSuppliment_IFA) {
+                folicAcidSupplimentIFADate = _react2.default.createElement(_DatePicker2.default, { placeholder: 'DD/MM/YYYY', className: 'editable', label: 'Date dispensed', labelClassName: 'col-lg-3 col-xs-12 marginMinus', wrapperClassName: 'col-lg-3 col-xs-12', valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'folicAcidSupplimentIFADate') });
+                folicAcidTablet_Quantity = _react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('QuantityDispensed'), placeholder: 'Quantity Dispensed', labelClassName: 'col-lg-3 col-xs-12 marginMinus', wrapperClassName: 'col-lg-3 col-xs-12', valueLink: this.linkState(this.state.context.GeneralExamination, 'folicAcidTabletsQuantity') });
+            }
+            if (this.state.context.MedicalPrescriptions.Counselling) {
+                counsellingDietDate = _react2.default.createElement(_DatePicker2.default, { placeholder: 'DD/MM/YYYY', className: 'editable', label: 'Counselling Diet Date', labelClassName: 'col-lg-3 col-xs-12 marginMinus', wrapperClassName: 'col-lg-3 col-xs-12', valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'counsellingDietDate') });
+            }
+
+            if (this.state.context.visitType == 'ANC2') {
+                isInj_TT_IM = _react2.default.createElement(
+                    _reactBootstrap.Row,
+                    null,
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 6, xs: 12 },
+                        _react2.default.createElement(_ToggleButton2.default, { label: locale('Inj_TT_IM'), labelClassName: 'col-xs-8 col-lg-4 alignLeft', wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'Inj_TT_IM') })
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 6, xs: 12 },
+                        isInj_TT_IM_Date
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 6, xs: 12 },
+                        isInj_TT_IM_Quantity
+                    )
+                );
+                iFA_Tablets_Dispensed = _react2.default.createElement(
+                    _reactBootstrap.Row,
+                    null,
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 6, xs: 12 },
+                        _react2.default.createElement(_ToggleButton2.default, { label: locale('IFA_Tablets_Dispensed'), labelClassName: 'col-xs-8 col-lg-4 alignLeft', wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'IFA_Tablets_Dispensed') })
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 6, xs: 12 },
+                        iFA_Tablets_Dispensed_Date
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 6, xs: 12 },
+                        iFA_Tablets_Dispensed_Quantity
+                    )
+                );
+                albendazole = _react2.default.createElement(
+                    _reactBootstrap.Row,
+                    null,
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 6, xs: 12 },
+                        _react2.default.createElement(_ToggleButton2.default, { label: locale('Albendazole_Dispensed'), labelClassName: 'col-xs-8 col-lg-4 alignLeft', wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'Albendazole') })
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 6, xs: 12 },
+                        albendazole_Date
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 6, xs: 12 },
+                        albendazole_Dispensed_Quantity
+                    )
+                );
+            } else if (this.state.context.visitType == 'ANC1') {
+                folicAcid_Tablets_dispensed = _react2.default.createElement(
+                    _reactBootstrap.Row,
+                    null,
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 3, xs: 12 },
+                        _react2.default.createElement(_ToggleButton2.default, { label: locale('Folic_Acid_Tablets_Dispensed'), labelClassName: 'col-xs-12 col-lg-8  alignLeft', wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'folicAcidSuppliment_IFA') })
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 8, xs: 12 },
+                        folicAcidSupplimentIFADate
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 8, xs: 12 },
+                        folicAcidTablet_Quantity
+                    )
+                );
+            } else if (this.state.context.visitType == 'ANC3') {
+                isInj_TT_IM = _react2.default.createElement(
+                    _reactBootstrap.Row,
+                    null,
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 3, xs: 12 },
+                        _react2.default.createElement(_ToggleButton2.default, { label: locale('Inj_TT_IM'), labelClassName: 'col-xs-8 col-lg-8  alignLeft', wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'Inj_TT_IM') })
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 6, xs: 12 },
+                        isInj_TT_IM_Date
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 6, xs: 12 },
+                        isInj_TT_IM_Quantity
+                    )
+                );
+                iFA_Tablets_Dispensed = _react2.default.createElement(
+                    _reactBootstrap.Row,
+                    null,
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 6, xs: 12 },
+                        _react2.default.createElement(_ToggleButton2.default, { label: locale('IFA_Tablets_Dispensed'), labelClassName: 'col-xs-8 col-lg-4  alignLeft', wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'IFA_Tablets_Dispensed') })
+                    ),
+                    _react2.default.createElement(
+                        _reactBootstrap.Col,
+                        { lg: 6, xs: 12 },
+                        iFA_Tablets_Dispensed_Date
+                    )
+                );
+            }
+
             return _react2.default.createElement(
                 'div',
-                { className: 'wrapper custom_row' },
+                { className: 'wrapperStyle custom_row whiteBg', style: customStyle },
                 _react2.default.createElement(
                     'form',
                     { className: 'form-horizontal' },
+                    isInj_TT_IM,
                     _react2.default.createElement(
                         _reactBootstrap.Row,
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
-                            _react2.default.createElement(_ToggleButton2.default, { label: locale('Inj_TT_IM'), labelClassName: 'col-xs-9 alignLeft', wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'Inj_TT_IM') })
+                            { lg: 6, xs: 12 },
+                            _react2.default.createElement(_ToggleButton2.default, { label: locale('Counselling'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'Counselling') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 4 },
-                            isInj_TT_IM
+                            { lg: 6, xs: 12 },
+                            counsellingDietDate
                         )
                     ),
                     _react2.default.createElement(
@@ -75709,25 +77680,7 @@ var MedicalPrescriptions = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 12 },
-                            _react2.default.createElement(_ToggleButton2.default, { label: locale('FolicAcidSuppliment_IFA'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'FolicAcidSuppliment_IFA') })
-                        )
-                    ),
-                    _react2.default.createElement(
-                        _reactBootstrap.Row,
-                        null,
-                        _react2.default.createElement(
-                            _reactBootstrap.Col,
-                            { xs: 12 },
-                            _react2.default.createElement(_ToggleButton2.default, { label: locale('Counselling'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'Counselling') })
-                        )
-                    ),
-                    _react2.default.createElement(
-                        _reactBootstrap.Row,
-                        null,
-                        _react2.default.createElement(
-                            _reactBootstrap.Col,
-                            { xs: 12 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('Issue_MaternalChildProtectionCard'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'Issue_MaternalChildProtectionCard') })
                         )
                     ),
@@ -75736,7 +77689,7 @@ var MedicalPrescriptions = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 12 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('JSYCard'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'JSYCard') })
                         )
                     ),
@@ -75745,7 +77698,7 @@ var MedicalPrescriptions = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 12 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('BPLCard'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'BPLCard') })
                         )
                     ),
@@ -75754,11 +77707,14 @@ var MedicalPrescriptions = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 12 },
+                            { lg: 6, xs: 12, className: 'paddingStyleBottom' },
                             _react2.default.createElement(_DropDown2.default, { label: locale('RecordPossibleLocationOfDelivery'), placeholder: 'select', labelClassName: labelClass,
                                 wrapperClassName: wrapperClass, options: DeliveryLocationoptions, valueLink: this.linkState(this.state.context.MedicalPrescriptions, 'Select') })
                         )
-                    )
+                    ),
+                    iFA_Tablets_Dispensed,
+                    albendazole,
+                    folicAcid_Tablets_dispensed
                 )
             );
         }
@@ -75769,7 +77725,7 @@ var MedicalPrescriptions = (function (_ControlBase) {
 
 module.exports = MedicalPrescriptions;
 
-},{"./../../controls/ControlBase":730,"./../../controls/DatePicker":732,"./../../controls/DropDown":733,"./../../controls/LabeledControlList":737,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],702:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/DatePicker":737,"./../../controls/DropDown":738,"./../../controls/LabeledControlList":742,"./../../controls/ToggleButton":747,"react":601,"react-bootstrap":363}],706:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -75809,10 +77765,6 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-mixed-spaces-and-tabs:0*/
 /*eslint no-unused-vars: 0*/
 
-var accPanelStyle1 = {
-				border: '2px solid #B9E3FF'
-};
-
 var MenstrualHistory = (function (_ControlBase) {
 				_inherits(MenstrualHistory, _ControlBase);
 
@@ -75825,8 +77777,8 @@ var MenstrualHistory = (function (_ControlBase) {
 				_createClass(MenstrualHistory, [{
 								key: 'childRender',
 								value: function childRender() {
-												var labelClass = 'col-xs-2 alignLeft';
-												var wrapperClass = 'col-xs-2';
+												var labelClass = 'col-xs-12 col-lg-6 alignLeft';
+												var wrapperClass = 'col-xs-12 col-lg-6';
 
 												var RegularValues = {
 																value: 'Regular',
@@ -75840,7 +77792,7 @@ var MenstrualHistory = (function (_ControlBase) {
 
 												return _react2.default.createElement(
 																'div',
-																{ className: 'wrapper custom_row', style: accPanelStyle1 },
+																{ className: 'wrapperStyle custom_row' },
 																_react2.default.createElement(
 																				'form',
 																				{ className: 'form-horizontal custom_align' },
@@ -75849,9 +77801,9 @@ var MenstrualHistory = (function (_ControlBase) {
 																								null,
 																								_react2.default.createElement(
 																												_reactBootstrap.Col,
-																												{ xs: 12 },
+																												{ lg: 6, sm: 12, xs: 12 },
 																												_react2.default.createElement(_RadioButton2.default, { label: 'Regularity',
-																																labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MenstrualHistory, 'Regularity', this.valueChanged), name: 'Regularity', trueText: 'Regular', falseText: 'Irregular' })
+																																labelClassName: 'col-xs-12 col-lg-4 alignLeft', wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MenstrualHistory, 'Regularity', this.valueChanged), name: 'Regularity', trueText: 'Regular', falseText: 'Irregular' })
 																								)
 																				),
 																				_react2.default.createElement(
@@ -75859,7 +77811,7 @@ var MenstrualHistory = (function (_ControlBase) {
 																								null,
 																								_react2.default.createElement(
 																												_reactBootstrap.Col,
-																												{ xs: 12 },
+																												{ lg: 4, sm: 12, xs: 12 },
 																												_react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('FrequencyInNumberOfDays'), placeholder: 'Frequency in number of days', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MenstrualHistory, 'Frequencyinnumberofdays') })
 																								)
 																				),
@@ -75868,7 +77820,7 @@ var MenstrualHistory = (function (_ControlBase) {
 																								null,
 																								_react2.default.createElement(
 																												_reactBootstrap.Col,
-																												{ xs: 12 },
+																												{ lg: 4, sm: 12, xs: 12 },
 																												_react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('NumberOfDaysOfBleed'), placeholder: 'Number of days of bleed', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MenstrualHistory, 'Numberofdaysofbleed') })
 																								)
 																				),
@@ -75877,7 +77829,7 @@ var MenstrualHistory = (function (_ControlBase) {
 																								null,
 																								_react2.default.createElement(
 																												_reactBootstrap.Col,
-																												{ xs: 12 },
+																												{ lg: 4, sm: 12, xs: 12 },
 																												_react2.default.createElement(_reactBootstrap.Input, { type: 'number', label: locale('AgeAtMenarche'), placeholder: 'Age at Menarche', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MenstrualHistory, 'AgeatMenarche') })
 																								)
 																				),
@@ -75886,7 +77838,7 @@ var MenstrualHistory = (function (_ControlBase) {
 																								null,
 																								_react2.default.createElement(
 																												_reactBootstrap.Col,
-																												{ xs: 12 },
+																												{ lg: 4, sm: 12, xs: 12 },
 																												_react2.default.createElement(_ToggleButton2.default, { label: locale('PainAssociatedWithPeriods'), labelClassName: labelClass, wrapperClassName: 'col-xs-1', valueLink: this.linkState(this.state.context.MenstrualHistory, 'PainassociatedwithPeriods') })
 																								)
 																				)
@@ -75900,7 +77852,7 @@ var MenstrualHistory = (function (_ControlBase) {
 
 module.exports = MenstrualHistory;
 
-},{"./../../controls/ControlBase":730,"./../../controls/LabeledControl":736,"./../../controls/NumericTextField":738,"./../../controls/RadioButton":739,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],703:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/LabeledControl":741,"./../../controls/NumericTextField":743,"./../../controls/RadioButton":744,"./../../controls/ToggleButton":747,"react":601,"react-bootstrap":363}],707:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -75931,11 +77883,6 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-unused-vars: 0*/
 /*eslint no-mixed-spaces-and-tabs:0*/
-
-var accPanelStyle1 = {
-    border: '2px solid #B9E3FF',
-    'padding': '29px'
-};
 
 var ObstetricHistory = (function (_ControlBase) {
     _inherits(ObstetricHistory, _ControlBase);
@@ -75949,30 +77896,30 @@ var ObstetricHistory = (function (_ControlBase) {
     _createClass(ObstetricHistory, [{
         key: 'childRender',
         value: function childRender() {
-            var labelClass = 'col-xs-5 alignLeft';
-            var wrapperClass = 'col-xs-2';
+            var labelClass = 'col-xs-4 alignLeft';
+            var wrapperClass = 'col-xs-4';
             var isRecurrentEarlyAbortion = _react2.default.createElement('span', null);
 
-            if (this.state.context.ObstetricHistory.RecurrentEarlyAbortion) isRecurrentEarlyAbortion = _react2.default.createElement(_reactBootstrap.Input, { type: 'text', wrapperClassName: 'col-xs-2' });
+            if (this.state.context.ObstetricHistory.RecurrentEarlyAbortion) isRecurrentEarlyAbortion = _react2.default.createElement(_reactBootstrap.Input, { type: 'number', wrapperClassName: 'col-xs-2', valueLink: this.linkState(this.state.context.ObstetricHistory, 'abortions') });
 
             return _react2.default.createElement(
                 'div',
-                { className: 'wrapper' },
+                { className: 'wrapperStyle' },
                 _react2.default.createElement(
                     'form',
-                    { className: 'custom_row', style: accPanelStyle1 },
+                    { className: 'custom_row' },
                     _react2.default.createElement(
                         _reactBootstrap.Row,
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('RecurrentEarlyAbortion'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'RecurrentEarlyAbortion') }),
                             isRecurrentEarlyAbortion
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('MoreConsecutiveAbortions'), labelClassName: labelClass,
                                 wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'ThreeOrMoreSpontaneousConsecutiveAbortions') })
                         )
@@ -75982,12 +77929,12 @@ var ObstetricHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12, className: 'padBottom' },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('PostAbortionComplications'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'Post_abortionComplications') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12, className: 'padBottom' },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('ObstructedLabour'), labelClassName: labelClass,
                                 wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'ObstructedLabour') })
                         )
@@ -75997,12 +77944,12 @@ var ObstetricHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('HypertensionPreEclmpsiaOrEclampsia'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'Hypertension_preeclampsia_eclampsia') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('PrematureBirthsTwinsOrMultiplePregnancies'), labelClassName: labelClass,
                                 wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'PrematureBirths_twins_multiplePregnancies') })
                         )
@@ -76012,12 +77959,12 @@ var ObstetricHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('AntePartumHaemorrhage'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'AntePartumHaemorrhage_APH') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('PrevBaby4500gOrMore'), labelClassName: labelClass,
                                 wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'WeightOfThePreviousBaby') })
                         )
@@ -76027,12 +77974,12 @@ var ObstetricHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('BreechOrTransversePresentation'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'Breech_TransversePresentation') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('Adm4HTOrPreEclampsiaEclampsiaInPrevpregnancy'), labelClassName: labelClass,
                                 wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'AdmissionFoHypertensionOrPreEclampsia_eclampsiaInThePreviousPregnancy') })
                         )
@@ -76042,12 +77989,12 @@ var ObstetricHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12, className: 'padBottom' },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('obstructedLabourIncludingDystocia'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'ObstructedLabour_IncludingDystocia') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('SurgeryOnTheReproductiveTract'), labelClassName: labelClass,
                                 wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'SurgeryOnTheReproductiveTract') })
                         )
@@ -76057,12 +78004,12 @@ var ObstetricHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12, className: 'padBottom' },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('PerinealInjuriesTears'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'PerinealInjuries_tears') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('CongenitalAnomaly'), labelClassName: labelClass,
                                 wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'CongenitalAnomaly') })
                         )
@@ -76072,12 +78019,12 @@ var ObstetricHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12, className: 'padBottom' },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('ExcessiveBleedingAfterDelivery'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'ExcessiveBleedingAfterDelivery') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('Treatment4Infertility'), labelClassName: labelClass,
                                 wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'TreatmentForInfertility') })
                         )
@@ -76087,12 +78034,12 @@ var ObstetricHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('PuerperalSepsis'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'PuerperalSepsis') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('SpinalDeformities'), labelClassName: labelClass,
                                 wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'SpinalDeformitiesSuchAs_Acoliosis_kyphosis_polio') })
                         )
@@ -76102,12 +78049,12 @@ var ObstetricHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('BloodTransfusionDuringPrevPregnancies'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'BloodTransfusionDuringPreviousPregnancies') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('RhNegInThePrevPregnancy'), labelClassName: labelClass,
                                 wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'Rh_negative_inThePreviousPregnancy') })
                         )
@@ -76117,13 +78064,13 @@ var ObstetricHistory = (function (_ControlBase) {
                         null,
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12, className: 'padBottom' },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('Pregnancies'), labelClassName: labelClass,
                                 wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'Pregnancies') })
                         ),
                         _react2.default.createElement(
                             _reactBootstrap.Col,
-                            { xs: 6 },
+                            { lg: 6, xs: 12 },
                             _react2.default.createElement(_ToggleButton2.default, { label: locale('StillbirthOrNeonatalLoss'), labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.ObstetricHistory, 'StillbirthOrNeonatalLoss') })
                         )
                     )
@@ -76137,7 +78084,7 @@ var ObstetricHistory = (function (_ControlBase) {
 
 exports.default = ObstetricHistory;
 
-},{"./../../controls/ControlBase":730,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],704:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/ToggleButton":747,"react":601,"react-bootstrap":363}],708:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -76169,7 +78116,6 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-unused-vars: 0*/
 /*eslint no-mixed-spaces-and-tabs:0*/
 
-var accPanelStyle1 = { border: '2px solid #B9E3FF', 'padding': '15px' };
 var rowstyle = { margin: '0px' };
 
 var colStyle = {
@@ -76180,7 +78126,7 @@ var colStyle = {
     'background': '#fff',
     'padding': '20px',
     'margin-bottom': '30px',
-    'height': '210px'
+    'marginTop': '3%'
 };
 var rowStyle = {
     'background': '#fff',
@@ -76190,6 +78136,8 @@ var labStyle = {
     'color': '#2899CD',
     'font-size': '20px'
 };
+
+var contentStyle = {};
 
 var PastMedicalHistory = (function (_ControlBase) {
     _inherits(PastMedicalHistory, _ControlBase);
@@ -76209,10 +78157,10 @@ var PastMedicalHistory = (function (_ControlBase) {
 
             return _react2.default.createElement(
                 'div',
-                { className: 'wrapper custom_row' },
+                { className: 'wrapperStyle custom_row' },
                 _react2.default.createElement(
                     'form',
-                    { className: 'form-horizontal', style: accPanelStyle1 },
+                    { className: 'form-horizontal' },
                     _react2.default.createElement(
                         _reactBootstrap.Row,
                         { style: { 'border': 'none' } },
@@ -76221,7 +78169,7 @@ var PastMedicalHistory = (function (_ControlBase) {
                             { lg: 4 },
                             _react2.default.createElement(
                                 'div',
-                                { style: colStyle },
+                                { style: colStyle, className: 'heightSpecific' },
                                 _react2.default.createElement(
                                     'span',
                                     { style: labStyle },
@@ -76229,7 +78177,7 @@ var PastMedicalHistory = (function (_ControlBase) {
                                 ),
                                 _react2.default.createElement(
                                     _reactBootstrap.Row,
-                                    null,
+                                    { style: contentStyle },
                                     _react2.default.createElement(_ToggleButton2.default, { label: locale('HighBloodPressure_hypertension'), style: { 'paddingLeft': '10px' }, labelClassName: labelClass1,
                                         wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.PastMedicalHistory, 'HighBloodPressure_hypertension') })
                                 ),
@@ -76242,7 +78190,7 @@ var PastMedicalHistory = (function (_ControlBase) {
                             { lg: 4 },
                             _react2.default.createElement(
                                 'div',
-                                { style: colStyle },
+                                { style: colStyle, className: 'heightSpecific' },
                                 _react2.default.createElement(
                                     'span',
                                     { style: labStyle },
@@ -76250,7 +78198,7 @@ var PastMedicalHistory = (function (_ControlBase) {
                                 ),
                                 _react2.default.createElement(
                                     _reactBootstrap.Row,
-                                    null,
+                                    { style: contentStyle },
                                     _react2.default.createElement(_ToggleButton2.default, { label: locale('Diabetes_Types'), labelClassName: labelClass1,
                                         wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.PastMedicalHistory, 'Diabetes') })
                                 ),
@@ -76271,7 +78219,7 @@ var PastMedicalHistory = (function (_ControlBase) {
                                 ),
                                 _react2.default.createElement(
                                     _reactBootstrap.Row,
-                                    null,
+                                    { style: contentStyle },
                                     _react2.default.createElement(_ToggleButton2.default, { label: locale('Breathlessness_on_exertion_palpitations_HeartDisease'), labelClassName: labelClass1,
                                         wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.PastMedicalHistory, 'Breathlessness_on_exertion_palpitations_HeartDisease') })
                                 ),
@@ -76288,7 +78236,7 @@ var PastMedicalHistory = (function (_ControlBase) {
                             { lg: 4 },
                             _react2.default.createElement(
                                 'div',
-                                { style: colStyle },
+                                { style: colStyle, className: 'heightSpecific' },
                                 _react2.default.createElement(
                                     'span',
                                     { style: labStyle },
@@ -76296,7 +78244,7 @@ var PastMedicalHistory = (function (_ControlBase) {
                                 ),
                                 _react2.default.createElement(
                                     _reactBootstrap.Row,
-                                    null,
+                                    { style: contentStyle },
                                     _react2.default.createElement(_ToggleButton2.default, { label: locale('RenalDisease_KidneyFailure'), labelClassName: labelClass1,
                                         wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.PastMedicalHistory, 'RenalDisease') })
                                 ),
@@ -76309,7 +78257,7 @@ var PastMedicalHistory = (function (_ControlBase) {
                             { lg: 4 },
                             _react2.default.createElement(
                                 'div',
-                                { style: colStyle },
+                                { style: colStyle, className: 'heightSpecific' },
                                 _react2.default.createElement(
                                     'span',
                                     { style: labStyle },
@@ -76317,7 +78265,7 @@ var PastMedicalHistory = (function (_ControlBase) {
                                 ),
                                 _react2.default.createElement(
                                     _reactBootstrap.Row,
-                                    null,
+                                    { style: contentStyle },
                                     _react2.default.createElement(_ToggleButton2.default, { label: locale('Convulsions_Types'), labelClassName: labelClass1,
                                         wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.PastMedicalHistory, 'Convulsions_epilepsy') })
                                 ),
@@ -76338,7 +78286,7 @@ var PastMedicalHistory = (function (_ControlBase) {
                                 ),
                                 _react2.default.createElement(
                                     _reactBootstrap.Row,
-                                    null,
+                                    { style: contentStyle },
                                     _react2.default.createElement(_ToggleButton2.default, { label: locale('Attacksofbreathlessness_asthma'), labelClassName: labelClass1,
                                         wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.PastMedicalHistory, 'Attacksofbreathlessness_asthma') })
                                 ),
@@ -76363,7 +78311,7 @@ var PastMedicalHistory = (function (_ControlBase) {
                                 ),
                                 _react2.default.createElement(
                                     _reactBootstrap.Row,
-                                    null,
+                                    { style: contentStyle },
                                     _react2.default.createElement(_ToggleButton2.default, { label: locale('Jaundice_Types'), labelClassName: labelClass1,
                                         wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.PastMedicalHistory, 'Jaundice') })
                                 ),
@@ -76384,7 +78332,7 @@ var PastMedicalHistory = (function (_ControlBase) {
                                 ),
                                 _react2.default.createElement(
                                     _reactBootstrap.Row,
-                                    null,
+                                    { style: contentStyle },
                                     _react2.default.createElement(_ToggleButton2.default, { label: locale('Malariasymptoms'), labelClassName: labelClass1,
                                         wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.PastMedicalHistory, 'Malaria') })
                                 ),
@@ -76405,7 +78353,7 @@ var PastMedicalHistory = (function (_ControlBase) {
                                 ),
                                 _react2.default.createElement(
                                     _reactBootstrap.Row,
-                                    null,
+                                    { style: contentStyle },
                                     _react2.default.createElement(_ToggleButton2.default, { label: locale('ReproductiveTractInfection_RTI'), labelClassName: labelClass1,
                                         wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.PastMedicalHistory, 'ReproductiveTractInfection_RTI') })
                                 ),
@@ -76430,12 +78378,33 @@ var PastMedicalHistory = (function (_ControlBase) {
                                 ),
                                 _react2.default.createElement(
                                     _reactBootstrap.Row,
-                                    null,
+                                    { style: contentStyle },
                                     _react2.default.createElement(_ToggleButton2.default, { label: locale('SexuallyTransmittedInfection_STI_and_HIV_AIDS'), labelClassName: labelClass1,
                                         wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.PastMedicalHistory, 'SexuallyTransmittedInfection_STI_and_HIV_AIDS') })
                                 ),
                                 _react2.default.createElement(_ToggleButton2.default, { label: locale('OnMedication'), disabled: !this.state.context.PastMedicalHistory.SexuallyTransmittedInfection_STI_and_HIV_AIDS, labelClassName: labelClass,
                                     wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.PastMedicalHistory, 'STI_AIDS_OnMedication') })
+                            )
+                        ),
+                        _react2.default.createElement(
+                            _reactBootstrap.Col,
+                            { lg: 4 },
+                            _react2.default.createElement(
+                                'div',
+                                { style: colStyle },
+                                _react2.default.createElement(
+                                    'span',
+                                    { style: labStyle },
+                                    _react2.default.createElement(_reactBootstrap.Input, { label: locale('Tuberculosis'), style: labStyle, placeholder: 'Tuberculosis', labelClassName: labelClass, wrapperClassName: wrapperClass })
+                                ),
+                                _react2.default.createElement(
+                                    _reactBootstrap.Row,
+                                    { style: contentStyle },
+                                    _react2.default.createElement(_ToggleButton2.default, { label: locale('ChronicCough_bloodInSputum_prolongedFever_tuberculosis'), labelClassName: labelClass1,
+                                        wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.PastMedicalHistory, 'ChronicCough_bloodInSputum_prolongedFever_tuberculosis') })
+                                ),
+                                _react2.default.createElement(_ToggleButton2.default, { label: locale('OnMedication'), disabled: !this.state.context.PastMedicalHistory.ChronicCough_bloodInSputum_prolongedFever_tuberculosis, labelClassName: labelClass,
+                                    wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.PastMedicalHistory, 'chronicOnMedication') })
                             )
                         )
                     )
@@ -76449,7 +78418,7 @@ var PastMedicalHistory = (function (_ControlBase) {
 
 exports.default = PastMedicalHistory;
 
-},{"./../../controls/ControlBase":730,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],705:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/ToggleButton":747,"react":601,"react-bootstrap":363}],709:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -76545,13 +78514,13 @@ var PhysicalExamination = (function (_ControlBase) {
 
 exports.default = PhysicalExamination;
 
-},{"../../controls/ControlBase.js":730,"../../stores/VisitStore":753,"./AbdominalExamination":688,"./BreastExamination":690,"./GeneralExamination":695,"./SystemicExamination":706,"react":599,"react-bootstrap":362}],706:[function(require,module,exports){
+},{"../../controls/ControlBase.js":734,"../../stores/VisitStore":759,"./AbdominalExamination":692,"./BreastExamination":694,"./GeneralExamination":699,"./SystemicExamination":710,"react":601,"react-bootstrap":363}],710:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
 Object.defineProperty(exports, "__esModule", {
-    value: true
+  value: true
 });
 
 var _react = require('react');
@@ -76568,6 +78537,10 @@ var _ControlBase3 = _interopRequireDefault(_ControlBase2);
 
 var _reactBootstrap = require('react-bootstrap');
 
+var _RadioButton = require('./../../controls/RadioButton');
+
+var _RadioButton2 = _interopRequireDefault(_RadioButton);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -76578,137 +78551,117 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 /*eslint no-unused-vars: 0*/
 
 var SystemicExamination = (function (_ControlBase) {
-    _inherits(SystemicExamination, _ControlBase);
+  _inherits(SystemicExamination, _ControlBase);
 
-    function SystemicExamination() {
-        _classCallCheck(this, SystemicExamination);
+  function SystemicExamination() {
+    _classCallCheck(this, SystemicExamination);
 
-        return _possibleConstructorReturn(this, Object.getPrototypeOf(SystemicExamination).call(this));
+    return _possibleConstructorReturn(this, Object.getPrototypeOf(SystemicExamination).call(this));
+  }
+
+  _createClass(SystemicExamination, [{
+    key: 'childRender',
+    value: function childRender() {
+
+      var labelClass = 'col-xs-12 col-lg-4 alignLeft';
+      var wrapperClass = 'col-xs-12 col-lg-6';
+      var abNormalCardiovascularySystem = _react2.default.createElement('span', null);
+      var abNormalNervousSystem = _react2.default.createElement('span', null);
+      var abNormalDigestiveSystem = _react2.default.createElement('span', null);
+      var abNormalMusculoskeltalSystem = _react2.default.createElement('span', null);
+      if (!this.state.context.SystemicExamination.IsCardiovascularySystem) abNormalCardiovascularySystem = _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', className: 'editable', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'CardiovascularySystem_Details') });
+      if (!this.state.context.SystemicExamination.IsNervousSystem) abNormalNervousSystem = _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', className: 'editable', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'NervousSystem_Details') });
+      if (!this.state.context.SystemicExamination.IsDigestiveSystem) abNormalDigestiveSystem = _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', className: 'editable', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'DigestiveSystem_Details') });
+      if (!this.state.context.SystemicExamination.IsMusculoskeletalSystem) abNormalMusculoskeltalSystem = _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', className: 'editable', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'MusculoskeltalSystem_Details') });
+      return _react2.default.createElement(
+        'div',
+        { className: 'wrapperStyle custom_row' },
+        _react2.default.createElement(
+          'form',
+          { className: 'form-horizontal' },
+          _react2.default.createElement(
+            _reactBootstrap.Row,
+            null,
+            _react2.default.createElement(
+              _reactBootstrap.Input,
+              { label: locale('Cardiovasculary'), placeholder: 'Cardiovasculary System', labelClassName: labelClass, wrapperClassName: wrapperClass },
+              _react2.default.createElement(
+                _reactBootstrap.Col,
+                null,
+                _react2.default.createElement(_RadioButton2.default, { labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'IsCardiovascularySystem'), name: 'Cardiovasculary', trueText: locale('Normal'), falseText: locale('Abnormal') })
+              ),
+              _react2.default.createElement(
+                _reactBootstrap.Col,
+                null,
+                abNormalCardiovascularySystem
+              )
+            )
+          ),
+          _react2.default.createElement(
+            _reactBootstrap.Row,
+            null,
+            _react2.default.createElement(
+              _reactBootstrap.Input,
+              { label: locale('Nervous_System'), placeholder: 'Nervous System', labelClassName: labelClass, wrapperClassName: wrapperClass },
+              _react2.default.createElement(
+                _reactBootstrap.Col,
+                null,
+                _react2.default.createElement(_RadioButton2.default, { labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'IsNervousSystem'), name: 'NervousSystem', trueText: locale('Normal'), falseText: locale('Abnormal') })
+              ),
+              _react2.default.createElement(
+                _reactBootstrap.Col,
+                null,
+                abNormalNervousSystem
+              )
+            )
+          ),
+          _react2.default.createElement(
+            _reactBootstrap.Row,
+            null,
+            _react2.default.createElement(
+              _reactBootstrap.Input,
+              { label: locale('Digestive'), placeholder: 'Digestive System', labelClassName: labelClass, wrapperClassName: wrapperClass },
+              _react2.default.createElement(
+                _reactBootstrap.Col,
+                null,
+                _react2.default.createElement(_RadioButton2.default, { labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'IsDigestiveSystem'), name: 'DigestiveSystem', trueText: locale('Normal'), falseText: locale('Abnormal') })
+              ),
+              _react2.default.createElement(
+                _reactBootstrap.Col,
+                null,
+                abNormalDigestiveSystem
+              )
+            )
+          ),
+          _react2.default.createElement(
+            _reactBootstrap.Row,
+            null,
+            _react2.default.createElement(
+              _reactBootstrap.Input,
+              { label: locale('Musculoskeltal'), placeholder: 'Musculoskeltal System', labelClassName: labelClass, wrapperClassName: wrapperClass },
+              _react2.default.createElement(
+                _reactBootstrap.Col,
+                null,
+                _react2.default.createElement(_RadioButton2.default, { labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'IsMusculoskeletalSystem'), name: 'MusculoskeltalSystem', trueText: locale('Normal'), falseText: locale('Abnormal') })
+              ),
+              _react2.default.createElement(
+                _reactBootstrap.Col,
+                null,
+                abNormalMusculoskeltalSystem
+              )
+            )
+          )
+        )
+      );
     }
+  }]);
 
-    _createClass(SystemicExamination, [{
-        key: 'childRender',
-        value: function childRender() {
-
-            var labelClass = 'col-xs-3 alignLeft';
-            var wrapperClass = 'col-xs-9';
-            var abNormalCardiovascularySystem = _react2.default.createElement('span', null);
-            var abNormalNervousSystem = _react2.default.createElement('span', null);
-            var abNormalDigestiveSystem = _react2.default.createElement('span', null);
-            var abNormalMusculoskeltalSystem = _react2.default.createElement('span', null);
-            if (!this.state.context.SystemicExamination.IsCardiovascularySystem) abNormalCardiovascularySystem = _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', className: 'editable', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'CardiovascularySystem_Details') });
-            if (!this.state.context.SystemicExamination.IsNervousSystem) abNormalNervousSystem = _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', className: 'editable', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'NervousSystem_Details') });
-            if (!this.state.context.SystemicExamination.IsNervousSystem) abNormalDigestiveSystem = _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', className: 'editable', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'DigestiveSystem_Details') });
-            if (!this.state.context.SystemicExamination.IsDigestiveSystem) abNormalMusculoskeltalSystem = _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', className: 'editable', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'MusculoskeltalSystem_Details') });
-            return _react2.default.createElement(
-                'div',
-                { className: 'wrapper custom_row' },
-                _react2.default.createElement(
-                    'form',
-                    { className: 'form-horizontal' },
-                    _react2.default.createElement(
-                        _reactBootstrap.Row,
-                        null,
-                        _react2.default.createElement(
-                            _reactBootstrap.Input,
-                            { label: locale('Cardiovasculary'), placeholder: 'Cardiovasculary System', labelClassName: labelClass, wrapperClassName: wrapperClass },
-                            _react2.default.createElement(
-                                _reactBootstrap.Col,
-                                { xs: 2 },
-                                _react2.default.createElement(_reactBootstrap.Input, { type: 'radio', label: locale('Normal'), name: 'Cardiovasculary', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'IsCardiovascularySystem') })
-                            ),
-                            _react2.default.createElement(
-                                _reactBootstrap.Col,
-                                { xs: 2 },
-                                _react2.default.createElement(_reactBootstrap.Input, { type: 'radio', label: locale('Abnormal'), name: 'Cardiovasculary', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'IsCardiovascularySystem') })
-                            ),
-                            _react2.default.createElement(
-                                _reactBootstrap.Col,
-                                { xs: 6 },
-                                abNormalCardiovascularySystem
-                            )
-                        )
-                    ),
-                    _react2.default.createElement(
-                        _reactBootstrap.Row,
-                        null,
-                        _react2.default.createElement(
-                            _reactBootstrap.Input,
-                            { label: locale('Nervous_System'), placeholder: 'Nervous System', labelClassName: labelClass, wrapperClassName: wrapperClass },
-                            _react2.default.createElement(
-                                _reactBootstrap.Col,
-                                { xs: 2 },
-                                _react2.default.createElement(_reactBootstrap.Input, { type: 'radio', label: 'Normal', name: 'NervousSystem', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'IsNervousSystem') })
-                            ),
-                            _react2.default.createElement(
-                                _reactBootstrap.Col,
-                                { xs: 2 },
-                                _react2.default.createElement(_reactBootstrap.Input, { type: 'radio', label: 'Abnormal', name: 'NervousSystem', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'IsNervousSystem') })
-                            ),
-                            _react2.default.createElement(
-                                _reactBootstrap.Col,
-                                { xs: 6 },
-                                abNormalNervousSystem
-                            )
-                        )
-                    ),
-                    _react2.default.createElement(
-                        _reactBootstrap.Row,
-                        null,
-                        _react2.default.createElement(
-                            _reactBootstrap.Input,
-                            { label: locale('Digestive'), placeholder: 'Digestive System', labelClassName: labelClass, wrapperClassName: wrapperClass },
-                            _react2.default.createElement(
-                                _reactBootstrap.Col,
-                                { xs: 2 },
-                                _react2.default.createElement(_reactBootstrap.Input, { type: 'radio', label: 'Normal', name: 'DigestiveSystem', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'IsDigestiveSystem') })
-                            ),
-                            _react2.default.createElement(
-                                _reactBootstrap.Col,
-                                { xs: 2 },
-                                _react2.default.createElement(_reactBootstrap.Input, { type: 'radio', label: 'Abnormal', name: 'DigestiveSystem', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'IsDigestiveSystem') })
-                            ),
-                            _react2.default.createElement(
-                                _reactBootstrap.Col,
-                                { xs: 6 },
-                                abNormalDigestiveSystem
-                            )
-                        )
-                    ),
-                    _react2.default.createElement(
-                        _reactBootstrap.Row,
-                        null,
-                        _react2.default.createElement(
-                            _reactBootstrap.Input,
-                            { label: locale('Musculoskeltal'), placeholder: 'Musculoskeltal System', labelClassName: labelClass, wrapperClassName: wrapperClass },
-                            _react2.default.createElement(
-                                _reactBootstrap.Col,
-                                { xs: 2 },
-                                _react2.default.createElement(_reactBootstrap.Input, { type: 'radio', label: 'Normal', name: 'MusculoskeltalSystem', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'IsMusculoskeletalSystem') })
-                            ),
-                            _react2.default.createElement(
-                                _reactBootstrap.Col,
-                                { xs: 2 },
-                                _react2.default.createElement(_reactBootstrap.Input, { type: 'radio', label: 'Abnormal', name: 'MusculoskeltalSystem', labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.SystemicExamination, 'IsMusculoskeletalSystem') })
-                            ),
-                            _react2.default.createElement(
-                                _reactBootstrap.Col,
-                                { xs: 6 },
-                                abNormalMusculoskeltalSystem
-                            )
-                        )
-                    )
-                )
-            );
-        }
-    }]);
-
-    return SystemicExamination;
+  return SystemicExamination;
 })(_ControlBase3.default);
 
 exports.default = SystemicExamination;
 
-},{"./../../controls/ControlBase":730,"./../../controls/ToggleButton":742,"react":599,"react-bootstrap":362}],707:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"./../../controls/RadioButton":744,"./../../controls/ToggleButton":747,"react":601,"react-bootstrap":363}],711:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -76829,7 +78782,7 @@ var VisitDetails = (function (_ControlBase) {
 
 exports.default = VisitDetails;
 
-},{"./../../controls/ControlBase":730,"react":599,"react-bootstrap":362}],708:[function(require,module,exports){
+},{"./../../controls/ControlBase":734,"react":601,"react-bootstrap":363}],712:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -76888,6 +78841,18 @@ var _Spinner = require('./../../components/layout/spinner/Spinner');
 
 var _Spinner2 = _interopRequireDefault(_Spinner);
 
+var _Alert = require('./../../controls/Alert');
+
+var _Alert2 = _interopRequireDefault(_Alert);
+
+var _ControlBase2 = require('./../../controls/ControlBase');
+
+var _ControlBase3 = _interopRequireDefault(_ControlBase2);
+
+var _reactAddonsUpdate = require('react-addons-update');
+
+var _reactAddonsUpdate2 = _interopRequireDefault(_reactAddonsUpdate);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -76904,9 +78869,10 @@ var StyleHeader = {
 };
 var borderStyle = {};
 var borderStyle1 = {
-    border: '1px solid #ccc',
-    'overflow-y': 'scroll',
-    'overflow-x': 'hidden'
+    'overflow-x': 'hidden',
+    background: '#ffffff',
+    marginLeft: '0.8%',
+    marginRight: '0.8%'
 };
 var appName = { textAlign: 'center' };
 
@@ -76916,8 +78882,16 @@ var menudivStyle = {
 };
 var btnsStyle = { 'float': 'right' };
 
-var VisitInfo = (function (_React$Component) {
-    _inherits(VisitInfo, _React$Component);
+var fontStyle = {
+    color: '#ff7800',
+    fontSize: '15px'
+};
+var newData;
+var handleFetchCallBack;
+var handleSaveCallBack;
+
+var VisitInfo = (function (_ControlBase) {
+    _inherits(VisitInfo, _ControlBase);
 
     function VisitInfo() {
         _classCallCheck(this, VisitInfo);
@@ -76928,14 +78902,22 @@ var VisitInfo = (function (_React$Component) {
             data: _CurrentPregnancy2.default,
             title: locale('CurrentPregnancyTitle')
         };
-        _VisitStore2.default.addChangeListener(AppConstants.SAVE_EVENT, _this.notifyVisitInfoSave.bind(_this));
-        _VisitStore2.default.addChangeListener(AppConstants.FETCH_EVENT, _this.notifyVisitInfoFetch.bind(_this));
-
+        handleSaveCallBack = _this.notifyVisitInfoSave.bind(_this);
+        handleFetchCallBack = _this.notifyVisitInfoFetch.bind(_this);
+        _VisitStore2.default.addChangeListener(AppConstants.SAVE_EVENT, handleSaveCallBack);
+        _VisitStore2.default.addChangeListener(AppConstants.FETCH_EVENT, handleFetchCallBack);
         AppAction.executeAction(ActionType.VISIT_INFO_FETCH, null);
+
         return _this;
     }
 
     _createClass(VisitInfo, [{
+        key: 'componentWillUnmount',
+        value: function componentWillUnmount() {
+            _VisitStore2.default.removeChangeListener(AppConstants.SAVE_EVENT, handleSaveCallBack);
+            _VisitStore2.default.removeChangeListener(AppConstants.FETCH_EVENT, handleFetchCallBack);
+        }
+    }, {
         key: 'testCallBack',
         value: function testCallBack(targetData, targetTitle) {
             this.setState({ data: targetData });
@@ -76948,19 +78930,41 @@ var VisitInfo = (function (_React$Component) {
         }
     }, {
         key: 'notifyVisitInfoSave',
-        value: function notifyVisitInfoSave(data) {}
+        value: function notifyVisitInfoSave(data) {
+            toast.show(data.args.response, NOTIFICATION_TYPE.SUCCESS);
+            var risks = data.args.ruleOutcome;
+            if (risks.length > 0) {
+                var visitData = newData;
+                var newVisitData = (0, _reactAddonsUpdate2.default)(visitData, {
+                    risks: {
+                        $set: risks
+                    },
+                    isRiskOpen: {
+                        $set: true
+                    }
+                });
+                this.setState({ visitData: newVisitData });
+            } else {
+                Utils.navigate(this.props.history, Route.SINGLE_PATIENT_VIEW + '/' + this.state.visitDat.patientId);
+            }
+        }
     }, {
         key: 'handlesaveAction',
         value: function handlesaveAction() {
+            this.state.visitData.enteredBy = this.loginUser;
+            this.state.visitData.Comments.previousVisitComments = this.state.visitData.Comments.previousVisitComments + '\t' + this.state.visitData.Comments.GeneralComments + ' ' + locale('Entered_by') + ' ' + this.loginUser;
+            this.state.visitData.Comments.GeneralComments = '';
             AppAction.executeAction(ActionType.SAVE_VISIT_INFO_ACTION, this.state.visitData);
         }
     }, {
-        key: 'discardAction',
-        value: function discardAction() {}
+        key: 'handleCancelAction',
+        value: function handleCancelAction() {
+            var path = Route.SINGLE_PATIENT_VIEW + '/' + this.state.visitData.patientId;
+            Utils.navigate(this.props.history, path);
+        }
     }, {
-        key: 'render',
-        value: function render() {
-
+        key: 'childRender',
+        value: function childRender() {
             var data = {
                 options: [{
                     text: locale('CurrentPregnancyRecord'),
@@ -77001,87 +79005,97 @@ var VisitInfo = (function (_React$Component) {
             };
 
             if (this.state.visitData) {
+                newData = this.state.visitData;
                 return _react2.default.createElement(
                     'div',
                     null,
                     _react2.default.createElement(_menu2.default, { options: data.options, callback: this.testCallBack.bind(this) }),
                     _react2.default.createElement(
                         'div',
-                        { className: 'Yscroll' },
+                        null,
                         _react2.default.createElement(
                             _reactBootstrap.Row,
                             { className: 'wholeVisitIndicator' },
                             _react2.default.createElement(
                                 _reactBootstrap.Col,
-                                { xs: 8, className: 'visitDetailIndicator' },
+                                { lg: 2, md: 2, sx: 2, className: 'paddTopForVisit' },
                                 _react2.default.createElement(
                                     'label',
-                                    { className: 'visitDetailLabel ', bsSize: 'xsmall' },
+                                    { className: 'visitDetailLabel bold', bsSize: 'xsmall' },
                                     locale('Visit_Type'),
                                     ' ',
                                     _react2.default.createElement(
                                         'font',
-                                        { style: {
-                                                color: 'orange'
-                                            } },
+                                        { style: fontStyle },
                                         this.state.visitData.visitType
                                     )
                                 ),
+                                ' ',
+                                _react2.default.createElement('span', null)
+                            ),
+                            _react2.default.createElement(
+                                _reactBootstrap.Col,
+                                { lg: 2, md: 2, sx: 2, className: 'paddTopForVisit' },
                                 _react2.default.createElement(
                                     'label',
-                                    { className: 'visitDetailLabel', bsSize: 'xsmall' },
+                                    { className: 'visitDetailLabel bold', bsSize: 'xsmall' },
                                     locale('Created_On'),
                                     ' ',
                                     _react2.default.createElement(
                                         'font',
-                                        { style: {
-                                                color: 'orange'
-                                            } },
+                                        { style: fontStyle },
                                         this.state.visitData.visitStartDate
                                     )
                                 ),
+                                ' ',
+                                _react2.default.createElement('span', null)
+                            ),
+                            _react2.default.createElement(
+                                _reactBootstrap.Col,
+                                { lg: 2, md: 2, sx: 2, className: 'paddTopForVisit' },
                                 _react2.default.createElement(
                                     'label',
-                                    { className: 'visitDetailLabel', bsSize: 'xsmall' },
+                                    { className: 'visitDetailLabel bold', bsSize: 'xsmall' },
                                     locale('Last_Updated'),
                                     ' ',
                                     _react2.default.createElement(
                                         'font',
-                                        { style: {
-                                                color: 'orange'
-                                            } },
+                                        { style: fontStyle },
                                         this.state.visitData.lastUpdatedDate
                                     )
-                                ),
+                                )
+                            ),
+                            _react2.default.createElement(
+                                _reactBootstrap.Col,
+                                { lg: 2, md: 2, sx: 2, className: 'paddTopForVisit' },
                                 _react2.default.createElement(
                                     'label',
-                                    { className: 'visitDetailLabel', bsSize: 'xsmall' },
+                                    { className: 'paddTopForVisitForBy bold', bsSize: 'xsmall' },
                                     locale('Entered_By'),
                                     ' ',
                                     _react2.default.createElement(
                                         'font',
-                                        { style: {
-                                                color: 'orange'
-                                            } },
+                                        { style: fontStyle },
                                         this.state.visitData.enteredBy
                                     )
                                 )
                             ),
                             _react2.default.createElement(
                                 _reactBootstrap.Col,
-                                { xs: 4, className: 'headerBtnWrapper' },
+                                { xs: 3, className: 'visitMenuButtonAllign' },
                                 _react2.default.createElement(
                                     _reactBootstrap.Button,
-                                    { bsSize: 'large', onClick: this.handlesaveAction.bind(this), className: 'saveHeaderBtn' },
+                                    { bsSize: 'small', onClick: this.handlesaveAction.bind(this), className: 'saveHeaderBtn btnCommon' },
                                     locale('Save')
                                 ),
                                 _react2.default.createElement(
                                     _reactBootstrap.Button,
-                                    { bsSize: 'large', className: 'cancelHeaderBtn' },
+                                    { bsSize: 'small', onClick: this.handleCancelAction.bind(this), className: 'cancelHeaderBtn btnCommon' },
                                     locale('cancel')
                                 )
                             )
-                        )
+                        ),
+                        _react2.default.createElement(_Alert2.default, { options: this.state.visitData.risks, valueLink: this.linkState(this.state.visitData, 'isRiskOpen') })
                     ),
                     _react2.default.createElement(
                         'div',
@@ -77092,7 +79106,7 @@ var VisitInfo = (function (_React$Component) {
                             _react2.default.createElement('span', { style: btnsStyle }),
                             _react2.default.createElement(
                                 'span',
-                                null,
+                                { className: 'freeLabel' },
                                 _react2.default.createElement(this.state.data, { context: this.state.visitData })
                             )
                         )
@@ -77104,11 +79118,11 @@ var VisitInfo = (function (_React$Component) {
     }]);
 
     return VisitInfo;
-})(_react2.default.Component);
+})(_ControlBase3.default);
 
 exports.default = VisitInfo;
 
-},{"../../stores/VisitStore":753,"./../../components/layout/spinner/Spinner":669,"./../layout/menu/menu":666,"./../referral/ReferralLetter":673,"./Comments":691,"./CurrentPregnancy":693,"./LabResultsAndOrders":699,"./MedicalHistory":700,"./MedicalPrescriptions":701,"./PhysicalExamination":705,"./VisitDetails":707,"react":599,"react-bootstrap":362}],709:[function(require,module,exports){
+},{"../../stores/VisitStore":759,"./../../components/layout/spinner/Spinner":672,"./../../controls/Alert":732,"./../../controls/ControlBase":734,"./../layout/menu/menu":669,"./../referral/ReferralLetter":676,"./Comments":695,"./CurrentPregnancy":697,"./LabResultsAndOrders":703,"./MedicalHistory":704,"./MedicalPrescriptions":705,"./PhysicalExamination":709,"./VisitDetails":711,"react":601,"react-addons-update":290,"react-bootstrap":363}],713:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -77152,7 +79166,7 @@ var VisitPage = (function (_React$Component) {
             return _react2.default.createElement(
                 _patientContainer2.default,
                 null,
-                _react2.default.createElement(_VisitInfo2.default, null)
+                _react2.default.createElement(_VisitInfo2.default, { history: this.props.history })
             );
         }
     }]);
@@ -77162,7 +79176,108 @@ var VisitPage = (function (_React$Component) {
 
 exports.default = VisitPage;
 
-},{"./../layout/container/patientContainer":663,"./VisitInfo":708,"react":599}],710:[function(require,module,exports){
+},{"./../layout/container/patientContainer":666,"./VisitInfo":712,"react":601}],714:[function(require,module,exports){
+'use strict';
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-mixed-spaces-and-tabs:0*/
+/*eslint no-unused-vars: 0*/
+
+var ControlBase = (function (_React$Component) {
+    _inherits(ControlBase, _React$Component);
+
+    function ControlBase() {
+        _classCallCheck(this, ControlBase);
+
+        return _possibleConstructorReturn(this, Object.getPrototypeOf(ControlBase).call(this));
+    }
+
+    _createClass(ControlBase, [{
+        key: 'componentWillMount',
+        value: function componentWillMount() {
+            this.setState(this.props);
+        }
+    }, {
+        key: 'parentUpdate',
+        value: function parentUpdate(target, data) {
+            target = data;
+            this.setState(this.state);
+
+            if (this.props.parentUpdate) this.props.parentUpdate(target, this.state);
+        }
+    }, {
+        key: 'linkState',
+        value: function linkState(context, property) {
+            return {
+                value: context[property],
+                requestChange: (function (value) {
+
+                    if (this.getControlValue) // this is used to give the custom controls an option to override modified value.
+                        value = this.getControlValue(value);
+
+                    var newVal = null;
+
+                    if (value && value.target) // this is used for bootstrap controls.
+                        newVal = value.target.value;else newVal = value; // used for values returning primary datatype.
+
+                    context[property] = newVal;
+                    this.setState(this.state);
+
+                    if (this.props.parentUpdate) this.props.parentUpdate(context, this.state);
+
+                    if (this.props.valueLink) // this statement is used to update the parents of controls that wrap valueLink from parent control
+                        this.props.valueLink.requestChange(newVal);
+                }).bind(this)
+            };
+        }
+    }, {
+        key: 'controlLinkState',
+        value: function controlLinkState() {
+            var state = null;
+            if (this.props.valueLink) state = this.linkState(this.props.valueLink, 'value');else state = this.linkState({ value: this.props.value }, 'value');
+
+            return state;
+        }
+    }, {
+        key: 'render',
+        value: function render() {
+            var controls = [];
+            if (this.props.Required) controls.push(_react2.default.createElement(
+                'label',
+                { className: 'required' },
+                '*'
+            ));
+            controls.push(this.childRender());
+
+            return _react2.default.createElement(
+                'div',
+                null,
+                controls
+            );
+        }
+    }]);
+
+    return ControlBase;
+})(_react2.default.Component);
+
+exports.default = ControlBase;
+
+},{"react":601}],715:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -77214,18 +79329,22 @@ var DataGrid = (function (_React$Component) {
 
 exports.default = DataGrid;
 
-},{"./GridHeader":713,"react":599}],711:[function(require,module,exports){
+},{"./GridHeader":717,"react":601}],716:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
 Object.defineProperty(exports, "__esModule", {
-    value: true
+  value: true
 });
 
 var _react = require('react');
 
 var _react2 = _interopRequireDefault(_react);
+
+var _ControlBase = require('./ControlBase');
+
+var _ControlBase2 = _interopRequireDefault(_ControlBase);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -77236,258 +79355,142 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 var DonutChart = (function (_React$Component) {
-    _inherits(DonutChart, _React$Component);
+  _inherits(DonutChart, _React$Component);
 
-    function DonutChart(state) {
-        _classCallCheck(this, DonutChart);
+  function DonutChart(state) {
+    _classCallCheck(this, DonutChart);
 
-        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(DonutChart).call(this, state));
+    var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(DonutChart).call(this, state));
 
-        var parent = state;
-        _this.state = {
-            data: parent.donutValues,
-            key: parent.donutKeys
-        };
-        return _this;
+    var parent = state;
+    _this.state = {
+      data: parent.donutValues,
+      key: parent.donutKeys
+    };
+
+    var options = {
+      text: "Today",
+      segmentShowStroke: true,
+      segmentStrokeWidth: 3,
+      animateRotate: true,
+      animateScale: false,
+      percentageInnerCutout: 50,
+      tooltipTemplate: "<%= value %>%",
+      showTooltips: true,
+      scaleLabel: "<%=value%>"
+    };
+    return _this;
+  }
+
+  _createClass(DonutChart, [{
+    key: 'componentDidMount',
+    value: function componentDidMount() {
+      var options = {
+        text: "Today",
+        segmentShowStroke: true,
+        segmentStrokeWidth: 3,
+        animateRotate: true,
+        animateScale: false,
+        percentageInnerCutout: 50,
+        tooltipTemplate: "<%= value %>%",
+        showTooltips: true,
+        scaleLabel: "<%=value%>"
+      };
+      var ctx = document.getElementById(this.state.key.chart).getContext("2d");
+      var myChart = new Chart(ctx).Doughnut(this.state.data, options);
+      document.getElementById(this.state.key.legend).innerHTML = myChart.generateLegend();
     }
+  }, {
+    key: 'componentDidUpdate',
+    value: function componentDidUpdate(prevProps, prevState) {
+      var options = {
+        text: "Today",
+        segmentShowStroke: true,
+        segmentStrokeWidth: 3,
+        animateRotate: true,
+        animateScale: false,
+        percentageInnerCutout: 50,
+        tooltipTemplate: "<%= value %>%",
+        showTooltips: true,
+        scaleLabel: "<%=value%>"
+      };
+      if (JSON.stringify(this.state.data) != JSON.stringify(prevProps.donutValues)) {
+        var ctx = document.getElementById(prevState.key.chart).getContext("2d");
+        var myChart = new Chart(ctx).Doughnut(prevState.data, options);
+        document.getElementById(prevState.key.legend).innerHTML = myChart.generateLegend();
+      }
+    }
+  }, {
+    key: 'render',
+    value: function render() {
+      this.state.data = this.props.donutValues;
+      this.state.key = this.props.donutKeys;
 
-    _createClass(DonutChart, [{
-        key: 'componentDidMount',
-        value: function componentDidMount() {
-            var options = {
-                text: 'Today',
-                segmentShowStroke: true,
-                segmentStrokeWidth: 3,
-                animateRotate: true,
-                animateScale: false,
-                percentageInnerCutout: 50,
-                tooltipTemplate: '<%= value %>%',
-                showTooltips: true,
-                scaleLabel: '<%=value%>'
-            };
-            var ctx = document.getElementById('day_chart').getContext('2d');
-            var myChart = new Chart(ctx).Doughnut(this.state.data, options);
-            document.getElementById('day_legend').innerHTML = myChart.generateLegend();
-        }
-    }, {
-        key: 'componentDidUpdate',
-        value: function componentDidUpdate(prevProps, prevState) {
-            var options = {
-                text: 'Today',
-                segmentShowStroke: true,
-                segmentStrokeWidth: 3,
-                animateRotate: true,
-                animateScale: false,
-                percentageInnerCutout: 50,
-                tooltipTemplate: '<%= value %>%',
-                showTooltips: true,
-                scaleLabel: '<%=value%>'
-            };
-            var ctx = document.getElementById('day_chart').getContext('2d');
-            var myChart = new Chart(ctx).Doughnut(prevState.data, options);
-            document.getElementById('day_legend').innerHTML = myChart.generateLegend();
-        }
-    }, {
-        key: 'render',
-        value: function render() {
-            this.state.data = this.props.donutValues;
-            var donutLabel = {
-                zIndex: '9999',
-                marginLeft: '135px',
-                marginTop: '80px',
-                position: 'absolute',
-                fontSize: '35px',
-                color: '#505050',
-                fontFamily: 'GE-inspira'
-            };
-            var canvasStyle = {
-                width: '300px',
-                height: '154px',
-                marginTop: '31px',
-                marginBottom: '17px'
-            };
-            var legendStyle = {
-                marginLeft: '19px',
-                marginTop: '16px',
-                color: '#4a4a4a'
-            };
-            var highRiskLabel = {
-                zIndex: '9999',
-                marginLeft: '63px',
-                marginTop: '40px',
-                position: 'absolute',
-                fontSize: '18px',
-                color: '#434343',
-                fontFamily: 'GE-inspira'
-            };
+      var donutLabel = {
+        zIndex: '9999',
+        marginLeft: '135px',
+        marginTop: '80px',
+        position: 'absolute',
+        fontSize: '35px',
+        color: '#505050',
+        fontFamily: 'GEInspira'
+      };
 
-            return _react2.default.createElement(
-                'div',
-                { className: 'row' },
-                _react2.default.createElement(
-                    'div',
-                    { className: 'col-md-4' },
-                    _react2.default.createElement(
-                        'label',
-                        { style: highRiskLabel },
-                        this.state.data[1].value
-                    ),
-                    _react2.default.createElement(
-                        'label',
-                        { style: donutLabel },
-                        this.state.data[0].value
-                    ),
-                    _react2.default.createElement('canvas', { id: 'day_chart', style: canvasStyle })
-                ),
-                _react2.default.createElement('div', { id: 'day_legend', style: legendStyle, className: 'chart-legend col-md-6' })
-            );
-        }
-    }]);
+      var highRiskLabel = {
+        zIndex: '9999',
+        marginLeft: '63px',
+        marginTop: '40px',
+        position: 'absolute',
+        fontSize: '18px',
+        color: '#434343',
+        fontFamily: 'GEInspira'
+      };
 
-    return DonutChart;
+      var canvasStyle = {
+        width: '300px',
+        height: '154px',
+        marginTop: '31px',
+        marginBottom: '17px'
+      };
+
+      var legendStyle = {
+        marginLeft: '19px',
+        marginTop: '16px',
+        color: '#4a4a4a'
+      };
+
+      var mdHeight = {
+        height: '190px'
+      };
+      return _react2.default.createElement(
+        'div',
+        { className: 'row' },
+        _react2.default.createElement(
+          'div',
+          { className: 'col-md-4', style: mdHeight },
+          _react2.default.createElement(
+            'label',
+            { style: highRiskLabel },
+            this.state.data[1].value
+          ),
+          _react2.default.createElement(
+            'label',
+            { style: donutLabel },
+            this.state.data[0].value
+          ),
+          _react2.default.createElement('canvas', { id: this.state.key.chart, style: canvasStyle })
+        ),
+        _react2.default.createElement('div', { id: this.state.key.legend, style: legendStyle, className: 'chart-legend col-md-6' })
+      );
+    }
+  }]);
+
+  return DonutChart;
 })(_react2.default.Component);
 
 exports.default = DonutChart;
 
-},{"react":599}],712:[function(require,module,exports){
-'use strict';
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _react = require('react');
-
-var _react2 = _interopRequireDefault(_react);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-var DonutChart = (function (_React$Component) {
-    _inherits(DonutChart, _React$Component);
-
-    function DonutChart(state) {
-        _classCallCheck(this, DonutChart);
-
-        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(DonutChart).call(this, state));
-
-        var parent = state;
-        _this.state = {
-            data: parent.donutValues,
-            key: parent.donutKeys
-        };
-        return _this;
-    }
-
-    _createClass(DonutChart, [{
-        key: 'componentDidMount',
-        value: function componentDidMount() {
-            var options = {
-                text: 'Today',
-                segmentShowStroke: true,
-                segmentStrokeWidth: 3,
-                animateRotate: true,
-                animateScale: false,
-                percentageInnerCutout: 50,
-                tooltipTemplate: '<%= value %>%',
-                showTooltips: true,
-                scaleLabel: '<%=value%>'
-            };
-            var ctx = document.getElementById('week_chart').getContext('2d');
-            var myChart = new Chart(ctx).Doughnut(this.state.data, options);
-            document.getElementById('week_legend').innerHTML = myChart.generateLegend();
-        }
-    }, {
-        key: 'componentDidUpdate',
-        value: function componentDidUpdate(prevProps, prevState) {
-            var options = {
-                text: 'Today',
-                segmentShowStroke: true,
-                segmentStrokeWidth: 3,
-                animateRotate: true,
-                animateScale: false,
-                percentageInnerCutout: 50,
-                tooltipTemplate: '<%= value %>%',
-                showTooltips: true,
-                scaleLabel: '<%=value%>'
-            };
-            var ctx = document.getElementById('week_chart').getContext('2d');
-            var myChart = new Chart(ctx).Doughnut(prevState.data, options);
-            document.getElementById('week_legend').innerHTML = myChart.generateLegend();
-        }
-    }, {
-        key: 'render',
-        value: function render() {
-            this.state.data = this.props.donutValues;
-
-            var donutLabel = {
-                zIndex: '9999',
-                marginLeft: '135px',
-                marginTop: '80px',
-                position: 'absolute',
-                fontSize: '35px',
-                color: '#505050',
-                fontFamily: 'GE-inspira'
-            };
-
-            var canvasStyle = {
-                width: '300px',
-                height: '154px',
-                marginTop: '31px',
-                marginBottom: '17px'
-            };
-
-            var legendStyle = {
-                marginLeft: '19px',
-                marginTop: '16px',
-                color: '#4a4a4a'
-            };
-
-            var highRiskLabel = {
-                zIndex: '9999',
-                marginLeft: '63px',
-                marginTop: '40px',
-                position: 'absolute',
-                fontSize: '18px',
-                color: '#434343',
-                fontFamily: 'GE-inspira'
-            };
-            return _react2.default.createElement(
-                'div',
-                { className: 'row' },
-                _react2.default.createElement(
-                    'div',
-                    { className: 'col-md-4' },
-                    _react2.default.createElement(
-                        'label',
-                        { style: highRiskLabel },
-                        this.state.data[1].value
-                    ),
-                    _react2.default.createElement(
-                        'label',
-                        { style: donutLabel },
-                        this.state.data[0].value
-                    ),
-                    _react2.default.createElement('canvas', { id: 'week_chart', style: canvasStyle })
-                ),
-                _react2.default.createElement('div', { id: 'week_legend', style: legendStyle, className: 'chart-legend col-md-6' })
-            );
-        }
-    }]);
-
-    return DonutChart;
-})(_react2.default.Component);
-
-exports.default = DonutChart;
-
-},{"react":599}],713:[function(require,module,exports){
+},{"./ControlBase":714,"react":601}],717:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -77535,7 +79538,9 @@ var GridHeader = (function (_React$Component) {
                 header.push(_react2.default.createElement(
                     'th',
                     { style: style[key], value: key, key: count },
-                    titles[key]
+                    ' ',
+                    locale(key),
+                    ' '
                 ));
                 count++;
             }
@@ -77556,7 +79561,7 @@ var GridHeader = (function (_React$Component) {
 
 exports.default = GridHeader;
 
-},{"react":599}],714:[function(require,module,exports){
+},{"react":601}],718:[function(require,module,exports){
 'use strict';
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
@@ -77582,6 +79587,10 @@ var _NextVisitDate2 = _interopRequireDefault(_NextVisitDate);
 var _PregnancyRisk = require('./PregnancyRisk');
 
 var _PregnancyRisk2 = _interopRequireDefault(_PregnancyRisk);
+
+var _Spinner = require('./../../components/layout/spinner/Spinner');
+
+var _Spinner2 = _interopRequireDefault(_Spinner);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -77612,26 +79621,38 @@ var GridBody = (function (_React$Component) {
             var rowsPerPage = this.props.rowsPerPage;
             var totalPages = Math.round(totalRowCount / rowsPerPage);
             var i;
+            var searchType = this.props.searchType;
             if (totalRowCount % rowsPerPage > 0) {
                 totalPages = totalPages + 1;
             }
-            var SlicedList = [];
+            var slicedList = [];
             for (i = 1; i <= totalPages; i++) {
                 if (offsetIndex == i) {
                     var endNo = offsetIndex * rowsPerPage;
                     var startNo = endNo - rowsPerPage;
-                    SlicedList = PatientDetailsArray.slice(startNo, endNo);
+                    slicedList = PatientDetailsArray.slice(startNo, endNo);
                 }
             }
-            for (i = 0; i < SlicedList.length; i++) {
-                SlicedList[i].alt = alt;
-                rows.push(_react2.default.createElement(WorkListRow, _extends({ rowContent: SlicedList[i] }, this.props)));
+            for (i = 0; i < slicedList.length; i++) {
+                slicedList[i].alt = alt;
+                rows.push(_react2.default.createElement(WorkListRow, _extends({ rowContent: slicedList[i] }, this.props)));
                 alt = !alt;
+            }
+            if (PatientDetailsArray.length == 0 && searchType != AppConstants.AUTO_SEARCH) {
+                rows.push(_react2.default.createElement(
+                    'tr',
+                    null,
+                    _react2.default.createElement(
+                        'td',
+                        { colSpan: '12' },
+                        _react2.default.createElement(_Spinner2.default, null)
+                    )
+                ));
             }
             var bodyStyle = {
                 fontSize: '15px',
                 color: '#1c1c1c',
-                fontFamily: 'GE-inspira'
+                fontFamily: 'GEInspira'
             };
             return _react2.default.createElement(
                 'tbody',
@@ -77834,7 +79855,7 @@ var ObstetricsSubscriptConverstion = (function (_React$Component3) {
     return ObstetricsSubscriptConverstion;
 })(_react2.default.Component);
 
-},{"./NextVisitDate":716,"./PregnancyRisk":718,"./PregnancyStatus":719,"react":599}],715:[function(require,module,exports){
+},{"./../../components/layout/spinner/Spinner":672,"./NextVisitDate":720,"./PregnancyRisk":722,"./PregnancyStatus":723,"react":601}],719:[function(require,module,exports){
 'use strict';
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
@@ -77853,13 +79874,9 @@ var _DataGrid = require('./DataGrid');
 
 var _DataGrid2 = _interopRequireDefault(_DataGrid);
 
-var _DonutDayChart = require('./DonutDayChart');
+var _DonutChart = require('./DonutChart');
 
-var _DonutDayChart2 = _interopRequireDefault(_DonutDayChart);
-
-var _DonutWeekChart = require('./DonutWeekChart');
-
-var _DonutWeekChart2 = _interopRequireDefault(_DonutWeekChart);
+var _DonutChart2 = _interopRequireDefault(_DonutChart);
 
 var _WorkListTabs = require('./WorkListTabs');
 
@@ -77909,50 +79926,77 @@ var WorklistView = (function (_React$Component) {
             donutDayValues: _AppConstants.donutDayValues,
             donutDayKeys: _AppConstants.donutDayKeys,
             donutWeekValues: _AppConstants.donutWeekValues,
-            donutWeekKeys: _AppConstants.donutWeekKeys
+            donutWeekKeys: _AppConstants.donutWeekKeys,
+            showTab: false,
+            tabActive: 1,
+            searchBy: '',
+            searchType: '',
+            searchData: '',
+            showSearchResult: false
+
         };
 
-        _WorkListStore2.default.addChangeListener(AppConstants.GET_TOTAL_WORKLIST, _this.notifyTotalWorklistFetch.bind(_this));
-        _WorkListStore2.default.addChangeListener(AppConstants.GET_TODAYS_WORKLIST, _this.notifyTodaysWorklistFetch.bind(_this));
-        _WorkListStore2.default.addChangeListener(AppConstants.GET_WEEKLY_WORKLIST, _this.notifyWeeklyWorklistFetch.bind(_this));
+        _WorkListStore2.default.addChangeListener(ActionType.GET_TOTAL_WORKLIST, _this.notifyTotalWorklistFetch.bind(_this));
+        _WorkListStore2.default.addChangeListener(ActionType.GET_TODAYS_WORKLIST, _this.notifyTotalWorklistFetch.bind(_this));
+        _WorkListStore2.default.addChangeListener(ActionType.GET_WEEKLY_WORKLIST, _this.notifyTotalWorklistFetch.bind(_this));
+        _WorkListStore2.default.addChangeListener(ActionType.PATIENT_SEARCH_ACTION, _this.notifyTotalWorklistFetch.bind(_this));
         return _this;
     }
 
     _createClass(WorklistView, [{
-        key: 'notifyTotalWorklistFetch',
-        value: function notifyTotalWorklistFetch(data) {
-            this.state.workListData = data.args.worklist;
-            this.state.offsetIndex = 1;
+        key: 'handleSearchAction',
+        value: function handleSearchAction(searchValue) {
 
-            if (typeof data.args[_AppConstants.DONUT_DAY_VALUES] != 'undefined') {
-                this.state.donutDayValues = data.args[_AppConstants.DONUT_DAY_VALUES];
+            if (searchValue.trim() == '') {
+                this.setState({ showTab: false });
+            } else {
+                this.state.searchBy = '';
+                this.state.searchBy = searchValue;
+                var filterJson = {
+                    searchType: AppConstants.MANUAL_SEARCH,
+                    searchBy: searchValue
+                };
+                this.state.searchType = AppConstants.MANUAL_SEARCH;
+                this.setState({ showTab: true });
+                this.setState({ tabActive: 4 });
+                AppAction.executeAction(ActionType.PATIENT_SEARCH_ACTION, filterJson);
             }
-            if (typeof data.args[_AppConstants.DONUT_WEEK_VALUES] != 'undefined') {
-                this.state.donutWeekValues = data.args[_AppConstants.DONUT_WEEK_VALUES];
-            }
-            this.forceUpdate();
         }
     }, {
-        key: 'notifyTodaysWorklistFetch',
-        value: function notifyTodaysWorklistFetch(data) {
+        key: 'notifyTotalWorklistFetch',
+        value: function notifyTotalWorklistFetch(data) {
+
+            if (data.args.worklist == AppConstants.NO_DATA_FOUND) {
+                this.setState({ showSearchResult: true });
+            } else {
+                this.setState({ showSearchResult: false });
+            }
+            if (typeof data.args.searchType !== 'undefined') {
+                this.state.searchType = data.args.searchType;
+            }
             this.state.workListData = data.args.worklist;
             this.state.offsetIndex = 1;
             if (typeof data.args[_AppConstants.DONUT_DAY_VALUES] !== 'undefined') {
                 this.state.donutDayValues = data.args[_AppConstants.DONUT_DAY_VALUES];
             }
-            this.state.donutDayKeys = data.args[_AppConstants.DONUT_DAY_LEGENDS];
-            this.forceUpdate();
-        }
-    }, {
-        key: 'notifyWeeklyWorklistFetch',
-        value: function notifyWeeklyWorklistFetch(data) {
-            this.state.workListData = data.args.worklist;
-            this.state.offsetIndex = 1;
             if (typeof data.args[_AppConstants.DONUT_WEEK_VALUES] !== 'undefined') {
                 this.state.donutWeekValues = data.args[_AppConstants.DONUT_WEEK_VALUES];
             }
-            this.state.donutWeekKeys = data.args[_AppConstants.DONUT_WEEK_LEGENDS];
+            if (typeof data.args[_AppConstants.DONUT_DAY_VALUES] !== 'undefined') {
+                this.state.donutDayKeys = data.args[_AppConstants.DONUT_DAY_LEGENDS];
+            }
+            if (typeof data.args[_AppConstants.DONUT_WEEK_VALUES] !== 'undefined') {
+                this.state.donutWeekKeys = data.args[_AppConstants.DONUT_WEEK_LEGENDS];
+            }
             this.forceUpdate();
+        }
+    }, {
+        key: 'closeTab',
+        value: function closeTab() {
+            this.setState({ showTab: false });
+            AppAction.executeAction(ActionType.GET_TOTAL_WORKLIST, null);
+            AppAction.executeAction(ActionType.GET_TODAYS_WORKLIST, null);
+            this.setState({ tabActive: 1 });
         }
     }, {
         key: 'paginationEvent',
@@ -78006,12 +80050,13 @@ var WorklistView = (function (_React$Component) {
     }, {
         key: 'render',
         value: function render() {
+            var boxPadding = { padding: '15px 3px' };
             var divPadding = { padding: '0px 3px' };
             var nameStyle = { width: '11%' };
             var spNameStyle = { width: '11%' };
             var ageStyle = { width: '4%' };
             var phoneStyle = { width: '9%' };
-            var pregStatusStyle = { width: '12%' };
+            var pregStatusStyle = { width: '13%' };
             var obstStyle = { width: '7%' };
             var riskStyle = { width: '6%' };
             var nextVisitDateStyle = { width: '5%' };
@@ -78063,63 +80108,74 @@ var WorklistView = (function (_React$Component) {
                 minHeight: '976px',
                 paddingLeft: '0px',
                 paddingRight: '0px',
-                backgroundColor: '#f5f6f7',
-                fontFamily: 'GE-inspira'
+                backgroundColor: '#f5f6f7'
             };
-
-            var headerDivStyle = {
-                height: '59px',
-                padding: '11px 10px'
-            };
-
             var clearPadding = { marginRight: '6px' };
 
-            var blue = { color: '#139ED7' };
+            var importFromPicmeIcon = {
+                background: 'url(./worklist/import_icon.png) no-repeat scroll 0px 0px',
+                paddingLeft: '22px'
+            };
 
-            var h3Top = { marginTop: '7px' };
+            var addPatientIcon = {
+                background: 'url(./worklist/addPatient_icon.png) no-repeat scroll 0px 0px',
+                paddingLeft: '22px'
+            };
+            var h3Top = { margin: '3px 0 6px' };
 
             var contentHeader = {
                 backgroundColor: '#dcdcdc',
                 marginLeft: '-15px',
-                marginRight: '-15px'
+                marginRight: '-15px',
+                position: 'fixed',
+                width: '100%',
+                zIndex: '99999'
             };
-
+            var behindContentHeader = {
+                height: '75px;',
+                width: '100%'
+            };
+            var searchWarning = {
+                marginTop: '63px'
+            };
             var hiddenStyle = { visibility: 'hidden' };
 
             var h3Chart = { paddingLeft: '4px' };
             var colorWhite = { backgroundColor: 'white' };
             var inputArr = this.state.workListData;
             var formatedData = [];
-            inputArr.forEach(function (data) {
-                var date = data.dOB;
-                if (date !== '') {
-                    var newDate = date.split('/');
-                    var birthDate = newDate[1] + '-' + newDate[0] + '-' + newDate[2];
-                }
-                var today = new Date();
-                var dob = new Date(birthDate);
-                var age = today.getFullYear() - dob.getFullYear();
-                var month = today.getMonth() - dob.getMonth();
-                // if the birthday hasn't happened yet this year...
-                if (month < 0 || month === 0 && today.getDate() < dob.getDate()) {
-                    age--;
-                }
-                var formatedJson = {
-                    id: data.id,
-                    name: data.name,
-                    spouseName: data.spouseName,
-                    age: age,
-                    emergencyContactPhn: data.emergencyContactPhn,
-                    lmp: data.lmp,
-                    obstetrics: data.obstetrics,
-                    nextDueDate: data.nextDueDate,
-                    highRiskMother: data.highRiskMother,
-                    subCentreID: data.subCentreID,
-                    subCentreName: data.subCentreName,
-                    vhnName: data.vhnName
-                };
-                formatedData.push(formatedJson);
-            });
+            if (inputArr.length > 0) {
+                inputArr.forEach(function (data) {
+                    var date = data.dOB;
+                    if (date !== '') {
+                        var newDate = date.split('/');
+                        var birthDate = newDate[1] + '-' + newDate[0] + '-' + newDate[2];
+                    }
+                    var today = new Date();
+                    var dob = new Date(birthDate);
+                    var age = today.getFullYear() - dob.getFullYear();
+                    var month = today.getMonth() - dob.getMonth();
+                    // if the birthday hasn't happened yet this year...
+                    if (month < 0 || month === 0 && today.getDate() < dob.getDate()) {
+                        age--;
+                    }
+                    var formatedJson = {
+                        id: data.id,
+                        name: data.name,
+                        spouseName: data.spouseName,
+                        age: age,
+                        emergencyContactPhn: data.emergencyContactPhn,
+                        lmp: data.lmp,
+                        obstetrics: data.obstetrics,
+                        nextDueDate: data.nextDueDate,
+                        highRiskMother: data.highRiskMother,
+                        subCentreID: data.subCentreID,
+                        subCentreName: data.subCentreName,
+                        vhnName: data.vhnName
+                    };
+                    formatedData.push(formatedJson);
+                });
+            }
             var offsetIndex = this.state.offsetIndex;
             return _react2.default.createElement(
                 'div',
@@ -78129,7 +80185,7 @@ var WorklistView = (function (_React$Component) {
                     { className: 'headerSection content-header breadcrumb', style: contentHeader },
                     _react2.default.createElement(
                         'div',
-                        { className: 'box-header', style: headerDivStyle },
+                        { className: 'box-header' },
                         _react2.default.createElement(
                             'div',
                             { className: 'pull-left' },
@@ -78137,7 +80193,7 @@ var WorklistView = (function (_React$Component) {
                             _react2.default.createElement(
                                 'h3',
                                 { className: 'box-title', style: h3Top },
-                                'Physician Worklist'
+                                locale('physicianWorklist')
                             )
                         ),
                         _react2.default.createElement(
@@ -78148,17 +80204,26 @@ var WorklistView = (function (_React$Component) {
                                 { type: 'button', className: 'btn btn-default btn-md', style: clearPadding, onClick: (function () {
                                         Utils.navigate(this.props.history, Route.REGISTRATION + '/-1');
                                     }).bind(this) },
-                                _react2.default.createElement('span', { className: 'glyphicon glyphicon-user', style: blue, 'aria-hidden': 'true' }),
-                                ' Add a Patient'
+                                _react2.default.createElement('span', { style: addPatientIcon, 'aria-hidden': 'true' }),
+                                locale('addPatient')
                             ),
                             _react2.default.createElement(
                                 'button',
                                 { type: 'button', className: 'btn btn-default btn-md', onClick: this.clickUploadButton.bind(this) },
-                                _react2.default.createElement('span', { className: 'glyphicon glyphicon-save', style: blue, 'aria-hidden': 'true' }),
+                                _react2.default.createElement('span', { style: importFromPicmeIcon, 'aria-hidden': 'true' }),
                                 ' ',
-                                locale('Import_from_PICME')
+                                locale('importFromPicme')
                             )
                         )
+                    )
+                ),
+                _react2.default.createElement(
+                    'section',
+                    { style: behindContentHeader },
+                    _react2.default.createElement(
+                        'div',
+                        null,
+                        'hg'
                     )
                 ),
                 _react2.default.createElement(
@@ -78179,22 +80244,22 @@ var WorklistView = (function (_React$Component) {
                                     _react2.default.createElement(
                                         'h3',
                                         { className: 'box-title', style: h3Chart },
-                                        'Today'
+                                        locale('today')
                                     )
                                 ),
                                 _react2.default.createElement(
                                     'div',
-                                    { className: 'col-md-12', style: colorWhite },
+                                    { className: 'col-md-12 chart-scroll', style: colorWhite },
                                     _react2.default.createElement(
                                         'div',
                                         { className: 'box box-primary' },
                                         _react2.default.createElement(
                                             'div',
-                                            { className: 'box-body' },
+                                            { className: 'box-body overflow-hidden' },
                                             _react2.default.createElement(
                                                 'div',
                                                 { className: 'chart' },
-                                                _react2.default.createElement(_DonutDayChart2.default, { donutValues: this.state.donutDayValues, donutKeys: this.state.donutDayKeys })
+                                                _react2.default.createElement(_DonutChart2.default, { donutValues: this.state.donutDayValues, donutKeys: this.state.donutDayKeys })
                                             )
                                         )
                                     )
@@ -78209,22 +80274,22 @@ var WorklistView = (function (_React$Component) {
                                     _react2.default.createElement(
                                         'h3',
                                         { className: 'box-title', style: h3Chart },
-                                        'This week'
+                                        locale('thisWeek')
                                     )
                                 ),
                                 _react2.default.createElement(
                                     'div',
-                                    { className: 'col-md-12', style: colorWhite },
+                                    { className: 'col-md-12 chart-scroll', style: colorWhite },
                                     _react2.default.createElement(
                                         'div',
                                         { className: 'box box-primary' },
                                         _react2.default.createElement(
                                             'div',
-                                            { className: 'box-body' },
+                                            { className: 'box-body overflow-hidden' },
                                             _react2.default.createElement(
                                                 'div',
                                                 { className: 'chart' },
-                                                _react2.default.createElement(_DonutWeekChart2.default, { donutValues: this.state.donutWeekValues, donutKeys: this.state.donutWeekKeys })
+                                                _react2.default.createElement(_DonutChart2.default, { donutValues: this.state.donutWeekValues, donutKeys: this.state.donutWeekKeys })
                                             )
                                         )
                                     )
@@ -78232,16 +80297,16 @@ var WorklistView = (function (_React$Component) {
                             )
                         )
                     ),
-                    _react2.default.createElement(_SearchFilter2.default, null),
+                    _react2.default.createElement(_SearchFilter2.default, { tableContents: formatedData, onClick: this.handleSearchAction.bind(this) }),
                     _react2.default.createElement(
                         'div',
-                        { className: 'box tabBox', style: divPadding },
+                        { className: 'box tabBox', style: boxPadding },
                         _react2.default.createElement(
                             _WorkListTabs2.default,
-                            { tabActive: 1 },
+                            { tabActive: this.state.tabActive, showStatus: this.state.showTab, onClick: this.closeTab.bind(this) },
                             _react2.default.createElement(
                                 _WorkListTabs2.default.Panel,
-                                { title: 'Today' },
+                                { title: locale('today') },
                                 _react2.default.createElement(
                                     'div',
                                     { className: 'box-body', style: gridPadding },
@@ -78254,7 +80319,7 @@ var WorklistView = (function (_React$Component) {
                                             _react2.default.createElement(
                                                 _DataGrid2.default,
                                                 { headerJson: headerJson },
-                                                _react2.default.createElement(_MoGridBody2.default, _extends({ tableContents: formatedData, offsetIndex: offsetIndex, rowsPerPage: '10' }, this.props))
+                                                _react2.default.createElement(_MoGridBody2.default, _extends({ tableContents: formatedData, offsetIndex: offsetIndex, rowsPerPage: '10', searchType: this.state.searchType }, this.props))
                                             )
                                         ),
                                         _react2.default.createElement(
@@ -78267,7 +80332,7 @@ var WorklistView = (function (_React$Component) {
                             ),
                             _react2.default.createElement(
                                 _WorkListTabs2.default.Panel,
-                                { title: 'This Week' },
+                                { title: locale('thisWeek') },
                                 _react2.default.createElement(
                                     'div',
                                     { className: 'box-body', style: gridPadding },
@@ -78280,7 +80345,7 @@ var WorklistView = (function (_React$Component) {
                                             _react2.default.createElement(
                                                 _DataGrid2.default,
                                                 { headerJson: headerJson },
-                                                _react2.default.createElement(_MoGridBody2.default, _extends({ tableContents: formatedData, offsetIndex: offsetIndex, rowsPerPage: '10' }, this.props))
+                                                _react2.default.createElement(_MoGridBody2.default, _extends({ tableContents: formatedData, offsetIndex: offsetIndex, rowsPerPage: '10', searchType: this.state.searchType }, this.props))
                                             )
                                         ),
                                         _react2.default.createElement(
@@ -78293,9 +80358,48 @@ var WorklistView = (function (_React$Component) {
                             ),
                             _react2.default.createElement(
                                 _WorkListTabs2.default.Panel,
-                                { title: 'Notifications' },
+                                { title: locale('notifications') },
                                 _react2.default.createElement('div', { className: 'row' })
-                            )
+                            ),
+                            this.state.showTab ? _react2.default.createElement(
+                                _WorkListTabs2.default.Panel,
+                                { title: locale('searchResult'), onClick: this.props.onClick },
+                                _react2.default.createElement(
+                                    'div',
+                                    { className: 'box-body', style: gridPadding },
+                                    _react2.default.createElement(
+                                        'div',
+                                        { className: 'dataTables_wrapper form-inline dt-bootstrap' },
+                                        _react2.default.createElement(
+                                            'div',
+                                            { className: 'row', style: clearMargin },
+                                            this.state.showSearchResult ? _react2.default.createElement(
+                                                'div',
+                                                { className: 'row' },
+                                                _react2.default.createElement('div', { className: 'col-md-5' }),
+                                                _react2.default.createElement(
+                                                    'div',
+                                                    { className: 'col-md-4' },
+                                                    _react2.default.createElement(
+                                                        'label',
+                                                        { style: searchWarning },
+                                                        'No matching patient found'
+                                                    )
+                                                )
+                                            ) : _react2.default.createElement(
+                                                _DataGrid2.default,
+                                                { headerJson: headerJson },
+                                                _react2.default.createElement(_MoGridBody2.default, _extends({ tableContents: formatedData, offsetIndex: offsetIndex, rowsPerPage: '10', searchType: this.state.searchType }, this.props))
+                                            )
+                                        ),
+                                        _react2.default.createElement(
+                                            'div',
+                                            { className: 'row', style: clearMargin },
+                                            _react2.default.createElement(_Pagination2.default, { onClick: this.paginationEvent.bind(this), offsetIndex: offsetIndex, totalRowCount: formatedData.length, rowsPerPage: '10' })
+                                        )
+                                    )
+                                )
+                            ) : null
                         )
                     )
                 ),
@@ -78309,7 +80413,7 @@ var WorklistView = (function (_React$Component) {
 
 exports.default = WorklistView;
 
-},{"../../stores/WorkListStore":755,"../../utils/AppConstants":763,"./DataGrid":710,"./DonutDayChart":711,"./DonutWeekChart":712,"./MoGridBody":714,"./Pagination":717,"./SearchFilter":720,"./WorkListTabs":722,"csvtojson":44,"react":599,"react-bootstrap":362}],716:[function(require,module,exports){
+},{"../../stores/WorkListStore":761,"../../utils/AppConstants":770,"./DataGrid":715,"./DonutChart":716,"./MoGridBody":718,"./Pagination":721,"./SearchFilter":724,"./WorkListTabs":726,"csvtojson":44,"react":601,"react-bootstrap":363}],720:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -78343,18 +80447,21 @@ var NextVisitDate = (function (_React$Component) {
         key: 'render',
         value: function render() {
 
-            var btnStyle = { padding: '0px 4px 0px 7px' };
+            var viewMoreIconStyle = {
+                padding: '0px 5px 0px 9px',
+                height: '23px',
+                background: 'url(./worklist/view_icon.png) no-repeat scroll 0px 0px',
+                paddingLeft: '22px',
+                cursor: 'pointer',
+                display: 'block'
+            };
 
             return _react2.default.createElement(
                 'div',
                 null,
-                _react2.default.createElement(
-                    'a',
-                    { style: btnStyle, onClick: (function () {
-                            Utils.navigate(this.props.history, Route.SINGLE_PATIENT_VIEW + '/' + this.props.patientId);
-                        }).bind(this) },
-                    _react2.default.createElement('i', { className: 'glyphicon glyphicon-collapse-up' })
-                )
+                _react2.default.createElement('a', { style: viewMoreIconStyle, onClick: (function () {
+                        Utils.navigate(this.props.history, Route.SINGLE_PATIENT_VIEW + '/' + this.props.patientId);
+                    }).bind(this) })
             );
         }
     }]);
@@ -78364,7 +80471,7 @@ var NextVisitDate = (function (_React$Component) {
 
 exports.default = NextVisitDate;
 
-},{"react":599}],717:[function(require,module,exports){
+},{"react":601}],721:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -78384,6 +80491,8 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var paginateButton = { display: 'inline-block !important', padding: '5px' };
 
 var PaginationDynamicLi = (function (_React$Component) {
     _inherits(PaginationDynamicLi, _React$Component);
@@ -78405,7 +80514,7 @@ var PaginationDynamicLi = (function (_React$Component) {
             var offsetIndex = this.props.offsetIndex;
             return _react2.default.createElement(
                 'li',
-                { className: offsetIndex == pageNo ? 'active' : 'null' },
+                { style: paginateButton, className: offsetIndex == pageNo ? 'active' : 'null' },
                 _react2.default.createElement(
                     'a',
                     { style: pointer, onClick: this.props.onClick.bind(this, pageNo) },
@@ -78449,28 +80558,28 @@ var Pagination = (function (_React$Component2) {
             if (offsetIndex === 1) {
                 pageNoList.push(_react2.default.createElement(
                     'li',
-                    { className: 'disabled' },
+                    { style: paginateButton, className: 'disabled' },
                     _react2.default.createElement(
                         'a',
                         { 'aria-label': 'Previous' },
                         _react2.default.createElement(
                             'span',
                             { 'aria-hidden': 'true' },
-                            '« Previous'
+                            locale('previous')
                         )
                     )
                 ));
             } else {
                 pageNoList.push(_react2.default.createElement(
                     'li',
-                    null,
+                    { style: paginateButton },
                     _react2.default.createElement(
                         'a',
                         { style: pointer, onClick: this.props.onClick.bind(this, 'previous'), 'aria-label': 'Previous' },
                         _react2.default.createElement(
                             'span',
                             { 'aria-hidden': 'true' },
-                            '« Previous'
+                            locale('previous')
                         )
                     )
                 ));
@@ -78494,7 +80603,7 @@ var Pagination = (function (_React$Component2) {
                 if (maxPage !== totalPages) {
                     pageNoList.push(_react2.default.createElement(
                         'li',
-                        null,
+                        { style: paginateButton },
                         _react2.default.createElement(
                             'a',
                             { onClick: this.props.onClick.bind(this, 'next') },
@@ -78510,28 +80619,28 @@ var Pagination = (function (_React$Component2) {
             if (offsetIndex === totalPages) {
                 pageNoList.push(_react2.default.createElement(
                     'li',
-                    { className: 'disabled' },
+                    { style: paginateButton, className: 'disabled' },
                     _react2.default.createElement(
                         'a',
                         { 'aria-label': 'Next' },
                         _react2.default.createElement(
                             'span',
                             { 'aria-hidden': 'true' },
-                            'Next »'
+                            locale('next')
                         )
                     )
                 ));
             } else {
                 pageNoList.push(_react2.default.createElement(
                     'li',
-                    null,
+                    { style: paginateButton },
                     _react2.default.createElement(
                         'a',
                         { style: pointer, onClick: this.props.onClick.bind(this, 'next'), 'aria-label': 'Next' },
                         _react2.default.createElement(
                             'span',
                             { 'aria-hidden': 'true' },
-                            'Next »'
+                            locale('next')
                         )
                     )
                 ));
@@ -78545,7 +80654,7 @@ var Pagination = (function (_React$Component2) {
                 { className: 'row', style: clearMargin },
                 _react2.default.createElement(
                     'ul',
-                    { className: 'pagination pagination-lg pull-right' },
+                    { className: 'pagination pagination-md pull-right' },
                     pageNoList
                 )
             );
@@ -78557,7 +80666,7 @@ var Pagination = (function (_React$Component2) {
 
 module.exports = Pagination;
 
-},{"./util/WorkListConstants":723,"react":599}],718:[function(require,module,exports){
+},{"./util/WorkListConstants":727,"react":601}],722:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -78620,18 +80729,20 @@ var PregnancyRisk = (function (_React$Component) {
 
 module.exports = PregnancyRisk;
 
-},{"react":599}],719:[function(require,module,exports){
+},{"react":601}],723:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
 Object.defineProperty(exports, "__esModule", {
-    value: true
+  value: true
 });
 
 var _react = require('react');
 
 var _react2 = _interopRequireDefault(_react);
+
+var _reactBootstrap = require('react-bootstrap');
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -78642,147 +80753,98 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 var PregnancyStatus = (function (_React$Component) {
-    _inherits(PregnancyStatus, _React$Component);
+  _inherits(PregnancyStatus, _React$Component);
 
-    function PregnancyStatus() {
-        _classCallCheck(this, PregnancyStatus);
+  function PregnancyStatus() {
+    _classCallCheck(this, PregnancyStatus);
 
-        return _possibleConstructorReturn(this, Object.getPrototypeOf(PregnancyStatus).call(this));
+    return _possibleConstructorReturn(this, Object.getPrototypeOf(PregnancyStatus).call(this));
+  }
+
+  _createClass(PregnancyStatus, [{
+    key: 'getWeekNumber',
+    value: function getWeekNumber(date) {
+      var dArray = date.split('/');
+      var formatedDate1 = new Date(dArray[1] + '/' + dArray[0] + '/' + dArray[2]); // Converting MM/DD/YYYY Format
+      var formatedDate2 = new Date(); // fetching current date
+      var ONE_WEEK = 1000 * 60 * 60 * 24 * 7;
+      // Convert both dates to milliseconds
+      var date1_ms = formatedDate1.getTime();
+      var date2_ms = formatedDate2.getTime();
+      // Calculate the difference in milliseconds
+      var difference_ms = Math.abs(date1_ms - date2_ms);
+      // Convert back to weeks and return hole weeks
+      return Math.floor(difference_ms / ONE_WEEK);
     }
+  }, {
+    key: 'calculatePercentage',
+    value: function calculatePercentage(week) {
+      var n;
+      if (week < 41) {
+        n = week;
+      } else {
+        n = 40;
+      }
+      var v = 40;
+      var percent = n * 100 / v;
+      return percent;
+    }
+  }, {
+    key: 'render',
+    value: function render() {
+      var labelSuccessStyle = {
+        marginLeft: '-9px'
+      };
+      var pregnancyStatus = this.props.pregnancyStatus;
+      var week = 0;
+      if (pregnancyStatus !== "") {
+        var week = this.getWeekNumber(pregnancyStatus);
+      }
+      var widthPercent = this.calculatePercentage(week);
+      return _react2.default.createElement(
+        'div',
+        null,
+        _react2.default.createElement(
+          'div',
+          { className: 'row' },
+          _react2.default.createElement(
+            'div',
+            { className: 'col-lg-12' },
+            _react2.default.createElement(
+              'div',
+              { className: 'progress' },
+              _react2.default.createElement(_reactBootstrap.ProgressBar, { striped: true, bsStyle: 'success', min: 0, max: 40, now: week, ref: 'progressBar' })
+            )
+          )
+        ),
+        _react2.default.createElement(
+          'div',
+          { className: 'row' },
+          _react2.default.createElement(
+            'div',
+            { className: 'col-lg-12' },
+            _react2.default.createElement(
+              'div',
+              { className: 'progress_val', style: { marginLeft: widthPercent + '%' } },
+              _react2.default.createElement('div', { className: 'arrow-up' }),
+              _react2.default.createElement(
+                'span',
+                { className: 'label label-success', style: labelSuccessStyle },
+                week
+              )
+            )
+          )
+        )
+      );
+    }
+  }]);
 
-    _createClass(PregnancyStatus, [{
-        key: 'getWeekNumber',
-        value: function getWeekNumber(date) {
-            var dArray = date.split('/');
-
-            var formatedDate1 = new Date(dArray[1] + '/' + dArray[0] + '/' + dArray[2]); // Converting MM/DD/YYYY Formate
-            var formatedDate2 = new Date(); // fetching current date
-            var ONE_WEEK = 1000 * 60 * 60 * 24 * 7;
-
-            // Convert both dates to milliseconds
-            var date1_ms = formatedDate1.getTime();
-            var date2_ms = formatedDate2.getTime();
-            // Calculate the difference in milliseconds
-            var difference_ms = Math.abs(date1_ms - date2_ms);
-            // Convert back to weeks and return hole weeks
-            return Math.floor(difference_ms / ONE_WEEK);
-        }
-    }, {
-        key: 'render',
-        value: function render() {
-
-            var mark = {
-                backgroundColor: '#52931b',
-                color: 'white'
-            };
-
-            var week = this.getWeekNumber(this.props.pregnancyStatus);
-            if (week > 0 && week <= 12) {
-                return _react2.default.createElement(
-                    'div',
-                    { className: 'btn-toolbar btnToolBar', role: 'toolbar', 'aria-label': 'Toolbar with button groups' },
-                    _react2.default.createElement(
-                        'div',
-                        { className: 'btn-group btnGroup', role: 'group', 'aria-label': 'First group' },
-                        _react2.default.createElement(
-                            'button',
-                            { type: 'button', className: 'btn', style: mark, disabled: true },
-                            'W1-12'
-                        ),
-                        _react2.default.createElement(
-                            'button',
-                            { type: 'button', className: 'btn btn-default', disabled: true },
-                            'W13-26'
-                        ),
-                        _react2.default.createElement(
-                            'button',
-                            { type: 'button', className: 'btn btn-default', disabled: true },
-                            'W27-40'
-                        )
-                    )
-                );
-            } else if (week > 12 && week <= 26) {
-                return _react2.default.createElement(
-                    'div',
-                    { className: 'btn-toolbar btnToolBar', role: 'toolbar', 'aria-label': 'Toolbar with button groups' },
-                    _react2.default.createElement(
-                        'div',
-                        { className: 'btn-group btnGroup', role: 'group', 'aria-label': 'First group' },
-                        _react2.default.createElement(
-                            'button',
-                            { type: 'button', className: 'btn', style: mark, disabled: true },
-                            'W1-12'
-                        ),
-                        _react2.default.createElement(
-                            'button',
-                            { type: 'button', className: 'btn', style: mark, disabled: true },
-                            'W13-26'
-                        ),
-                        _react2.default.createElement(
-                            'button',
-                            { type: 'button', className: 'btn btn-default', disabled: true },
-                            'W27-40'
-                        )
-                    )
-                );
-            } else if (week > 26 && week <= 40) {
-                return _react2.default.createElement(
-                    'div',
-                    { className: 'btn-toolbar btnToolBar', role: 'toolbar', 'aria-label': 'Toolbar with button groups' },
-                    _react2.default.createElement(
-                        'div',
-                        { className: 'btn-group btnGroup', role: 'group', 'aria-label': 'First group' },
-                        _react2.default.createElement(
-                            'button',
-                            { type: 'button', className: 'btn', style: mark, disabled: true },
-                            'W1-12'
-                        ),
-                        _react2.default.createElement(
-                            'button',
-                            { type: 'button', className: 'btn', style: mark, disabled: true },
-                            'W13-26'
-                        ),
-                        _react2.default.createElement(
-                            'button',
-                            { type: 'button', className: 'btn', style: mark, disabled: true },
-                            'W27-40'
-                        )
-                    )
-                );
-            } else {
-                return _react2.default.createElement(
-                    'div',
-                    { className: 'btn-toolbar btnToolBar', role: 'toolbar', 'aria-label': 'Toolbar with button groups' },
-                    _react2.default.createElement(
-                        'div',
-                        { className: 'btn-group btnGroup', role: 'group', 'aria-label': 'First group' },
-                        _react2.default.createElement(
-                            'button',
-                            { type: 'button', className: 'btn btn-default', disabled: true },
-                            'W1-12'
-                        ),
-                        _react2.default.createElement(
-                            'button',
-                            { type: 'button', className: 'btn btn-default', disabled: true },
-                            'W13-26'
-                        ),
-                        _react2.default.createElement(
-                            'button',
-                            { type: 'button', className: 'btn btn-default', disabled: true },
-                            'W27-40'
-                        )
-                    )
-                );
-            }
-        }
-    }]);
-
-    return PregnancyStatus;
+  return PregnancyStatus;
 })(_react2.default.Component);
 
 exports.default = PregnancyStatus;
 
-},{"react":599}],720:[function(require,module,exports){
+},{"react":601,"react-bootstrap":363}],724:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -78809,12 +80871,39 @@ var SearchFilter = (function (_React$Component) {
     function SearchFilter() {
         _classCallCheck(this, SearchFilter);
 
-        return _possibleConstructorReturn(this, Object.getPrototypeOf(SearchFilter).call(this));
+        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(SearchFilter).call(this));
+
+        _this.state = {
+            searchBy: '',
+            searchType: '',
+            searchData: '',
+            searchPatientPlaceHolder: locale('searchPatients')
+        };
+        return _this;
     }
 
     _createClass(SearchFilter, [{
+        key: 'handleChange',
+        value: function handleChange(event) {
+            this.state.searchBy = '';
+            this.state.searchBy = event.target.value;
+            this.setState({ searchPatientPlaceHolder: locale('searchPatients') });
+            var filterJson = {
+                searchType: AppConstants.AUTO_SEARCH,
+                searchBy: event.target.value
+            };
+            AppAction.executeAction(ActionType.PATIENT_SEARCH_ACTION, filterJson);
+        }
+    }, {
+        key: 'validateSearch',
+        value: function validateSearch() {
+            this.setState({ searchPatientPlaceHolder: "Please enter search data" });
+        }
+    }, {
         key: 'render',
         value: function render() {
+            this.state.searchData = this.props.tableContents;
+            var searchPatientPlaceHolder = this.state.searchPatientPlaceHolder;
             var innerAddon = {
                 position: 'relative',
                 marginTop: '20px',
@@ -78822,18 +80911,23 @@ var SearchFilter = (function (_React$Component) {
                 width: '19%',
                 fontSize: '14px',
                 color: '#7a7b7b',
-                fontFamily: 'GE-Inspira'
+                fontFamily: 'GEInspira'
             };
+            var searchBoxStyle = {};
+            if (searchPatientPlaceHolder == "Please enter search data") {
+                searchBoxStyle = { borderColor: 'red', color: 'red', fontStyle: 'italic' };
+            }
+            var searchBy = this.state.searchBy;
             return _react2.default.createElement(
                 'div',
                 { className: 'serachFilter input-group add-on pull-right', style: innerAddon },
-                _react2.default.createElement('input', { type: 'text', className: 'form-control', placeholder: 'Search Patients' }),
+                _react2.default.createElement('input', { type: 'text', style: searchBoxStyle, className: 'form-control', placeholder: searchPatientPlaceHolder, onChange: this.handleChange.bind(this) }),
                 _react2.default.createElement(
                     'div',
                     { className: 'input-group-btn' },
                     _react2.default.createElement(
                         'button',
-                        { className: 'btn btn-default', type: 'submit' },
+                        { className: 'btn btn-default', onClick: searchBy == '' ? this.validateSearch.bind(this) : this.props.onClick.bind(this, searchBy), type: 'button' },
                         _react2.default.createElement('i', { className: 'glyphicon glyphicon-search' })
                     )
                 )
@@ -78846,7 +80940,7 @@ var SearchFilter = (function (_React$Component) {
 
 exports.default = SearchFilter;
 
-},{"react":599}],721:[function(require,module,exports){
+},{"react":601}],725:[function(require,module,exports){
 'use strict';
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
@@ -78872,6 +80966,10 @@ var _NextVisitDate2 = _interopRequireDefault(_NextVisitDate);
 var _PregnancyRisk = require('./PregnancyRisk');
 
 var _PregnancyRisk2 = _interopRequireDefault(_PregnancyRisk);
+
+var _Spinner = require('./../../components/layout/spinner/Spinner');
+
+var _Spinner2 = _interopRequireDefault(_Spinner);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -78902,26 +81000,38 @@ var GridBody = (function (_React$Component) {
             var rowsPerPage = this.props.rowsPerPage;
             var totalPages = Math.round(totalRowCount / rowsPerPage);
             var i;
+            var searchType = this.props.searchType;
             if (totalRowCount % rowsPerPage > 0) {
                 totalPages = totalPages + 1;
             }
-            var SlicedList = [];
+            var slicedList = [];
             for (i = 1; i <= totalPages; i++) {
                 if (offsetIndex == i) {
                     var endNo = offsetIndex * rowsPerPage;
                     var startNo = endNo - rowsPerPage;
-                    SlicedList = PatientDetailsArray.slice(startNo, endNo);
+                    slicedList = PatientDetailsArray.slice(startNo, endNo);
                 }
             }
-            for (i = 0; i < SlicedList.length; i++) {
-                SlicedList[i].alt = alt;
-                rows.push(_react2.default.createElement(WorkListRow, _extends({ rowContent: SlicedList[i], key: SlicedList[i].patientId }, this.props)));
+            for (i = 0; i < slicedList.length; i++) {
+                slicedList[i].alt = alt;
+                rows.push(_react2.default.createElement(WorkListRow, _extends({ rowContent: slicedList[i], key: slicedList[i].patientId }, this.props)));
                 alt = !alt;
+            }
+            if (PatientDetailsArray.length == 0 && searchType != AppConstants.AUTO_SEARCH) {
+                rows.push(_react2.default.createElement(
+                    'tr',
+                    null,
+                    _react2.default.createElement(
+                        'td',
+                        { colSpan: '12' },
+                        _react2.default.createElement(_Spinner2.default, null)
+                    )
+                ));
             }
             var bodyStyle = {
                 fontSize: '15px',
                 color: '#1c1c1c',
-                fontFamily: 'GE-inspira'
+                fontFamily: 'GEInspira'
             };
             return _react2.default.createElement(
                 'tbody',
@@ -79096,7 +81206,7 @@ var ObstetricsSubscriptConverstion = (function (_React$Component3) {
     return ObstetricsSubscriptConverstion;
 })(_react2.default.Component);
 
-},{"./NextVisitDate":716,"./PregnancyRisk":718,"./PregnancyStatus":719,"react":599}],722:[function(require,module,exports){
+},{"./../../components/layout/spinner/Spinner":672,"./NextVisitDate":720,"./PregnancyRisk":722,"./PregnancyStatus":723,"react":601}],726:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -79120,15 +81230,17 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 var Tabs = (function (_React$Component) {
     _inherits(Tabs, _React$Component);
 
-    function Tabs(props) {
+    function Tabs(state) {
         _classCallCheck(this, Tabs);
 
-        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(Tabs).call(this, props));
+        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(Tabs).call(this, state));
 
-        _this.state = { tabActive: _this.props.tabActive };
-        AppAction.executeAction(ActionType.GET_WEEKLY_WORKLIST, null);
-        AppAction.executeAction(ActionType.GET_TODAYS_WORKLIST, null);
-
+        var parent = state;
+        _this.state = {
+            data: parent.showStatus,
+            tabActive: parent.tabActive
+        };
+        AppAction.executeAction(ActionType.GET_TOTAL_WORKLIST, null);
         return _this;
     }
 
@@ -79212,44 +81324,80 @@ var Tabs = (function (_React$Component) {
                 var ref = 'tab-menu-' + (index + 1);
                 var title = $panel.props.title;
                 var classes = (0, _classNames2.default)('tabs-menu-item', _this2.state.tabActive === index + 1 && 'is-active');
-                var sortIconStyle = {
-                    padding: '17px 13px',
-                    color: '#139ED7'
+                var todayIconStyle = {
+                    background: 'url(./worklist/today.png) no-repeat scroll 0px 0px',
+                    paddingLeft: '22px'
                 };
+                var weekIconStyle = {
+                    background: 'url(./worklist/thisweek.png) no-repeat scroll 0px 0px',
+                    paddingLeft: '22px'
+                };
+                var searchResultStyle = {
+                    color: '#139ED7',
+                    padding: '5px'
+                };
+                var closeButtonStyle = {
+                    background: 'url(./worklist/close_icon.png) no-repeat scroll 0px 0px',
+                    paddingLeft: '22px',
+                    opacity: '0.5'
+                };
+                var closeStyle = {
+                    border: 'none',
+                    backgroundColor: 'white',
+                    height: '47px'
+                };
+                var notificationIconStyle = {
+                    background: 'url(./worklist/notification.png) no-repeat scroll 0px 0px',
+                    paddingLeft: '22px'
+                };
+
                 var pointer = { cursor: 'pointer' };
-                if (title == 'Today') {
+                if (title == locale('today')) {
                     return _react2.default.createElement(
                         'li',
                         { ref: ref, key: index, className: classes },
-                        ' ',
-                        _react2.default.createElement('i', { className: 'glyphicon glyphicon-check pull-left', style: sortIconStyle }),
                         _react2.default.createElement(
                             'a',
                             { className: 'tabAcnchor', style: pointer, onClick: _this2.setActive.bind(_this2, index + 1) },
+                            _react2.default.createElement('i', { style: todayIconStyle }),
                             title
                         )
                     );
-                } else if (title == 'This Week') {
+                } else if (title == locale('thisWeek')) {
                     return _react2.default.createElement(
                         'li',
                         { ref: ref, key: index, className: classes },
-                        ' ',
-                        _react2.default.createElement('i', { className: 'glyphicon glyphicon-calendar pull-left', style: sortIconStyle }),
                         _react2.default.createElement(
                             'a',
                             { className: 'tabAcnchor', style: pointer, onClick: _this2.setActive.bind(_this2, index + 1) },
+                            _react2.default.createElement('i', { style: weekIconStyle }),
                             title
+                        )
+                    );
+                } else if (title == locale('searchResult')) {
+                    return _react2.default.createElement(
+                        'li',
+                        { ref: ref, key: index, className: classes },
+                        _react2.default.createElement(
+                            'a',
+                            { className: 'tabAcnchor', style: pointer, onClick: _this2.setActive.bind(_this2, index + 1) },
+                            _react2.default.createElement('i', { className: 'glyphicon glyphicon-search', style: searchResultStyle }),
+                            title,
+                            _react2.default.createElement(
+                                'button',
+                                { style: closeStyle, onClick: _this2.props.onClick },
+                                _react2.default.createElement('i', { style: closeButtonStyle })
+                            )
                         )
                     );
                 } else {
                     return _react2.default.createElement(
                         'li',
                         { ref: ref, key: index, className: classes },
-                        ' ',
-                        _react2.default.createElement('i', { className: 'glyphicon glyphicon-bell pull-left', style: sortIconStyle }),
                         _react2.default.createElement(
                             'a',
                             { className: 'tabAcnchor', style: pointer, onClick: _this2.setActive.bind(_this2, index + 1) },
+                            _react2.default.createElement('i', { style: notificationIconStyle }),
                             title
                         )
                     );
@@ -79298,7 +81446,7 @@ Tabs.Panel = _react2.default.createClass({
 
 module.exports = Tabs;
 
-},{"classNames":18,"react":599}],723:[function(require,module,exports){
+},{"classNames":18,"react":601}],727:[function(require,module,exports){
 'use strict';
 
 var PAGINATION_CONST = {
@@ -79311,7 +81459,7 @@ module.exports = {
     PAGINATION_CONST: PAGINATION_CONST
 };
 
-},{}],724:[function(require,module,exports){
+},{}],728:[function(require,module,exports){
 'use strict';
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
@@ -79330,13 +81478,9 @@ var _DataGrid = require('./DataGrid');
 
 var _DataGrid2 = _interopRequireDefault(_DataGrid);
 
-var _DonutDayChart = require('./DonutDayChart');
+var _DonutChart = require('./DonutChart');
 
-var _DonutDayChart2 = _interopRequireDefault(_DonutDayChart);
-
-var _DonutWeekChart = require('./DonutWeekChart');
-
-var _DonutWeekChart2 = _interopRequireDefault(_DonutWeekChart);
+var _DonutChart2 = _interopRequireDefault(_DonutChart);
 
 var _WorkListTabs = require('./WorkListTabs');
 
@@ -79386,18 +81530,54 @@ var WorklistView = (function (_React$Component) {
             donutDayValues: _AppConstants.donutDayValues,
             donutDayKeys: _AppConstants.donutDayKeys,
             donutWeekValues: _AppConstants.donutWeekValues,
-            donutWeekKeys: _AppConstants.donutWeekKeys
+            donutWeekKeys: _AppConstants.donutWeekKeys,
+            showTab: false,
+            tabActive: 1,
+            searchBy: '',
+            searchType: '',
+            searchData: '',
+            showSearchResult: false
+
         };
 
-        _WorkListStore2.default.addChangeListener(AppConstants.GET_TOTAL_WORKLIST, _this.notifyTotalWorklistFetch.bind(_this));
-        _WorkListStore2.default.addChangeListener(AppConstants.GET_TODAYS_WORKLIST, _this.notifyTodaysWorklistFetch.bind(_this));
-        _WorkListStore2.default.addChangeListener(AppConstants.GET_WEEKLY_WORKLIST, _this.notifyWeeklyWorklistFetch.bind(_this));
+        _WorkListStore2.default.addChangeListener(ActionType.GET_TOTAL_WORKLIST, _this.notifyTotalWorklistFetch.bind(_this));
+        _WorkListStore2.default.addChangeListener(ActionType.GET_TODAYS_WORKLIST, _this.notifyTotalWorklistFetch.bind(_this));
+        _WorkListStore2.default.addChangeListener(ActionType.GET_WEEKLY_WORKLIST, _this.notifyTotalWorklistFetch.bind(_this));
+        _WorkListStore2.default.addChangeListener(ActionType.PATIENT_SEARCH_ACTION, _this.notifyTotalWorklistFetch.bind(_this));
         return _this;
     }
 
     _createClass(WorklistView, [{
+        key: 'handleSearchAction',
+        value: function handleSearchAction(searchValue) {
+
+            if (searchValue.trim() == '') {
+                this.setState({ showTab: false });
+            } else {
+                this.state.searchBy = '';
+                this.state.searchBy = searchValue;
+                var filterJson = {
+                    searchType: AppConstants.MANUAL_SEARCH,
+                    searchBy: searchValue
+                };
+                this.state.searchType = AppConstants.MANUAL_SEARCH;
+                this.setState({ showTab: true });
+                this.setState({ tabActive: 4 });
+                AppAction.executeAction(ActionType.PATIENT_SEARCH_ACTION, filterJson);
+            }
+        }
+    }, {
         key: 'notifyTotalWorklistFetch',
         value: function notifyTotalWorklistFetch(data) {
+
+            if (data.args.worklist == AppConstants.NO_DATA_FOUND) {
+                this.setState({ showSearchResult: true });
+            } else {
+                this.setState({ showSearchResult: false });
+            }
+            if (typeof data.args.searchType !== 'undefined') {
+                this.state.searchType = data.args.searchType;
+            }
             this.state.workListData = data.args.worklist;
             this.state.offsetIndex = 1;
             if (typeof data.args[_AppConstants.DONUT_DAY_VALUES] !== 'undefined') {
@@ -79406,29 +81586,21 @@ var WorklistView = (function (_React$Component) {
             if (typeof data.args[_AppConstants.DONUT_WEEK_VALUES] !== 'undefined') {
                 this.state.donutWeekValues = data.args[_AppConstants.DONUT_WEEK_VALUES];
             }
-            this.forceUpdate();
-        }
-    }, {
-        key: 'notifyTodaysWorklistFetch',
-        value: function notifyTodaysWorklistFetch(data) {
-            this.state.workListData = data.args.worklist;
-            this.state.offsetIndex = 1;
             if (typeof data.args[_AppConstants.DONUT_DAY_VALUES] !== 'undefined') {
-                this.state.donutDayValues = data.args[_AppConstants.DONUT_DAY_VALUES];
+                this.state.donutDayKeys = data.args[_AppConstants.DONUT_DAY_LEGENDS];
             }
-            this.state.donutDayKeys = data.args[_AppConstants.DONUT_DAY_LEGENDS];
+            if (typeof data.args[_AppConstants.DONUT_WEEK_VALUES] !== 'undefined') {
+                this.state.donutWeekKeys = data.args[_AppConstants.DONUT_WEEK_LEGENDS];
+            }
             this.forceUpdate();
         }
     }, {
-        key: 'notifyWeeklyWorklistFetch',
-        value: function notifyWeeklyWorklistFetch(data) {
-            this.state.workListData = data.args.worklist;
-            this.state.offsetIndex = 1;
-            if (typeof data.args[_AppConstants.DONUT_WEEK_VALUES] !== 'undefined') {
-                this.state.donutWeekValues = data.args[_AppConstants.DONUT_WEEK_VALUES];
-            }
-            this.state.donutWeekKeys = data.args[_AppConstants.DONUT_WEEK_LEGENDS];
-            this.forceUpdate();
+        key: 'closeTab',
+        value: function closeTab() {
+            this.setState({ showTab: false });
+            AppAction.executeAction(ActionType.GET_TOTAL_WORKLIST, null);
+            AppAction.executeAction(ActionType.GET_TODAYS_WORKLIST, null);
+            this.setState({ tabActive: 1 });
         }
     }, {
         key: 'paginationEvent',
@@ -79446,7 +81618,6 @@ var WorklistView = (function (_React$Component) {
         key: 'readSingleFile',
         value: function readSingleFile(evt) {
             var f = evt.target.files[0];
-
             if (f) {
                 var r = new FileReader();
                 r.onload = function (e) {
@@ -79470,8 +81641,8 @@ var WorklistView = (function (_React$Component) {
     }, {
         key: 'render',
         value: function render() {
+            var boxPadding = { padding: '15px 3px' };
             var divPadding = { padding: '0px 3px' };
-
             var nameStyle = { width: '11%' };
             var spNameStyle = { width: '11%' };
             var ageStyle = { width: '4%' };
@@ -79480,7 +81651,7 @@ var WorklistView = (function (_React$Component) {
             var obstStyle = { width: '7%' };
             var riskStyle = { width: '4%' };
             var nextVisitDateStyle = { width: '5%' };
-            var viewMoreStyle = { width: '3%' };
+            var viewMoreStyle = { width: '1%' };
             var titles = {
                 name: 'Name',
                 spouseName: 'SpouseName',
@@ -79519,61 +81690,72 @@ var WorklistView = (function (_React$Component) {
                 minHeight: '976px',
                 paddingLeft: '0px',
                 paddingRight: '0px',
-                backgroundColor: '#f5f6f7',
-                fontFamily: 'GE-inspira'
+                backgroundColor: '#f5f6f7'
             };
-
-            var headerDivStyle = {
-                height: '59px',
-                padding: '11px 10px'
-            };
-
             var clearPadding = { marginRight: '6px' };
 
-            var blue = { color: '#139ED7' };
-
-            var h3Top = { marginTop: '7px' };
-
-            var contentHeader = {
-                //  marginTop: '59px',
-                backgroundColor: '#dcdcdc',
-                marginLeft: '-15px',
-                marginRight: '-15px'
+            var importFromPicmeIcon = {
+                background: 'url(./worklist/import_icon.png) no-repeat scroll 0px 0px',
+                paddingLeft: '22px'
             };
 
+            var addPatientIcon = {
+                background: 'url(./worklist/addPatient_icon.png) no-repeat scroll 0px 0px',
+                paddingLeft: '22px'
+            };
+            var h3Top = { margin: '3px 0 6px' };
+
+            var contentHeader = {
+                backgroundColor: '#dcdcdc',
+                marginLeft: '-15px',
+                marginRight: '-15px',
+                position: 'fixed',
+                width: '100%',
+                zIndex: '99999'
+            };
+            var behindContentHeader = {
+                height: '75px',
+                width: '100%'
+            };
+            var searchWarning = {
+                marginTop: '63px'
+            };
             var hiddenStyle = { visibility: 'hidden' };
 
             var h3Chart = { paddingLeft: '4px' };
             var colorWhite = { backgroundColor: 'white' };
             var inputArr = this.state.workListData;
             var formatedData = [];
-            inputArr.forEach(function (data) {
-                var date = data.dOB;
-                if (date !== '') {
-                    var newDate = date.split('/');
-                    var birthDate = newDate[1] + '-' + newDate[0] + '-' + newDate[2];
-                }
-                var today = new Date();
-                var dob = new Date(birthDate);
-                var age = today.getFullYear() - dob.getFullYear();
-                var month = today.getMonth() - dob.getMonth();
-                // if the birthday hasn't happened yet this year...
-                if (month < 0 || month === 0 && today.getDate() < dob.getDate()) {
-                    age--;
-                }
-                var formatedJson = {
-                    id: data.id,
-                    name: data.name,
-                    spouseName: data.spouseName,
-                    age: age,
-                    emergencyContactPhn: data.emergencyContactPhn,
-                    lmp: data.lmp,
-                    obstetrics: data.obstetrics,
-                    nextDueDate: data.nextDueDate,
-                    highRiskMother: data.highRiskMother
-                };
-                formatedData.push(formatedJson);
-            });
+            if (inputArr.length > 0) {
+                inputArr.forEach(function (data) {
+                    var date = data.dOB;
+                    if (date !== '') {
+                        var newDate = date.split('/');
+                        var birthDate = newDate[1] + '-' + newDate[0] + '-' + newDate[2];
+                    }
+                    var today = new Date();
+                    var dob = new Date(birthDate);
+                    var age = today.getFullYear() - dob.getFullYear();
+                    var month = today.getMonth() - dob.getMonth();
+                    // if the birthday hasn't happened yet this year...
+                    if (month < 0 || month === 0 && today.getDate() < dob.getDate()) {
+                        age--;
+                    }
+                    var formatedJson = {
+                        id: data.id,
+                        name: data.name,
+                        spouseName: data.spouseName,
+                        dOB: data.dOB,
+                        age: age,
+                        emergencyContactPhn: data.emergencyContactPhn,
+                        lmp: data.lmp,
+                        obstetrics: data.obstetrics,
+                        nextDueDate: data.nextDueDate,
+                        highRiskMother: data.highRiskMother
+                    };
+                    formatedData.push(formatedJson);
+                });
+            }
             var offsetIndex = this.state.offsetIndex;
 
             return _react2.default.createElement(
@@ -79584,7 +81766,7 @@ var WorklistView = (function (_React$Component) {
                     { className: 'headerSection content-header breadcrumb', style: contentHeader },
                     _react2.default.createElement(
                         'div',
-                        { className: 'box-header', style: headerDivStyle },
+                        { className: 'box-header' },
                         _react2.default.createElement(
                             'div',
                             { className: 'pull-left' },
@@ -79592,7 +81774,7 @@ var WorklistView = (function (_React$Component) {
                             _react2.default.createElement(
                                 'h3',
                                 { className: 'box-title', style: h3Top },
-                                'VHN Worklist'
+                                locale('vhnWorklist')
                             )
                         ),
                         _react2.default.createElement(
@@ -79603,18 +81785,23 @@ var WorklistView = (function (_React$Component) {
                                 { type: 'button', className: 'btn btn-default btn-md', style: clearPadding, onClick: (function () {
                                         Utils.navigate(this.props.history, Route.REGISTRATION + '/-1');
                                     }).bind(this) },
-                                _react2.default.createElement('span', { className: 'glyphicon glyphicon-user', style: blue, 'aria-hidden': 'true' }),
-                                ' Add a Patient'
+                                _react2.default.createElement('span', { style: addPatientIcon, 'aria-hidden': 'true' }),
+                                locale('addPatient')
                             ),
                             _react2.default.createElement(
                                 'button',
                                 { type: 'button', className: 'btn btn-default btn-md', onClick: this.clickUploadButton.bind(this) },
-                                _react2.default.createElement('span', { className: 'glyphicon glyphicon-save', style: blue, 'aria-hidden': 'true' }),
+                                _react2.default.createElement('span', { style: importFromPicmeIcon, 'aria-hidden': 'true' }),
                                 ' ',
-                                locale('Import_from_PICME')
+                                locale('importFromPicme')
                             )
                         )
                     )
+                ),
+                _react2.default.createElement(
+                    'section',
+                    { style: behindContentHeader },
+                    _react2.default.createElement('div', null)
                 ),
                 _react2.default.createElement(
                     'section',
@@ -79634,22 +81821,22 @@ var WorklistView = (function (_React$Component) {
                                     _react2.default.createElement(
                                         'h3',
                                         { className: 'box-title', style: h3Chart },
-                                        'Today'
+                                        locale('today')
                                     )
                                 ),
                                 _react2.default.createElement(
                                     'div',
-                                    { className: 'col-md-12', style: colorWhite },
+                                    { className: 'col-md-12 chart-scroll', style: colorWhite },
                                     _react2.default.createElement(
                                         'div',
                                         { className: 'box box-primary' },
                                         _react2.default.createElement(
                                             'div',
-                                            { className: 'box-body' },
+                                            { className: 'box-body  overflow-hidden' },
                                             _react2.default.createElement(
                                                 'div',
                                                 { className: 'chart' },
-                                                _react2.default.createElement(_DonutDayChart2.default, { donutValues: this.state.donutDayValues, donutKeys: this.state.donutDayKeys })
+                                                _react2.default.createElement(_DonutChart2.default, { donutValues: this.state.donutDayValues, donutKeys: this.state.donutDayKeys })
                                             )
                                         )
                                     )
@@ -79664,22 +81851,22 @@ var WorklistView = (function (_React$Component) {
                                     _react2.default.createElement(
                                         'h3',
                                         { className: 'box-title', style: h3Chart },
-                                        'This week'
+                                        locale('thisWeek')
                                     )
                                 ),
                                 _react2.default.createElement(
                                     'div',
-                                    { className: 'col-md-12', style: colorWhite },
+                                    { className: 'col-md-12 chart-scroll', style: colorWhite },
                                     _react2.default.createElement(
                                         'div',
                                         { className: 'box box-primary' },
                                         _react2.default.createElement(
                                             'div',
-                                            { className: 'box-body' },
+                                            { className: 'box-body overflow-hidden' },
                                             _react2.default.createElement(
                                                 'div',
                                                 { className: 'chart' },
-                                                _react2.default.createElement(_DonutWeekChart2.default, { donutValues: this.state.donutWeekValues, donutKeys: this.state.donutWeekKeys })
+                                                _react2.default.createElement(_DonutChart2.default, { donutValues: this.state.donutWeekValues, donutKeys: this.state.donutWeekKeys })
                                             )
                                         )
                                     )
@@ -79687,16 +81874,16 @@ var WorklistView = (function (_React$Component) {
                             )
                         )
                     ),
-                    _react2.default.createElement(_SearchFilter2.default, null),
+                    _react2.default.createElement(_SearchFilter2.default, { tableContents: formatedData, onClick: this.handleSearchAction.bind(this) }),
                     _react2.default.createElement(
                         'div',
-                        { className: 'box tabBox', style: divPadding },
+                        { className: 'box tabBox', style: boxPadding },
                         _react2.default.createElement(
                             _WorkListTabs2.default,
-                            { tabActive: 1 },
+                            { tabActive: this.state.tabActive, showStatus: this.state.showTab, onClick: this.closeTab.bind(this) },
                             _react2.default.createElement(
                                 _WorkListTabs2.default.Panel,
-                                { title: 'Today' },
+                                { title: locale('today') },
                                 _react2.default.createElement(
                                     'div',
                                     { className: 'box-body', style: gridPadding },
@@ -79709,7 +81896,7 @@ var WorklistView = (function (_React$Component) {
                                             _react2.default.createElement(
                                                 _DataGrid2.default,
                                                 { headerJson: headerJson },
-                                                _react2.default.createElement(_VhnGridBody2.default, _extends({ tableContents: formatedData, offsetIndex: offsetIndex, rowsPerPage: '10' }, this.props))
+                                                _react2.default.createElement(_VhnGridBody2.default, _extends({ tableContents: formatedData, offsetIndex: offsetIndex, rowsPerPage: '10', searchType: this.state.searchType }, this.props))
                                             )
                                         ),
                                         _react2.default.createElement(
@@ -79722,7 +81909,7 @@ var WorklistView = (function (_React$Component) {
                             ),
                             _react2.default.createElement(
                                 _WorkListTabs2.default.Panel,
-                                { title: 'This Week' },
+                                { title: locale('thisWeek') },
                                 _react2.default.createElement(
                                     'div',
                                     { className: 'box-body', style: gridPadding },
@@ -79735,7 +81922,7 @@ var WorklistView = (function (_React$Component) {
                                             _react2.default.createElement(
                                                 _DataGrid2.default,
                                                 { headerJson: headerJson },
-                                                _react2.default.createElement(_VhnGridBody2.default, { tableContents: formatedData, offsetIndex: offsetIndex, rowsPerPage: '10' })
+                                                _react2.default.createElement(_VhnGridBody2.default, { tableContents: formatedData, offsetIndex: offsetIndex, searchType: this.state.searchType, rowsPerPage: '10' })
                                             )
                                         ),
                                         _react2.default.createElement(
@@ -79748,9 +81935,48 @@ var WorklistView = (function (_React$Component) {
                             ),
                             _react2.default.createElement(
                                 _WorkListTabs2.default.Panel,
-                                { title: 'Notifications' },
+                                { title: locale('notifications') },
                                 _react2.default.createElement('div', { className: 'row' })
-                            )
+                            ),
+                            this.state.showTab ? _react2.default.createElement(
+                                _WorkListTabs2.default.Panel,
+                                { title: locale('searchResult'), onClick: this.props.onClick },
+                                _react2.default.createElement(
+                                    'div',
+                                    { className: 'box-body', style: gridPadding },
+                                    _react2.default.createElement(
+                                        'div',
+                                        { className: 'dataTables_wrapper form-inline dt-bootstrap' },
+                                        _react2.default.createElement(
+                                            'div',
+                                            { className: 'row', style: clearMargin },
+                                            this.state.showSearchResult ? _react2.default.createElement(
+                                                'div',
+                                                { className: 'row' },
+                                                _react2.default.createElement('div', { className: 'col-md-5' }),
+                                                _react2.default.createElement(
+                                                    'div',
+                                                    { className: 'col-md-4' },
+                                                    _react2.default.createElement(
+                                                        'label',
+                                                        { style: searchWarning },
+                                                        'No matching patient found'
+                                                    )
+                                                )
+                                            ) : _react2.default.createElement(
+                                                _DataGrid2.default,
+                                                { headerJson: headerJson },
+                                                _react2.default.createElement(_VhnGridBody2.default, _extends({ tableContents: formatedData, offsetIndex: offsetIndex, rowsPerPage: '10', searchType: this.state.searchType }, this.props))
+                                            )
+                                        ),
+                                        _react2.default.createElement(
+                                            'div',
+                                            { className: 'row', style: clearMargin },
+                                            _react2.default.createElement(_Pagination2.default, { onClick: this.paginationEvent.bind(this), offsetIndex: offsetIndex, totalRowCount: formatedData.length, rowsPerPage: '10' })
+                                        )
+                                    )
+                                )
+                            ) : null
                         )
                     )
                 ),
@@ -79764,7 +81990,7 @@ var WorklistView = (function (_React$Component) {
 
 exports.default = WorklistView;
 
-},{"../../stores/WorkListStore":755,"../../utils/AppConstants":763,"./DataGrid":710,"./DonutDayChart":711,"./DonutWeekChart":712,"./Pagination":717,"./SearchFilter":720,"./VhnGridBody":721,"./WorkListTabs":722,"csvtojson":44,"react":599,"react-bootstrap":362}],725:[function(require,module,exports){
+},{"../../stores/WorkListStore":761,"../../utils/AppConstants":770,"./DataGrid":715,"./DonutChart":716,"./Pagination":721,"./SearchFilter":724,"./VhnGridBody":725,"./WorkListTabs":726,"csvtojson":44,"react":601,"react-bootstrap":363}],729:[function(require,module,exports){
 'use strict';
 
 var _resource_en = require('./resource_en');
@@ -79782,7 +82008,7 @@ module.exports = {
     ta: _resource_ta2.default
 };
 
-},{"./resource_en":726,"./resource_ta":727}],726:[function(require,module,exports){
+},{"./resource_en":730,"./resource_ta":731}],730:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -79835,8 +82061,9 @@ module.exports = {
    ExpectedDateOfDelivery: 'EDD by Date',
    EDDByUSG: 'EDD by USG',
    MandatoryField: 'Mandatory field',
-   First_Day_Of_Last_Mentsrual_Period: '(1st day of last Mentsrual Period)',
-   If_already_done: '(If already done)',
+   First_Day_Of_Last_Mentsrual_Period: '( 1st day of last Menstrual Period)',
+   If_already_done: '( If already done)',
+   DateofQuickening: 'Date Of Quickening',
 
    /*History of Current Illness*/
    HistOfCurrentIllness: 'History of Current illness',
@@ -79855,7 +82082,11 @@ module.exports = {
    SevereHeadacheAndBlurringOfVision: 'Severe headache and blurring of vision',
    BurningSensationDuringMicturition: 'Passing smaller amounts of urine and burning sensation during micturition',
    VaginalBleeding: 'Vaginal bleeding',
-   LeakingOfWateryFluidPerVaginum: 'Leaking of watery fluid per vaginum (P/V)',
+   LeakingOfWateryFluidPerVaginum: 'Leaking of watery fluid per vaginum ( P/V)',
+   Decreased: 'Decreased',
+   Absent: 'Absent',
+   FoetalMoments: 'Foetal Moments',
+   CountPer12Hrs: 'Count per 12 hours',
 
    /*Abdominal Examination*/
    AbdominalExamination: 'Abdominal Examination',
@@ -79873,7 +82104,7 @@ module.exports = {
    FundalHeight: 'Fundal Height in weeks',
    FoetalLie: 'Foetal Lie',
    FoetalPresentation: 'Foetal presentation',
-   FHS: 'FHS (Foetal heart Rate)',
+   FHS: 'FHS ( Foetal heart Rate)',
    SingleVsMultiplePregnancy: 'Single Vs Multiple Pregnancy',
    FoetalMovements: 'Foetal Movements',
 
@@ -79900,7 +82131,7 @@ module.exports = {
    /*Family History*/
    FamilyHistory: 'Family History',
    FamilyHistoryTitle: 'This section records Family History information',
-   HighBP: 'High blood pressure (hypertension)',
+   HighBP: 'High blood pressure ( hypertension)',
    Diabetes: 'Diabetes',
    Tuberculosis: 'Tuberculosis',
    TwinsInImmediateFamily: 'Twins in immediate Family',
@@ -79918,7 +82149,7 @@ module.exports = {
    Oedema: 'Oedema',
    BP: 'Blood Pressure',
    TemperatureInFarenheit: 'Temperature in farenheit',
-   TooWeakToGetOutOfBed: 'Temperature > or = 38 degrees, display additional checkbox(too weak to get out of bed)',
+   TooWeakToGetOutOfBed: 'Temperature > or = 38 degrees, display additional checkbox( too weak to get out of bed)',
    HabbitsAndSocialHistory: 'Habbits/Social History',
    HabbitsAndSocialHistoryTitle: 'This section records Habbits and Social History information',
    Tobacco: 'Tobacco',
@@ -79946,7 +82177,7 @@ module.exports = {
    RecurrentEarlyAbortion: 'Recurrent early abortion',
    PostAbortionComplications: 'Post-abortion complications',
    HypertensionPreEclmpsiaOrEclampsia: 'Hypertension,Pre-eclampsia or eclampsia',
-   AntePartumHaemorrhage: 'Ante-Partum Haemorrhage (APH)',
+   AntePartumHaemorrhage: 'Ante-Partum Haemorrhage ( APH)',
    BreechOrTransversePresentation: 'Breech or transverse presentation',
    obstructedLabourIncludingDystocia: 'Obstructed labour,including dystocia',
    PerinealInjuriesTears: 'Perineal injuries/tears',
@@ -79987,6 +82218,7 @@ module.exports = {
    ReproductiveTractInfection_RTI: 'Reproductive Tract Infection',
    STI_AIDS: 'STI/AIDS',
    SexuallyTransmittedInfection_STI_and_HIV_AIDS: 'Sexually Transmitted Infection and HIV/AIDS',
+   ChronicCough_bloodInSputum_prolongedFever_tuberculosis: 'Chronic cough, blood in the sputum, prolonged fever',
 
    /*Systemic Examination*/
    SystemicExamination: 'Systemic Examination',
@@ -80012,7 +82244,7 @@ module.exports = {
    BloodGroup_including_RhFactor: 'Blood group, including Rh factor',
    VDRL_RPR: 'VDRL/RPR',
    HIV_testing: 'HIV testing',
-   Rapid_Malaria_Test: 'Rapid malaria test (if unavailable at SC)',
+   Rapid_Malaria_Test: 'Rapid malaria test ( if unavailable at SC)',
    BloodSugar: 'Blood Sugar',
    HbsAg: 'HbsAg',
    CBC_with_ESR: 'CBC with ESR',
@@ -80023,6 +82255,11 @@ module.exports = {
    UrineProteins: 'Urine Proteins',
    RapidMalariaTest: 'Rapid Malaria Test',
    Select_UPT: 'Select UPT',
+   USG: 'USG',
+   Recommendationforanomalyscan: 'Recommendation for anomaly scan',
+   GCT: 'GCT ( 75gms of Glucose)',
+   HbRepeat: 'Hb( Repeat)',
+   BloodSugarRepeat: 'Blood Sugar( Repeat)',
 
    /*Registration - Mothers Demographic Information*/
    MothersDemographicInformation: 'Mother\'s Demographic Information',
@@ -80035,6 +82272,7 @@ module.exports = {
    EnterAddLine3: 'Enter Address 3',
    Village: 'Village',
    SelVill: 'Select Village',
+   SelPincode: 'Select Pincode',
    City: 'City',
    SelCity: 'Select City',
    State: 'State',
@@ -80055,8 +82293,8 @@ module.exports = {
    /*Medical Prescriptions*/
    MedicalPrescriptions: 'Medical prescriptions',
    MedicalPrescriptionsTitle: 'This section records Medical prescriptions information',
-   Inj_TT_IM: 'Inj. TT 0.5ml IM',
-   FolicAcidSuppliment_IFA: 'Folic Acid Suppliment (IFA)',
+   Inj_TT_IM: 'Inj. TT 0.5ml IM(second dose)',
+   FolicAcidSuppliment_IFA: 'Folic Acid Suppliment ( IFA)',
    Counselling: 'Counselling - Diet, Importance of ANC, domestic violence, sex during Pregnancy',
    Issue_MaternalChildProtectionCard: 'Issue Maternal & Child Protection Card',
    JSYCard: 'JSY Card',
@@ -80064,6 +82302,10 @@ module.exports = {
    RecordPossibleLocationOfDelivery: 'Record Possible Location of Delivery',
    PHCName: 'PHC Name',
    Date_of_Injection: 'Date of Injection',
+   Folic_Acid_Tablets_Dispensed: 'Folic Acid Tablets dispensed',
+   IFA_Tablets_Dispensed: 'IFA Tablets dispensed',
+   Albendazole_Dispensed: 'Albendazole ( 400mg) dispensed',
+   QuantityDispensed: 'Quantity Dispensed',
 
    /* Primary Information*/
    PrimaryInformation: 'Primary Information',
@@ -80083,6 +82325,9 @@ module.exports = {
 
    /*Comments*/
    Comments: 'Comments',
+   Edit: 'Edit',
+   Delete: 'Delete',
+   PreviousComments: 'Previous Comments',
    GeneralComments: 'General comments if any',
    EnterComments: 'Enter your comments',
    IncidentCapture: 'Incident capture',
@@ -80112,7 +82357,7 @@ module.exports = {
    Information_on_Referral_provided_to_institution_referred: 'Information on Referral provided to institution referred:',
    CurrentMedication: 'Current Medication:',
    PatientConsentObtained: 'Patient Consent Obtained:',
-   Print_Export_to_PDF: 'Print (Export to PDF)',
+   Print_Export_to_PDF: 'Print ( Export to PDF)',
    Cancel: 'Cancel',
    PleaseEenter: 'Please enter',
    PleaseEnterTheReason: 'Please enter the reason',
@@ -80120,8 +82365,8 @@ module.exports = {
 
    /*Visit Summary */
    VisitSummary: 'Visit Summary',
-   Type_of_Visit: 'Type of Visit',
-   Date_of_Visit: 'Date of Visit',
+   Type_of_Visit: 'Type of visit',
+   Date_of_Visit: 'Date of visit',
    VHNName: 'VHN Name',
    Obstetrics: 'Obstetrics',
    CurrentPregnancy_only_if_ANCvisit: 'Current Pregnancy <only if ANC visit>',
@@ -80140,6 +82385,8 @@ module.exports = {
    Notes: 'Notes',
    Printed_on_pdf_generation_date: 'Printed on <pdf generation date>',
    Signature_of_the_Physician: 'Signature of the Physician',
+   PHC: 'PHC',
+   Sub_Center: 'Sub-Center',
 
    /*Single Patient View Visits Per Week Range*/
    TotalVisit: 'TotalVisit',
@@ -80173,68 +82420,530 @@ module.exports = {
 
    /*Single Patient - DropDownSplit*/
    Add_Visit: 'Add Visit',
-   ANC: 'ANC',
+   ANC1: 'ANC1',
+   ANC2: 'ANC2',
+   ANC3: 'ANC3',
    PNC: 'PNC',
-   General_Consultation: 'General Consultation'
+   General_Consultation: 'General Consultation',
+
+   /*Login Form*/
+
+   username: 'Username',
+   password: 'Password',
+   role: 'Role',
+   rememberPassword: 'Remember Password?',
+   forgotPassword: 'Forgot Password?',
+   clickHere: 'Click Here',
+   login: 'LOGIN',
+   language: 'Language',
+
+   /*Worklist */
+
+   addPatient: 'Add a Patient',
+   importFromPicme: 'Import from PICME',
+   vhnWorklist: 'VHN Worklist',
+   physicianWorklist: 'Physician Worklist',
+   today: 'Today',
+   thisWeek: 'This Week',
+   searchResult: 'Search Results',
+   highRisk: 'High Risk',
+   todaysPatients: 'Today\'s Patients',
+   thisWeekPatients: 'This Week Patients',
+   notifications: 'Notifications',
+
+   /*Worklist - Table Header */
+   name: 'Name',
+   spouseName: 'Spouse Name',
+   age: 'Age',
+   phone: 'Phone Number',
+   pregStatus: 'Pregnancy Status',
+   obstetrics: 'Obstetrics',
+   risk: 'Risk',
+   subNo: 'Sub No',
+   subName: 'Sub Name',
+   vhnName: 'VHN Name',
+   nextDueDate: 'Next Visit',
+   subCentreID: 'Sub-Centre ID',
+   subCentreName: 'Sub-Centre Name',
+
+   /*Worklist - Search Filter*/
+   searchPatients: 'Search Patients',
+
+   /*Worklist - pagination*/
+   previous: '« Previous',
+   next: 'Next »',
+
+   /*Toaster Notifications*/
+   Patient_Registered_successfully_with_ID: 'Patient Registered successfully with ID : ',
+   Technical_Error: 'Technical Error',
+   Patient_Updated_successfully: 'Patient Updated successfully !!',
+   Patient_deleted_successfully: 'Patient deleted successfully !!',
+   Patient_Not_Found: 'Patient Not Found'
 
 };
 
-},{}],727:[function(require,module,exports){
+},{}],731:[function(require,module,exports){
 'use strict';
 
 module.exports = {
-   /*App Header */
-   Janani: 'ஜனனி',
-   WELCOME: 'வரவேற்பு',
-   Settings: 'அமைப்புகள்',
-   Logout: 'வெளியேறு',
+  /*App Header */
+  Janani: 'ஜனனி',
+  WELCOME: 'வரவேற்பு',
+  Settings: 'அமைப்புகள்',
+  Logout: 'வெளியேறு',
 
-   /*PICME */
-   Import_from_PICME: 'PICME இருந்து இறக்குமதி',
+  /*PICME */
+  Import_from_PICME: 'PICME இருந்து இறக்குமதி',
 
-   /*PatientBanner */
-   Name: 'பெயர்',
-   Age: 'வயது',
-   ContactNo: 'தொடர்பு எண்',
-   Spouse: 'மனைவி',
-   Obsterics: 'Obsterics',
-   Risk: 'இடர்',
-   BloodGroup: 'இரத்த வகை',
-   PICMEID: 'PICME ஐடி',
-   JananiID: 'ஜனனி ஐடி',
-   PregnancyStatus: 'கர்ப்பம் நிலைமை',
+  /*PatientBanner */
+  ContactNo: 'தொடர்பு எண்',
+  Spouse: 'மனைவி',
+  Obsterics: 'Obsterics',
+  Risk: 'இடர்',
+  BloodGroup: 'இரத்த வகை',
+  isHighRisk: 'உயர் அபாய தாய்',
+  PregnancyStatus: 'கர்ப்பம் நிலைமை',
 
-   BP: 'இரத்த அழுத்தம்',
-   DateofLMP: 'LMP தேதி',
-   ExpectedDateOfDelivery: 'Ex தேதி',
+  /*VisitDetails Header*/
+  Visit_Type: 'வருகை வகை',
+  Created_On: 'அன்று உருவாக்கப்பட்டது',
+  Entered_By: 'மூலம்',
 
-   /*Referral Letter */
-   PatientID: 'நோயாளி ஐடி',
-   SubCenterName: 'துணை மையம் பெயர்',
-   ReferredTo: 'குறிப்பிடப்படுகிறது:',
-   RefferedOn: 'குறிப்பிட்டிருக்கிறார்:',
-   ReasonForReferral: 'குறிப்பு காரணம்:',
-   ModeOfTransport: 'போக்குவரத்து முறை:',
-   Information_on_Referral_provided_to_institution_referred: 'நிறுவனத்திற்கு வழங்கப்பட்ட பரிந்துரை பற்றிய தகவல் குறிப்பிட்டார்:',
-   CurrentMedication: 'தற்போதைய மருந்து:',
-   PatientConsentObtained: 'நோயாளி ஒப்புதல் பெற்றதாகவும்:',
-   Print_Export_to_PDF: 'அச்சு (PDF ஆக ஏற்றுமதி)',
-   Cancel: 'ரத்து',
-   PleaseEenter: 'உள்ளிடவும்',
-   PleaseEnterTheReason: 'காரணத்தை உள்ளிடவும்',
-   PHCName: 'PHC பெயர்',
-   Yes: 'ஆம்',
-   No: 'இல்லை',
-   SpouseName: 'கணவன் அல்லது மனைவியின் பெயர்',
-   PATIENTINFORMATION: 'நோயாளி தகவல்',
+  /*Common Buttons*/
+  Save: 'சேமி',
+  Submit: 'சமர்ப்பிக்கவும்',
+  Discard: 'நிராகரி',
+  Import: 'இறக்குமதி',
+  cancel: 'ரத்து',
+  Print: 'அச்சு',
+  Upload_Photo: 'புகைப்படம் அப்லோடு',
 
-   /*Registration Menus*/
-   PrimaryInformation: 'முக்கிய தகவல்கள்',
-   MothersDemographicInformation: 'அன்னையர் புள்ளிவிபர தகவல்கள்',
-   CurrentPregnancy: 'தற்போதைய கர்ப்பம்'
+  /*Common Options*/
+  Yes: 'ஆம்',
+  No: 'இல்லை',
+  Positive: 'நற்சிந்தனை',
+  Negative: 'எதிர்மறை',
+  Select: 'தேர்ந்தெடுக்கவும்',
+
+  /*Current Pregnancy*/
+  CurrentPregnancy: 'தற்போதைய கர்ப்பம்',
+  CurrentPregnancyRecord: 'தற்போதைய கர்ப்பம் பதிவு',
+  CurrentPregnancyTitle: 'இந்த பிரிவு தற்போதைய கர்ப்பம் தகவல்களை பதிவு',
+  PregnancyAcceptedWillingly: 'கர்ப்ப வேண்டும்என்றால்?',
+  DateofLMP: 'LMP',
+  ExpectedDateOfDelivery: 'தேதி EDD யோடு',
+  EDDByUSG: 'USG மூலம் EDD யோடு',
+  MandatoryField: 'கட்டாயம் நிரப்ப வேண்டிய இடம்',
+  First_Day_Of_Last_Mentsrual_Period: '(கடந்த Mentsrual காலம் 1 ம் நாள்)',
+  If_already_done: '(ஏற்கனவே செய்யவில்லை என்றால்)',
+
+  /*History of Current Illness*/
+  HistOfCurrentIllness: 'தற்போதைய நோய் வரலாறு',
+  HistOfCurrentIllnessTitle: 'தற்போதைய நோய்களில் தகவல் இந்த பிரிவில் பதிவுகள் வரலாறு',
+  Nausea: 'குமட்டல்',
+  Vomiting: 'வாந்தி',
+  Heartburn: 'நெஞ்செரிச்சல்',
+  Constipation: 'மலச்சிக்கல்',
+  IncreasedFrequencyOfUrination: 'சிறுநீர் கழித்தல் அதிகரித்த அதிர்வெண்',
+  Fever: 'காய்ச்சல்',
+  PersistentVomiting: 'தொடர்ந்து வாந்தி',
+  AbnormalVaginalDischargeOrItching: 'அசாதாரண யோனி வெளியேற்றம் / அரிப்பு',
+  PalpitationsEasyFatigability: 'நடுக்கம், சுலபமாக களைப்பு',
+  BreathlessnessAtRestOnMildExertion: 'ஓய்வு மூச்சுவிட/லேசான உள்ளடங்குபவை',
+  GenSwellingOfTheBodyPuffinessOfTheFace: 'உடல் பொதுச் வீக்கம், முகத்தில் அதைப்பு',
+  SevereHeadacheAndBlurringOfVision: 'கடுமையான தலைவலி மற்றும் பார்வை தெளிவின்மை',
+  BurningSensationDuringMicturition: 'குறைந்த அளவான சிறுநீர் கடந்து செல்லும் மற்றும் சிறுநீர்கழிவு போது உணர்வு எரியும்',
+  VaginalBleeding: 'புணர்புழை இரத்த ஒழுக்கு',
+  LeakingOfWateryFluidPerVaginum: 'Vaginum ஒன்றுக்கு தண்ணீரால் திரவம் கசிவு (பி / வி)',
+  Decreased: 'குறைந்துவிட்ட',
+  Absent: 'இருக்காது',
+  FoetalMoments: 'Foetal தருணங்கள்',
+
+  /*Abdominal Examination*/
+  AbdominalExamination: 'வயிற்று தேர்வு',
+  AbdominalExaminationTitle: 'இந்த பகுதி வயிற்று தேர்வு தகவல்களை பதிவு',
+  Longitudinal: 'தீர்க்கரேகை',
+  Transverse: 'குறுக்காக',
+  Oblique: 'சாய்ந்த',
+  Cephalic: 'தலைப்பாகம்',
+  Breech: 'துப்பாக்கியின் பின்பகுதி',
+  Shoulder: 'தோள்',
+  Single: 'ஒற்றை',
+  Multiple: 'பல',
+  InspectationOfScarsOrAbdominalFindings: 'எந்த வடுக்கள் அல்லது மற்ற relevent வயிற்று கண்டுபிடிப்புகள்',
+  FundalHeightInCM: 'செ.மீ. பின்னணி உயரம்',
+  FundalHeight: 'வாரங்களில் Fundal உயரம்',
+  FoetalLie: 'பிடல் பொய்',
+  FoetalPresentation: 'பிடல் வழங்கல்',
+  FHS: 'FHS ( Foetal இதய துடிப்பு)',
+  SingleVsMultiplePregnancy: 'ஒற்றை எதிராக பல கர்ப்பம்',
+  FoetalMovements: 'பிடல் இயக்கங்கள்',
+
+  /*Allergies*/
+  Allergies: 'ஒவ்வாமைகள்',
+  AllergiesTitle: 'இந்த பகுதி பொது தேர்வு தகவல்களை பதிவு',
+  DrugAllergies: 'மருந்து ஒவ்வாமை',
+  FoodAllergies: 'உணவு ஒவ்வாமைகள்',
+  EnviornmentalAllergies: 'சுற்றுச்சூழல் ஒவ்வாமைகள்',
+  If_yes_please_indicate: 'ஆம், தயவு செய்து என்றால்',
+
+  /*Breast Examination*/
+  BreastExamination: 'மார்பக தேர்வு',
+  BreastExaminationTitle: 'Tஇந்த பகுதி மார்பக தேர்வு தகவல்களை பதிவு',
+  LeftBreast: 'இடது',
+  RightBreast: 'வலது',
+  Normal: 'இயல்பான',
+  Abnormal: 'அசாதாரண',
+  RetractedNipple: 'திரும்பப்பெறப்பட்டது நிப்பிள்',
+  Nodule: 'முடிச்சு',
+  Lump: 'மொத்தத்',
+  Scar: 'ஸ்கார்',
+
+  /*Family History*/
+  FamilyHistory: 'குடும்ப வரலாற்று',
+  FamilyHistoryTitle: 'இந்த பகுதி பதிவுகளை குடும்ப வரலாற்று தகவல்',
+  HighBP: 'உயர் இரத்த அழுத்தம் (இரத்த அழுத்தம்)',
+  Diabetes: 'நீரிழிவு',
+  Tuberculosis: 'காசநோய்',
+  TwinsInImmediateFamily: 'உடனடி குடும்ப இரட்டையர்கள்',
+  CongeniatlMalfomationsInImmediateFamily: 'குடும்பத்தார் மத்தியில் இன்பகரமான குறைபாட்டுக்கு',
+
+  /*General Examination*/
+  GeneralExamination: 'பொது தேர்வு',
+  GeneralExaminationTitle: ' இந்த பகுதி பொது தேர்வு தகவல்களை பதிவு',
+  HeightIncms: 'செ.மீ. உயரம்',
+  WeightInKgs: 'அர எடை',
+  Pallor: 'டிரெட்',
+  Jaundice: 'மஞ்சள் காமாலை',
+  Pulse: 'பல்ஸ்',
+  RespiratoryRatePM: 'நிமிடம் ஒன்றுக்கு சுவாச விகிதம்',
+  Oedema: 'வீக்கம்',
+  BP: 'இரத்த அழுத்தம்',
+  TemperatureInFarenheit: 'பாரன்ஹீட் வெப்பநிலை',
+  TooWeakToGetOutOfBed: 'வெப்பநிலை> அல்லது = 38 டிகிரி, காட்சி கூடுதல் பெட்டியை (படுக்கையை விட்டு எழுந்திருக்க மிகவும் பலவீனமாக)',
+  HabbitsAndSocialHistory: 'பழக்கம்/சமூக வரலாறு',
+  HabbitsAndSocialHistoryTitle: 'அவரது பகுதியில் பழக்கவழக்கம் மற்றும் சமூக வரலாறு தகவல்களை பதிவு',
+  Tobacco: 'புகையிலை',
+  Smoking: 'புகை',
+  Drugs: 'மருந்துகள்',
+  Alcohol: 'மது',
+
+  /*Menstrual History*/
+  MenstrualHistory: 'மாதவிடாய் வரலாறு',
+  MenstrualHistoryTitle: 'இந்த பகுதி பதிவுகளை மாதவிடாய் வரலாறு தகவல்',
+  Regularity: 'முறைப்படுத்தி',
+  Regular: 'வழக்கமான',
+  Irregular: 'ஒழுங்கற்ற',
+  FrequencyInNumberOfDays: 'நாட்கள் எண்ணிக்கை அதிர்வெண்',
+  NumberOfDaysOfBleed: 'நிரப்பிய நாட்கள் எண்ணிக்கை',
+  AgeAtMenarche: 'வயதுக்கு வருகையில் வயது',
+  PainAssociatedWithPeriods: 'வலி பீரியட்ஸ் தொடர்புடைய',
+
+  /* ObstetricHistory*/
+  ObstetricHistory: 'மகப்பேறு வரலாறு',
+  ObstetricHistoryTitle: 'இந்த பகுதி மகப்பேறு வரலாறு தகவல்களை பதிவு',
+  Gravida: 'தாய்மை',
+  Para: 'பாரா',
+  LiveBirths: 'பிறப்புக்களின்',
+  RecurrentEarlyAbortion: 'மீண்டும் மீண்டும் ஆரம்ப கருக்கலைப்பு',
+  PostAbortionComplications: 'போஸ்ட்- கருக்கலைப்பு சிக்கல்கள்',
+  HypertensionPreEclmpsiaOrEclampsia: 'உயர் இரத்த அழுத்தம் , முன்சூல்வலிப்புகளின் அல்லது எக்லம்ப்ஸியாவுடன்',
+  AntePartumHaemorrhage: 'ஆண்டி- உருவாக்குதல் இரத்தக்கசிவு ( APH )',
+  BreechOrTransversePresentation: 'துப்பாக்கியின் பின்பகுதி அல்லது குறுக்கு வழங்கல்',
+  obstructedLabourIncludingDystocia: 'பிரச்னை உட்பட தடைப்பட்ட பிரசவம் ',
+  PerinealInjuriesTears: 'கழிவிடக் காயங்கள் / கண்ணீர்',
+  ExcessiveBleedingAfterDelivery: 'பிரசவத்திற்கு பிறகு அதிக இரத்தப்போக்கு',
+  PuerperalSepsis: 'குழந்தை பெறுதல் குருதியில் நுண்ணுயிர் நச்சேற்றம்',
+  BloodTransfusionDuringPrevPregnancies: 'முந்தைய கருவுற்றிருக்கும் போது இரத்த தானம்',
+  StillbirthOrNeonatalLoss: 'குழந்தை இறந்து பிறத்தல் அல்லது குழந்தை பிறந்த இழப்பு',
+  MoreConsecutiveAbortions: 'மூன்று அல்லது அதற்கு மேற்பட்ட தன்னிச்சையான தொடர்ச்சியான கருக்கலைப்பு',
+  ObstructedLabour: 'தடைப்பட்ட பிரசவம்',
+  PrematureBirthsTwinsOrMultiplePregnancies: 'குறை பிரசவமாக , இரட்டை அல்லது பல கருவுற்றிருக்கும்',
+  PrevBaby4500gOrMore: 'முந்தைய குழந்தை 4500g அல்லது அதற்கு மேற்பட்ட எடை',
+  Adm4HTOrPreEclampsiaEclampsiaInPrevpregnancy: 'முந்தைய கர்ப்ப உயர் இரத்த அழுத்தம் அல்லது முன்சூல்வலிப்புகளின் / எக்லம்ப்ஸியாவுடன் சேர்க்கை',
+  SurgeryOnTheReproductiveTract: 'இனப்பெருக்க பாதை மீது அறுவை சிகிச்சை',
+  CongenitalAnomaly: 'பிறவியிலேயே ஒழுங்கின்மை',
+  Treatment4Infertility: 'மலட்டுத்தன்மையை சிகிச்சை',
+  SpinalDeformities: 'போன்ற ஸ்கோலியோசிஸ் / கைபோசிஸ் / போலியோ போன்ற எலும்பியல் ',
+  RhNegInThePrevPregnancy: 'முந்தைய கர்ப்ப ஆர்.எச் எதிர்மறை',
+
+  /*Past Medical History*/
+  PastMedicalHistory: 'கடந்த மருத்துவ வரலாறு',
+  PastMedicalHistoryTitle: 'மருத்துவ வரலாறு தகவல் கடந்த இந்த பகுதி பதிவுகள்',
+  BloodPressure: 'இரத்த அழுத்தம்',
+  HighBloodPressure_hypertension: 'உயர் இரத்த அழுத்தம்',
+  OnMedication: 'மருந்துகளை ?',
+  Diabetes_Types: 'வகை 1, வகை 2',
+  Breathlessness: 'மூச்சுவிட',
+  Breathlessness_on_exertion_palpitations_HeartDisease: 'உழைப்பு அன்று, படபடப்பு ( இதய நோய்)',
+  RenalDisease: 'சிறுநீரக நோய்',
+  RenalDisease_KidneyFailure: 'சிறுநீரக செயலிழப்பு?',
+  Convulsions: 'வலிப்பு',
+  Convulsions_Types: 'கை வலிப்பு, Histerias போன்றவை',
+  Asthama: 'ஆஸ்துமா',
+  Attacksofbreathlessness_asthma: 'மூச்சுத்திணறல் அல்லது ஆஸ்துமா தாக்குதல்',
+  Jaundice_Types: 'கல்லீரலுக்கு முன் , ஈரலின் , பதிவு ?',
+  Malaria: 'மலேரியா',
+  Malariasymptoms: 'எந்த அறிகுறிகள் ?',
+  RTI: 'தகவல் பெறும் உரிமை',
+  ReproductiveTractInfection_RTI: 'இனப்பெருக்க பாதை நோய்த்தொற்று',
+  STI_AIDS: 'பால்வினை / எய்ட்ஸ்',
+  SexuallyTransmittedInfection_STI_and_HIV_AIDS: 'பால்வினை தொற்று மற்றும் HIV / AIDS',
+  ChronicCough_bloodInSputum_prolongedFever_tuberculosis: 'நீடித்த இருமல், சளி இரத்த, நீண்ட காய்ச்சல்',
+
+  /*Systemic Examination*/
+  SystemicExamination: 'அமைப்பு ரீதியான தேர்வு',
+  SystemicExaminationTitle: 'இந்த பகுதி பதிவுகளை ஸிஸ்டமிக் தேர்வு தகவல்',
+  Cardiovasculary: 'இருதய அமைப்பு',
+  Nervous_System: 'நரம்பு மண்டலம்',
+  Digestive: 'ஜீரண மண்டலம்',
+  Musculoskeltal: 'தசைநார்',
+
+  /*Medical History*/
+  MedicalHistory: 'மருத்துவ வரலாறு',
+  MedicalHistoryTitle: 'இந்த பகுதி மருத்துவ வரலாற்றில் பதிவு',
+
+  /*Physical Examination*/
+  PhysicalExamination: 'உடல் பரிசோதனை',
+  PhysicalExaminationTitle: 'இந்த பகுதி பதிவுகள் உடல் பரிசோதனை தகவல்',
+
+  /*Lab Results and Orders*/
+  LabResultsandOrders: 'ஆய்வு முடிவுகள் மற்றும் ஆணைகள்',
+  LabResultsandOrdersTitle: 'இந்த பகுதி லேப் முடிவுகள் மற்றும் ஆணைகள் தகவல்களை பதிவு',
+  Orders: 'ஆணைகள்',
+  Results: 'முடிவுகள்',
+  BloodGroup_including_RhFactor: 'இந்த Rh காரணி உட்பட இரத்த பிரிவு',
+  VDRL_RPR: 'VDRL/ ஆர்.பீ.ஆர்',
+  HIV_testing: 'எச்.ஐ. வி பரிசோதனை',
+  Rapid_Malaria_Test: 'ரேபிட் மலேரியா சோதனை-எஸ்சி கிடைக்கவில்லை என்றால்',
+  BloodSugar: 'இரத்த சர்க்கரை',
+  HbsAg: 'HbsAg',
+  CBC_with_ESR: 'என்பவற்றால் கொண்டு சிபி',
+  PeripheralSmear: 'புற ஸ்மியரைப்',
+  UPT: 'UPT',
+  Hb: 'Hb',
+  UrineSugar: 'சிறுநீர் சர்க்கரை',
+  UrineProteins: 'சிறுநீர் புரதங்கள்',
+  RapidMalariaTest: 'ரேபிட் மலேரியா டெஸ்ட்',
+  Select_UPT: 'தேர்ந்தெடுக்கவும்',
+
+  /*Registration - Mothers Demographic Information*/
+  MothersDemographicInformation: 'அம்மா  கள் புள்ளிவிபர தகவல்கள்',
+  MothersDemographicInformationTitle: 'இந்த பகுதி தாய்மார்கள் மக்கள் வகைப்பாடு தகவல்களை பதிவு',
+  AddressLine1: 'முகவரி',
+  AddressLine2: 'முகவரி 2',
+  AddressLine3: 'முகவரி 3',
+  EnterAddLine1: 'முகவரி சேர்க்கவும்',
+  EnterAddLine2: 'முகவரி 2 சேர்க்கவும்',
+  EnterAddLine3: 'முகவரி 3 சேர்க்கவும்',
+  Village: 'கிராமத்தில்',
+  SelVill: 'தேர்வு கிராமம்',
+  City: 'பெருநகரம்',
+  SelCity: 'நிசாமாபாத்',
+  State: 'அரசு',
+  SelState: 'மாநில தேர்ந்தெடு',
+  Pincode: 'பின்கோடு',
+  EnterPIN: 'பின்கோடு Enter',
+  TempAddressSame: 'நிரந்தர போன்ற தற்காலிக முகவரி அதே',
+  Sub_Center_ID: 'சப்-மையம் ஐடி',
+  Sub_Center_Name: 'சப்-மையம் பெயர்',
+  VHN_Name: 'VHN பெயர்',
+  Select_Subcenter_ID: 'சப்-சென்டர் ஐடி தேர்வு',
+  Select_Subcenter_Name: 'சப்-சென்டர் பெயர் தேர்வு',
+  Select_VHN_Name: 'தேர்ந்தெடு VHN பெயர்',
+
+  /*Registration - Current Pregnancy*/
+  Select_Blood_Group: 'தேர்ந்தெடு இரத்தப் பிரிவு',
+
+  /*Medical Prescriptions*/
+  MedicalPrescriptions: 'மருத்துவ மருந்துகளும்',
+  MedicalPrescriptionsTitle: 'இந்த பிரிவு மருத்துவ மருந்துகளும் தகவல்களை பதிவு',
+  Inj_TT_IM: 'Inj. TT ஒரு 0.5ml ஐஎம் ',
+  FolicAcidSuppliment_IFA: 'ஃபோலிக் அமிலம் Suppliment (ஐஎஸ்ஏ)',
+  Counselling: 'கவுன்சிலிங் - டயட், கர்ப்ப காலத்தில் ஆபிரிக்க தேசிய காங்கிரஸ், குடும்ப வன்முறை, பாலியல் முக்கியத்துவம்',
+  Issue_MaternalChildProtectionCard: 'வெளியீடு தாய்மார் மற்றும் குழந்தைகள் பாதுகாப்பு அட்டை',
+  JSYCard: 'JSY அட்டை',
+  BPLCard: 'பிபிஎல் அட்டை',
+  RecordPossibleLocationOfDelivery: 'டெலிவரி சாத்தியமான இடம் பதிவு',
+  Date_of_Injection: 'ஊசி தேதி',
+  Folic_Acid_Tablets_Dispensed: 'போலிக் ஆசிட் மாத்திரைகள் விநியோகிப்பதற்கு',
+  IFA_Tablets_Dispensed: 'ஐஎஸ்ஏ மாத்திரைகள் விநியோகிப்பதற்கு',
+  Albendazole_Dispensed: 'Albendazole ( 400 எம்ஜி ) விநியோகிப்பதற்கு',
+  QuantityDispensed: 'அளவு விநியோகிப்பதற்கு',
+
+  /* Primary Information*/
+  PrimaryInformation: 'முக்கிய தகவல்கள்',
+  PrimaryInformationTitle: 'இந்த பகுதி பதிவுகளை அம்மா பொது தகவல்',
+  Name: 'பெயர்',
+  EnterName: 'பெயர் சேர்க்கவும்',
+  DOB: 'பிறந்த தேதி',
+  ECN: 'அவசர தொடர்பு எண்',
+  EnterECN: 'அவசர தொடர்பு எண் Enter',
+  EnterSpouseName: 'கணவன் அல்லது மனைவியின் பெயர் Enter',
+  Age: 'வயது',
+  JananiID: 'ஜனனி ஐடி',
+  PICMEID: 'PICME ஐடி',
+  NextVisitDate: 'அடுத்த வருகை தேதி',
+  EnterPICMEID: 'PICME ஐடி உள்ளிடவும்',
+
+  /*Comments*/
+  Comments: 'கருத்துக்கள்',
+  GeneralComments: 'பொது கருத்துகள் ஏதாவது இருந்தால்',
+  EnterComments: 'உங்கள் கருத்துக்கள் Enter',
+  IncidentCapture: 'சம்பவம் பிடிப்பு',
+  Prescriptions_photos_scans_Allergies: 'பிரஸ்கிரிப்ஷன்ஸ், புகைப்படங்கள், ஸ்கேன்கள், ஒவ்வாமைகள் போன்றவை',
+  Attachements: 'Attachements ஏதேனும்',
+  Upload: 'பதிவேற்ற',
+  ClickToTakePhotosOrVideos: 'புகைப்படங்கள் அல்லது வீடியோக்களை எடுத்து கிளிக் செய்யவும்',
+  PregnancyHistory: 'கர்ப்பம் வரலாறு',
+  Pregnancies: 'கருவுற்றிருக்கும்',
+  Abortions: 'அபார்ஷன்',
+  VisitInformation: 'வருகை தகவல்கள்',
+  BasicInformation: 'அடிப்படை தகவல்',
+  PastEpisodes: 'கடந்த பகுதிகளின்',
+  ReportsAndResults: 'அறிக்கைகள் மற்றும் முடிவுகள்',
+  RiskProfile: 'அபாய ப்ரோஃபைல்',
+  AddPatient: 'நோயாளி சேர்',
+  Photo: 'புகைப்பட',
+
+  /*Referral Letter */
+  Referral_Letter: 'பரிந்துரை கடிதம்',
+  PatientID: 'நோயாளி ஐடி',
+  SubCenterName: 'துணை மையம் பெயர்',
+  ReferredTo: 'குறிப்பிடப்படுகிறது:',
+  RefferedOn: 'குறிப்பிட்டிருக்கிறார்:',
+  ReasonForReferral: 'குறிப்பு காரணம்:',
+  ModeOfTransport: 'போக்குவரத்து முறை:',
+  Information_on_Referral_provided_to_institution_referred: 'நிறுவனத்திற்கு வழங்கப்பட்ட பரிந்துரை பற்றிய தகவல் குறிப்பிட்டார்:',
+  CurrentMedication: 'தற்போதைய மருந்து:',
+  PatientConsentObtained: 'நோயாளி ஒப்புதல் பெற்றதாகவும்:',
+  Print_Export_to_PDF: 'அச்சு (PDF ஆக ஏற்றுமதி)',
+  Cancel: 'ரத்து',
+  PleaseEenter: 'உள்ளிடவும்',
+  PleaseEnterTheReason: 'காரணத்தை உள்ளிடவும்',
+  PHCName: 'PHC பெயர்',
+  SpouseName: 'கணவன் அல்லது மனைவியின் பெயர்',
+  PATIENTINFORMATION: 'நோயாளி தகவல்',
+
+  /*Visit Summary */
+  VisitSummary: 'வருகை சுருக்கம்',
+  Type_of_Visit: 'விஜயம் வகை',
+  Date_of_Visit: 'விஜயம் தேதி',
+  VHNName: 'VHN பெயர்',
+  Obstetrics: 'மகப்பேறியல்',
+  CurrentPregnancy_only_if_ANCvisit: 'நடப்பு கர்ப்பம் <மட்டுமே ஆபிரிக்க தேசிய காங்கிரஸ் விஜயம்>',
+  If_Pregnancy_Wanted: 'கர்ப்பம் தேவை என்றால்',
+  Present_Illness: 'தற்போதைய நோய்',
+  Leak_of_Watery_fluid_PV: 'தண்ணீரால் திரவம் ஃபோட்டோவோல்டிக்கின் கசிவு',
+  Treatment_of_infertility: 'கருவுறாமைக்கான சிகிச்சை',
+  Spinal_deformities: 'எலும்பியல்',
+  High_Blood_Pressure: 'உயர் இரத்த அழுத்தம்',
+  Nervous: 'நரம்பு',
+  Food: 'உணவு',
+  Environmental: 'சுற்றுச்சூழல்',
+  LAB_RESULTS: 'ஆய்வு முடிவுகள்',
+  Examination_Notes: 'தேர்வு குறிப்புகள்',
+  Recorded_medication_details: 'பதிவு மருந்து விவரங்கள்',
+  Notes: 'குறிப்புகள்',
+  Printed_on_pdf_generation_date: '<PDF தலைமுறை தேதி> அச்சிடப்பட்டு',
+  Signature_of_the_Physician: 'மருத்துவர் கையொப்பம்',
+  PHC: 'PHC',
+  Sub_Center: 'சப்-மையம்',
+
+  /*Single Patient View Visits Per Week Range*/
+  TotalVisit: 'மொத்த வருகை',
+  ANC_Visit: 'ஆபிரிக்க தேசிய காங்கிரஸ் வருகை',
+  General_Visit: 'பொது வருகை',
+  Missed_Visit: 'தவறிய வருகை',
+
+  /*Single Patient Whole Visits*/
+  Total_Visit: 'மொத்த வருகை',
+  ANC_Visits: 'ஆபிரிக்க தேசிய காங்கிரஸ் வருகை',
+  General_Visits: 'பொது வருகை',
+  PNC_Visit: 'என்று PNC வருகை',
+  Back_to_Worklist: 'மீண்டும் வேலை பட்டியல்',
+
+  /*Single Patient - Visit Information*/
+  Mandatory_visit: ' கட்டாய வருகை',
+  W1_13: 'W1-13',
+  W13_27: 'W13-27',
+  W28_39: 'W28-39',
+  Postnatal: 'பிரசவத்திற்கு',
+  Open: 'திறந்த',
+
+  /*Single Patient - SPV Table*/
+  Status: 'நிலைமை',
+  Type: 'வகை',
+  Date: 'தேதி',
+  Last_Updated: 'கடைசியாகப் புதுப்பித்தது',
+  Entered_by: 'உள்ளிட்ட',
+  Summary: 'சுருக்கம்',
+  View: 'காண்க',
+
+  /*Single Patient - DropDownSplit*/
+  Add_Visit: ' வருகை சேர்க்கவும்',
+  ANC1: 'ஆபிரிக்க தேசிய காங்கிரஸ்1',
+  ANC2: 'ஆபிரிக்க தேசிய காங்கிரஸ்2',
+  ANC3: 'ஆபிரிக்க தேசிய காங்கிரஸ்3',
+  PNC: 'என்று PNC',
+  General_Consultation: 'பொது கலந்தாய்வின்',
+
+  /*Login Form*/
+
+  username: 'பயனர் பெயர்',
+  password: 'கடவுச்சொல்',
+  role: 'பங்கு',
+  rememberPassword: 'கடவுச்சொல் நினைவிருக்கிறதா?',
+  forgotPassword: 'கடவுச்சொல்லை மறந்துவிட்டீர்களா?',
+  clickHere: 'இங்கே கிளிக் செய்யவும்',
+  login: 'உள் நுழை',
+  language: 'மொழி',
+
+  /*Worklist */
+
+  addPatient: 'ஒரு நோயாளி சேர்க்கவும்',
+  importFromPicme: 'PICME இருந்து இறக்குமதி',
+  vhnWorklist: 'VHN வேலை பட்டியல்',
+  physicianWorklist: 'மருத்துவர் வேலை பட்டியல்',
+  today: 'இன்று',
+  thisWeek: 'இந்த வாரம்',
+  highRisk: 'உயர் அபாயங்கள்',
+  todaysPatients: 'இன்றைய நோயாளிகள்',
+  thisWeekPatients: 'இந்த வார நோயாளிகள்',
+  notifications: 'அறிவிப்புகள்',
+  searchResult: 'தேடல் முடிவு',
+
+  /*Worklist - Table Header */
+  name: 'பெயர்',
+  spouseName: 'கணவன் பெயர்',
+  age: 'வயது',
+  phone: 'தொலைபேசி',
+  pregStatus: 'கர்ப்ப நிலை',
+  obstetrics: 'மகப்பேறியல்',
+  risk: 'இடர்',
+  subNo: 'துணை எண்',
+  subName: 'துணை பெயர்',
+  vhnName: 'VHN பெயர்',
+  nextDueDate: 'அடுத்த வருகை',
+  subCentreID: 'துணை மையம் ஐடி',
+  subCentreName: 'துணை மையம் பெயர்',
+
+  /*Worklist - Search Filter*/
+  searchPatients: 'தேடல் நோயாளிகள்',
+
+  /*Worklist - pagination*/
+  previous: '« முந்தைய',
+  next: 'அடுத்த »',
+
+  /*Toaster Notifications*/
+  Patient_Registered_successfully_with_ID: 'நோயாளி ஐடி கொண்டு வெற்றிகரமாக பதிவு : ',
+  Technical_Error: 'தொழில்நுட்ப பிழை',
+  Patient_Updated_successfully: 'நோயாளி வெற்றிகரமாக புதுப்பிக்கப்பட்டது !!',
+  Patient_deleted_successfully: 'நோயாளி வெற்றிகரமாக நீக்கப்பட்டது !!',
+  Patient_Not_Found: 'நோயாளி கிடைக்கவில்லை'
 };
 
-},{}],728:[function(require,module,exports){
+},{}],732:[function(require,module,exports){
 'use strict';
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
@@ -80314,7 +83023,7 @@ var Control = (function (_ControlBase) {
                         v: _react2.default.createElement(
                             _reactBootstrap.Alert,
                             _extends({ bsStyle: 'danger', bsClass: 'alert' }, _this2.props, { onDismiss: _this2.handleAlertDismiss.bind(_this2) }),
-                            _react2.default.createElement('i', { 'class': 'glyphicon glyphicon-exclamation-sign' }),
+                            _react2.default.createElement('i', { className: 'glyphicon glyphicon-exclamation-sign' }),
                             _react2.default.createElement(
                                 'div',
                                 { className: 'alertTitle' },
@@ -80322,7 +83031,7 @@ var Control = (function (_ControlBase) {
                             ),
                             _react2.default.createElement(
                                 'ul',
-                                null,
+                                { className: 'list-unstyled' },
                                 messages
                             )
                         )
@@ -80341,7 +83050,7 @@ var Control = (function (_ControlBase) {
 
 exports.default = Control;
 
-},{"./ControlBase":730,"./LabeledControl":736,"react":599,"react-bootstrap":362}],729:[function(require,module,exports){
+},{"./ControlBase":734,"./LabeledControl":741,"react":601,"react-bootstrap":363}],733:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -80385,6 +83094,7 @@ var ArrowedMenu = (function (_ControlBase) {
 
                 var trimOption = this.props.options[i];
                 var className = 'btn trimisterBtn ' + (trimOption.value == this.props.value ? 'breadcrumbSelect' : 'btn-breadcrumb');
+                trimOption.icon = trimOption.value == this.props.value ? 'patient/selectedCheck.png' : trimOption.icon;
                 controls.push(_react2.default.createElement(
                     'a',
                     { onClick: this.clicked.bind(this, trimOption.value), className: className },
@@ -80409,7 +83119,7 @@ var ArrowedMenu = (function (_ControlBase) {
 
 module.exports = ArrowedMenu;
 
-},{"./ControlBase":730,"react":599}],730:[function(require,module,exports){
+},{"./ControlBase":734,"react":601}],734:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -80421,6 +83131,10 @@ Object.defineProperty(exports, "__esModule", {
 var _react = require('react');
 
 var _react2 = _interopRequireDefault(_react);
+
+var _LoginStore = require('../stores/LoginStore');
+
+var _LoginStore2 = _interopRequireDefault(_LoginStore);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -80437,7 +83151,10 @@ var ControlBase = (function (_React$Component) {
     function ControlBase() {
         _classCallCheck(this, ControlBase);
 
-        return _possibleConstructorReturn(this, Object.getPrototypeOf(ControlBase).call(this));
+        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(ControlBase).call(this));
+
+        _this.loginUser = _LoginStore2.default.user;
+        return _this;
     }
 
     _createClass(ControlBase, [{
@@ -80522,7 +83239,7 @@ var ControlBase = (function (_React$Component) {
 
 exports.default = ControlBase;
 
-},{"react":599}],731:[function(require,module,exports){
+},{"../stores/LoginStore":755,"react":601}],735:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -80578,7 +83295,91 @@ var ControlButton = (function (_ControlBase) {
 
 exports.default = ControlButton;
 
-},{"./ControlBase":730,"react":599,"react-bootstrap":362}],732:[function(require,module,exports){
+},{"./ControlBase":734,"react":601,"react-bootstrap":363}],736:[function(require,module,exports){
+'use strict';
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _react = require('react');
+
+var _react2 = _interopRequireDefault(_react);
+
+var _reactCheckboxGroup = require('react-checkbox-group');
+
+var _reactCheckboxGroup2 = _interopRequireDefault(_reactCheckboxGroup);
+
+var _ControlBase2 = require('./ControlBase');
+
+var _ControlBase3 = _interopRequireDefault(_ControlBase2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-unused-vars: 0*/
+/*eslint no-unused-vars: 0*/
+
+var classSet = 'checkBox checkedCB';
+
+var CustomRadioButton = (function (_ControlBase) {
+    _inherits(CustomRadioButton, _ControlBase);
+
+    // export default class CheckBox extends React.Component {
+
+    function CustomRadioButton() {
+        _classCallCheck(this, CustomRadioButton);
+
+        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(CustomRadioButton).call(this));
+
+        _this.state = { status: '' };
+        return _this;
+    }
+
+    _createClass(CustomRadioButton, [{
+        key: 'checkOrUncheck',
+        value: function checkOrUncheck() {
+            if (this.state.status == true) classSet = 'checkBox checkedCB';else classSet = 'checkBox';
+            var checkOption = !this.state.status;
+            this.setState({ status: checkOption });
+        }
+    }, {
+        key: 'componentDidMount',
+        value: function componentDidMount() {
+            if (this.props.status == true) classSet = 'checkBox checkedCB';else classSet = 'checkBox';
+            this.setState({ status: this.props.status });
+        }
+    }, {
+        key: 'childRender',
+        value: function childRender() {
+            return _react2.default.createElement(
+                'div',
+                null,
+                _react2.default.createElement(
+                    'div',
+                    { className: classSet, onClick: this.checkOrUncheck.bind(this) },
+                    _react2.default.createElement(
+                        'span',
+                        { className: 'tickMark' },
+                        '✔'
+                    )
+                ),
+                this.props.label
+            );
+        }
+    }]);
+
+    return CustomRadioButton;
+})(_ControlBase3.default);
+
+exports.default = CustomRadioButton;
+
+},{"./ControlBase":734,"react":601,"react-checkbox-group":375}],737:[function(require,module,exports){
 'use strict';
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
@@ -80612,6 +83413,13 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-mixed-spaces-and-tabs:0*/
 /*eslint no-unused-vars: 0*/
 
+var dpStyle = {
+    'border': '1px solid #E0E0E0',
+    'height': '34px',
+    'borderRadius': '5px',
+    'padding': '1px 1px'
+};
+
 var Control = (function (_ControlBase) {
     _inherits(Control, _ControlBase);
 
@@ -80633,6 +83441,7 @@ var Control = (function (_ControlBase) {
                     displayFormat: 'DD/MM/YYYY',
                     returnFormat: 'DD/MM/YYYY',
                     className: 'my-react-component',
+                    style: dpStyle,
                     valueLink: this.controlLinkState(),
                     showOnInputClick: true,
                     placeholder: 'DD/MM/YYYY',
@@ -80660,7 +83469,7 @@ var Control = (function (_ControlBase) {
 
 exports.default = Control;
 
-},{"./ControlBase":730,"./LabeledControl":736,"rc-datepicker":270,"react":599}],733:[function(require,module,exports){
+},{"./ControlBase":734,"./LabeledControl":741,"rc-datepicker":270,"react":601}],738:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -80715,7 +83524,7 @@ var DropDown = (function (_ControlBase) {
 
             return _react2.default.createElement(
                 _reactBootstrap.Input,
-                { ref: 'combo', type: 'select', multiple: this.props.multiple, label: this.props.label, placeholder: this.props.placeholder, labelClassName: this.props.labelClassName,
+                { ref: 'combo', type: 'select', multiple: this.props.multiple, label: this.props.label, disabled: this.props.disabled, placeholder: this.props.placeholder, labelClassName: this.props.labelClassName,
                     wrapperClassName: this.props.wrapperClassName, valueLink: this.controlLinkState() },
                 ddOptions
             );
@@ -80745,7 +83554,7 @@ var DropDown = (function (_ControlBase) {
 
 exports.default = DropDown;
 
-},{"./ControlBase":730,"react":599,"react-bootstrap":362}],734:[function(require,module,exports){
+},{"./ControlBase":734,"react":601,"react-bootstrap":363}],739:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -80800,7 +83609,7 @@ var DropDown = (function (_ControlBase) {
 
             return _react2.default.createElement(
                 _reactBootstrap.Input,
-                { ref: 'combo', type: 'select', multiple: this.props.multiple, label: this.props.label, placeholder: this.props.placeholder, labelClassName: this.props.labelClassName,
+                { ref: 'combo', type: 'select', multiple: this.props.multiple, label: this.props.label, disabled: this.props.disabled, placeholder: this.props.placeholder, labelClassName: this.props.labelClassName,
                     wrapperClassName: this.props.wrapperClassName, valueLink: this.controlLinkState() },
                 ddOptions
             );
@@ -80830,7 +83639,7 @@ var DropDown = (function (_ControlBase) {
 
 exports.default = DropDown;
 
-},{"./ControlBase":730,"react":599,"react-bootstrap":362}],735:[function(require,module,exports){
+},{"./ControlBase":734,"react":601,"react-bootstrap":363}],740:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -80882,7 +83691,7 @@ var Label = (function (_ControlBase) {
 
 exports.default = Label;
 
-},{"./ControlBase":730,"react":599}],736:[function(require,module,exports){
+},{"./ControlBase":734,"react":601}],741:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -80933,7 +83742,7 @@ var LabeledControl = (function (_ControlBase) {
             ));
             if (this.props.subLabel) controls.push(_react2.default.createElement(
                 'span',
-                { className: 'subLabel' },
+                { className: 'subLabel labelPadding' },
                 this.props.subLabel
             ));
 
@@ -80955,7 +83764,7 @@ var LabeledControl = (function (_ControlBase) {
 
 exports.default = LabeledControl;
 
-},{"./ControlBase":730,"react":599}],737:[function(require,module,exports){
+},{"./ControlBase":734,"react":601}],742:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -81026,7 +83835,7 @@ var LabeledControlList = (function (_ControlBase) {
 
 exports.default = LabeledControlList;
 
-},{"./ControlBase":730,"./LabeledControl":736,"react":599}],738:[function(require,module,exports){
+},{"./ControlBase":734,"./LabeledControl":741,"react":601}],743:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -81086,7 +83895,7 @@ var NumericTextField = (function (_ControlBase) {
 
 exports.default = NumericTextField;
 
-},{"./ControlBase":730,"react":599}],739:[function(require,module,exports){
+},{"./ControlBase":734,"react":601}],744:[function(require,module,exports){
 'use strict';
 
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
@@ -81149,7 +83958,7 @@ var RadioControl = (function (_ControlBase) {
                         null,
                         this.props.trueText
                     ),
-                    _react2.default.createElement('input', { type: 'radio', value: !this.props.valueLink.value, checked: !this.props.valueLink.value, name: this.props.name, onChange: this.selectionChanged(false).bind(this) }),
+                    _react2.default.createElement('input', { type: 'radio', className: 'radioLeftMargin', value: !this.props.valueLink.value, checked: !this.props.valueLink.value, name: this.props.name, onChange: this.selectionChanged(false).bind(this) }),
                     _react2.default.createElement(
                         'span',
                         null,
@@ -81164,7 +83973,7 @@ var RadioControl = (function (_ControlBase) {
 
 exports.default = RadioControl;
 
-},{"./ControlBase":730,"./LabeledControl":736,"react":599}],740:[function(require,module,exports){
+},{"./ControlBase":734,"./LabeledControl":741,"react":601}],745:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -81288,7 +84097,7 @@ var StageIndicator = (function (_ControlBase) {
 
 exports.default = StageIndicator;
 
-},{"./ControlBase":730,"./LabeledControl":736,"react":599,"react-bootstrap-switch":290}],741:[function(require,module,exports){
+},{"./ControlBase":734,"./LabeledControl":741,"react":601,"react-bootstrap-switch":291}],746:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -81345,7 +84154,7 @@ var TextBox = (function (_ControlBase) {
 
 exports.default = TextBox;
 
-},{"./ControlBase":730,"react":599}],742:[function(require,module,exports){
+},{"./ControlBase":734,"react":601}],747:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -81394,6 +84203,7 @@ var ToggleButton = (function (_ControlBase) {
         key: 'componentWillReceiveProps',
         value: function componentWillReceiveProps(newProps) {
             this.refs.toggle.value(newProps.valueLink.value);
+            this.refs.toggle.disabled(newProps.disabled);
         }
     }, {
         key: 'childRender',
@@ -81401,7 +84211,6 @@ var ToggleButton = (function (_ControlBase) {
 
             var controlLinkState = this.controlLinkState();
             var toggleLabel = controlLinkState.value ? this.props.offText : this.props.onText;
-
             return _react2.default.createElement(_LabeledControl2.default, { label: this.props.label, labelClassName: this.props.labelClassName, wrapperClassName: this.props.wrapperClassName, control: _react2.default.createElement(_reactBootstrapSwitch2.default, { ref: 'toggle', onText: this.props.onText,
                     disabled: this.props.disabled,
                     offText: this.props.offText,
@@ -81438,7 +84247,7 @@ ToggleButton.defaultProps = {
     disabled: false
 };
 
-},{"./ControlBase":730,"./LabeledControl":736,"react":599,"react-bootstrap-switch":290}],743:[function(require,module,exports){
+},{"./ControlBase":734,"./LabeledControl":741,"react":601,"react-bootstrap-switch":291}],748:[function(require,module,exports){
 'use strict';
 
 var _flux = require('flux');
@@ -81468,7 +84277,7 @@ var AppDispatcher = (function (_Dispatcher) {
 
 module.exports = new AppDispatcher();
 
-},{"flux":101}],744:[function(require,module,exports){
+},{"flux":101}],749:[function(require,module,exports){
 'use strict';
 
 var _react = require('react');
@@ -81487,7 +84296,7 @@ require('./utils/GlobalWindowManager'); /*eslint no-unused-vars: 0*/
 
 _reactDom2.default.render(require('./router'), document.getElementById('app'));
 
-},{"./router":747,"./utils/GlobalWindowManager":765,"react":599,"react-dom":374,"react-router":420}],745:[function(require,module,exports){
+},{"./router":753,"./utils/GlobalWindowManager":772,"react":601,"react-dom":376,"react-router":422}],750:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -81635,7 +84444,70 @@ var SinglePatientViewModel = (function () {
 
 exports.default = SinglePatientViewModel;
 
-},{}],746:[function(require,module,exports){
+},{}],751:[function(require,module,exports){
+'use strict';
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var subCenterDetails = {
+    subCentreIds: [{
+        value: 'Select Sub-centerID',
+        text: locale('Select_Subcenter_ID')
+    }, {
+        value: 'Sub-centerID1',
+        text: 'Sub-center ID 1'
+    }, {
+        value: 'Sub-centerID2',
+        text: 'Sub-center ID 2'
+    }],
+
+    subCentreNames: [{
+        value: 'Select Sub-centerName',
+        text: locale('Select_Subcenter_Name')
+    }, {
+        value: 'Sub-centerName1',
+        text: 'Sub-center Name 1'
+    }, {
+        value: 'Sub-centerName2',
+        text: 'Sub-center Name 2'
+    }],
+
+    vhnNames: [{
+        value: 'Select VHNName',
+        text: locale('Select_VHN_Name')
+    }, {
+        value: 'VHNName1',
+        text: 'VHN Name 1'
+    }, {
+        value: 'VHNName2',
+        text: 'VHN Name 2'
+    }]
+};
+
+var VisitModel = (function () {
+    function VisitModel() {
+        _classCallCheck(this, VisitModel);
+    }
+
+    _createClass(VisitModel, null, [{
+        key: 'getSubCenterdata',
+        value: function getSubCenterdata() {
+            return subCenterDetails;
+        }
+    }]);
+
+    return VisitModel;
+})();
+
+exports.default = VisitModel;
+
+},{}],752:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -81706,7 +84578,7 @@ var VisitSummaryModel = (function () {
 
 exports.default = VisitSummaryModel;
 
-},{}],747:[function(require,module,exports){
+},{}],753:[function(require,module,exports){
 'use strict';
 
 var _react = require('react');
@@ -81783,9 +84655,9 @@ var _Login3 = require('./components/login/Login');
 
 var _Login4 = _interopRequireDefault(_Login3);
 
-var _VisitSummary = require('./components/visit-summary/VisitSummary');
+var _VisitSummaryPage = require('./components/visit-summary/VisitSummaryPage');
 
-var _VisitSummary2 = _interopRequireDefault(_VisitSummary);
+var _VisitSummaryPage2 = _interopRequireDefault(_VisitSummaryPage);
 
 var _TestLocalization = require('./Spikes/Localization/TestLocalization');
 
@@ -81815,55 +84687,63 @@ var _SPVTable = require('./Spikes/singlePatientView/SPVTable.js');
 
 var _SPVTable2 = _interopRequireDefault(_SPVTable);
 
+var _adminChart = require('./components/layout/chart/adminChart');
+
+var _adminChart2 = _interopRequireDefault(_adminChart);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-module.exports = _react2.default.createElement(
-         _reactRouter.Router,
-         null,
-         _react2.default.createElement(
-                  _reactRouter.Route,
-                  { component: _AuthenticatedApp2.default },
-                  _react2.default.createElement(_reactRouter.Route, { path: 'login', component: _Login2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'home', component: _Home2.default })
-         ),
-         _react2.default.createElement(_reactRouter.Route, { path: '/', component: _Login4.default }),
-         _react2.default.createElement(
-                  _reactRouter.Route,
-                  { path: '/app', component: _app2.default },
-                  _react2.default.createElement(_reactRouter.Route, { path: 'VHNWorkList', component: _vhnWorklist2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'MOWorkList', component: _MoWorklist2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'about', component: _about2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'Patient/:patientid/Visit/:visitid', component: _visitPage2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'Registration/:patientid', component: _Registration2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'PatientView/:patientid', component: _SinglePatientView2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'ReferralLetter/:id', component: _ReferralLetter2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'Patient/:patientid/VisitSummary/:visitid', component: _VisitSummary2.default })
-         ),
-         _react2.default.createElement(
-                  _reactRouter.Route,
-                  { path: 'Developer', component: _Developer2.default },
-                  _react2.default.createElement(_reactRouter.Route, { path: 'DevPage1', component: null }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'Menu', component: _menu_test2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'Notifications', component: _test_notifications2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'banner', component: _patientContainer2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'Patient', component: _Registration2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'Visit', component: _visitPage2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'BidirectionalBinding', component: _BindingExample2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'LabelTest', component: _LabelTest2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'DatabindingControls', component: _DatabindingControls2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'Login', component: _Login2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'VisitSummary', component: _VisitSummary2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'Localization', component: _TestLocalization2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'ImportPICME', component: _ImportPICME2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'ReferralLetter', component: _ReferralLetter2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'SinglePatientView', component: _SinglePatientView2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'AlertTest', component: _AlertTest2.default }),
-                  _react2.default.createElement(_reactRouter.Route, { path: 'SPVTable', component: _SPVTable2.default })
-         )
-); /*eslint no-mixed-spaces-and-tabs:0*/
+/*eslint no-mixed-spaces-and-tabs:0*/
 /*eslint no-unused-vars: 0*/
 
-},{"./Spikes/DatabindingControls":627,"./Spikes/Developer":628,"./Spikes/LabelTest":630,"./Spikes/Localization/TestLocalization":633,"./Spikes/PICME/ImportPICME.js":639,"./Spikes/alert/AlertTest":640,"./Spikes/bidirectional_binding/BindingExample":641,"./Spikes/login_auth/components/AuthenticatedApp":645,"./Spikes/login_auth/components/Home":647,"./Spikes/login_auth/components/Login":648,"./Spikes/menu/menu_test":654,"./Spikes/notification/test_notifications":655,"./Spikes/singlePatientView/SPVTable.js":656,"./components/app":659,"./components/layout/about/about":660,"./components/layout/container/patientContainer":663,"./components/login/Login":671,"./components/referral/ReferralLetter":673,"./components/registration/Registration":680,"./components/single-patient/SinglePatientView":683,"./components/visit-summary/VisitSummary":687,"./components/visit/visitPage":709,"./components/worklist/MoWorklist":715,"./components/worklist/vhnWorklist":724,"react":599,"react-dom":374,"react-router":420}],748:[function(require,module,exports){
+module.exports = _react2.default.createElement(
+																				_reactRouter.Router,
+																				null,
+																				_react2.default.createElement(
+																																								_reactRouter.Route,
+																																								{ component: _AuthenticatedApp2.default },
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'login', component: _Login2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'home', component: _Home2.default })
+																				),
+																				_react2.default.createElement(_reactRouter.Route, { path: '/', component: _Login4.default }),
+																				_react2.default.createElement(
+																																								_reactRouter.Route,
+																																								{ path: '/app', component: _app2.default },
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'VHNWorkList', component: _vhnWorklist2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'MOWorkList', component: _MoWorklist2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'about', component: _about2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'Dashboard', component: _adminChart2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'Patient/:patientid/Visit/:visitType/:visitId', component: _visitPage2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'Registration/:patientid', component: _Registration2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'PatientView/:patientid', component: _SinglePatientView2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'ReferralLetter/:id', component: _ReferralLetter2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'Patient/:patientid/VisitSummary/:visitid', component: _VisitSummaryPage2.default })
+																				),
+																				_react2.default.createElement(
+																																								_reactRouter.Route,
+																																								{ path: 'Developer', component: _Developer2.default },
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'DevPage1', component: null }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'Menu', component: _menu_test2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'Notifications', component: _test_notifications2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'banner', component: _patientContainer2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'Patient', component: _Registration2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'Visit', component: _visitPage2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'BidirectionalBinding', component: _BindingExample2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'LabelTest', component: _LabelTest2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'DatabindingControls', component: _DatabindingControls2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'Login', component: _Login2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'VisitSummary', component: _VisitSummaryPage2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'Localization', component: _TestLocalization2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'ImportPICME', component: _ImportPICME2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'ReferralLetter', component: _ReferralLetter2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'SinglePatientView', component: _SinglePatientView2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'AlertTest', component: _AlertTest2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'SPVTable', component: _SPVTable2.default }),
+																																								_react2.default.createElement(_reactRouter.Route, { path: 'AdminChart', component: _adminChart2.default })
+																				)
+);
+
+},{"./Spikes/DatabindingControls":629,"./Spikes/Developer":630,"./Spikes/LabelTest":632,"./Spikes/Localization/TestLocalization":635,"./Spikes/PICME/ImportPICME.js":641,"./Spikes/alert/AlertTest":642,"./Spikes/bidirectional_binding/BindingExample":643,"./Spikes/login_auth/components/AuthenticatedApp":647,"./Spikes/login_auth/components/Home":649,"./Spikes/login_auth/components/Login":650,"./Spikes/menu/menu_test":656,"./Spikes/notification/test_notifications":657,"./Spikes/singlePatientView/SPVTable.js":658,"./components/app":661,"./components/layout/about/about":662,"./components/layout/chart/adminChart":664,"./components/layout/container/patientContainer":666,"./components/login/Login":674,"./components/referral/ReferralLetter":676,"./components/registration/Registration":683,"./components/single-patient/SinglePatientView":686,"./components/visit-summary/VisitSummaryPage":691,"./components/visit/visitPage":713,"./components/worklist/MoWorklist":719,"./components/worklist/vhnWorklist":728,"react":601,"react-dom":376,"react-router":422}],754:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -81884,7 +84764,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-unused-vars: 0*/
 
 var BaseStore = (function (_EventEmitter) {
     _inherits(BaseStore, _EventEmitter);
@@ -81935,20 +84815,22 @@ var BaseStore = (function (_EventEmitter) {
             var store = this;
             if (patientId != -1) {
                 var getData = {
-                    url: AppConstants.PATIENT_VISIT_FETCH_URL + patientId,
+                    url: AppConstants.PATIENT_VISIT_FETCH_URL,
                     dataType: DataType.JSON,
-                    contentType: ContentType.JSON
+                    contentType: ContentType.JSON,
+                    notifyError: true,
+                    headers: [{ key: 'patientId', value: patientId }]
                 };
                 ServiceManager.doGet(getData).then(function (response) {
                     var visitData = store.translate(response, RequestType.GET);
                     store.emitChange(AppConstants.FETCH_EVENT, visitData);
                 }, function (error) {
-                    store.emitChange(AppConstants.FETCH_EVENT, error);
+                    //store.emitChange(AppConstants.FETCH_EVENT, error);
                 });
             } else {
-                var visitData = this.translate(null, RequestType.GET);
-                store.emitChange(AppConstants.FETCH_EVENT, visitData);
-            }
+                    var visitData = this.translate(null, RequestType.GET);
+                    store.emitChange(AppConstants.FETCH_EVENT, visitData);
+                }
         }
     }, {
         key: 'fetchPatientDetails',
@@ -81956,20 +84838,22 @@ var BaseStore = (function (_EventEmitter) {
             var store = this;
             if (patientId != -1) {
                 var getData = {
-                    url: AppConstants.PATIENT_DETAILS_URL + patientId,
+                    url: AppConstants.PATIENT_DETAILS_URL,
                     dataType: DataType.JSON,
-                    contentType: ContentType.JSON
+                    contentType: ContentType.JSON,
+                    notifyError: true,
+                    headers: [{ key: 'patientId', value: patientId }]
                 };
                 ServiceManager.doGet(getData).then(function (response) {
                     var patientData = store.translate(response, RequestType.GET);
                     store.emitChange(AppConstants.FETCH_EVENT, patientData);
                 }, function (error) {
-                    store.emitChange(AppConstants.FETCH_EVENT, error);
+                    //store.emitChange(AppConstants.FETCH_EVENT, error);
                 });
             } else {
-                var patientData = store.translate(null, RequestType.GET);
-                store.emitChange(AppConstants.FETCH_EVENT, patientData);
-            }
+                    var patientData = store.translate(null, RequestType.GET);
+                    store.emitChange(AppConstants.FETCH_EVENT, patientData);
+                }
         }
     }, {
         key: 'dispatchToken',
@@ -81983,7 +84867,7 @@ var BaseStore = (function (_EventEmitter) {
 
 exports.default = BaseStore;
 
-},{"../dispatcher/AppDispatcher":743,"events":99}],749:[function(require,module,exports){
+},{"../dispatcher/AppDispatcher":748,"events":99}],755:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -82032,7 +84916,7 @@ var LoginStore = (function (_BaseStore) {
                     this._user = action.data.jwt.user;
                     this._role = action.data.jwt.role;
                     if (this._role == 'admin') {
-                        this.emitChange(ActionType.SUCCESS_LOGIN, '/app/MOWorkList');
+                        this.emitChange(ActionType.SUCCESS_LOGIN, '/app/Dashboard');
                     } else if (this._role == 'medicalOfficer') {
                         this.emitChange(ActionType.SUCCESS_LOGIN, '/app/MOWorkList');
                     } else if (this._role == 'vhnUser') {
@@ -82074,7 +84958,7 @@ var LoginStore = (function (_BaseStore) {
 
 exports.default = new LoginStore();
 
-},{"./BaseStore":748}],750:[function(require,module,exports){
+},{"./BaseStore":754}],756:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -82143,7 +85027,7 @@ var ReferLetterStore = (function (_BaseStore) {
 
 exports.default = new ReferLetterStore();
 
-},{"./../translators/DataTranslator":757,"./BaseStore":748}],751:[function(require,module,exports){
+},{"./../translators/DataTranslator":763,"./BaseStore":754}],757:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -82155,6 +85039,10 @@ Object.defineProperty(exports, "__esModule", {
 var _DataTranslator = require('./../translators/DataTranslator');
 
 var _DataTranslator2 = _interopRequireDefault(_DataTranslator);
+
+var _SubCenterModel = require('./../model/SubCenterModel');
+
+var _SubCenterModel2 = _interopRequireDefault(_SubCenterModel);
 
 var _BaseStore2 = require('./BaseStore');
 
@@ -82200,6 +85088,12 @@ var RegistrationStore = (function (_BaseStore) {
             return data;
         }
     }, {
+        key: 'translateSubCenterData',
+        value: function translateSubCenterData(subCenterDataFromServer) {
+            var data = _DataTranslator2.default.translateSubCenterDataForView(subCenterDataFromServer);
+            return data;
+        }
+    }, {
         key: 'handleImportResponse',
         value: function handleImportResponse(successCount, failureCount, maxLength) {
             var totalCount = successCount + failureCount;
@@ -82207,6 +85101,81 @@ var RegistrationStore = (function (_BaseStore) {
                 toast.show(successCount + ' users were registered', NOTIFICATION_TYPE.SUCCESS);
                 toast.show(failureCount + ' users were not registered', NOTIFICATION_TYPE.ERROR);
             }
+        }
+    }, {
+        key: 'getVHNList',
+        value: function getVHNList(subCentreDetails, subcentreId) {
+            var vhnOptions = [];
+            var _iteratorNormalCompletion = true;
+            var _didIteratorError = false;
+            var _iteratorError = undefined;
+
+            try {
+                for (var _iterator = subCentreDetails[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+                    var value = _step.value;
+
+                    if (value.subcentreId == subcentreId) {
+                        var vhnList = value.vhnList;
+                        for (var i in vhnList) {
+                            var entries = {};
+                            entries.text = vhnList[i].firstName + ' ' + vhnList[i].lastName;
+                            entries.value = vhnList[i].firstName + ' ' + vhnList[i].lastName;
+                            vhnOptions.push(entries);
+                        }
+                    }
+                }
+            } catch (err) {
+                _didIteratorError = true;
+                _iteratorError = err;
+            } finally {
+                try {
+                    if (!_iteratorNormalCompletion && _iterator.return) {
+                        _iterator.return();
+                    }
+                } finally {
+                    if (_didIteratorError) {
+                        throw _iteratorError;
+                    }
+                }
+            }
+
+            return vhnOptions;
+        }
+    }, {
+        key: 'getSubcentreName',
+        value: function getSubcentreName(subCentreDetails, subcentreId) {
+            var subCentreOptions = [];
+            var _iteratorNormalCompletion2 = true;
+            var _didIteratorError2 = false;
+            var _iteratorError2 = undefined;
+
+            try {
+                for (var _iterator2 = subCentreDetails[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+                    var value = _step2.value;
+
+                    if (value.subcentreId == subcentreId) {
+                        var entries = {};
+                        entries.text = value.subcentreName;
+                        entries.value = value.subcentreName;
+                        subCentreOptions.push(entries);
+                    }
+                }
+            } catch (err) {
+                _didIteratorError2 = true;
+                _iteratorError2 = err;
+            } finally {
+                try {
+                    if (!_iteratorNormalCompletion2 && _iterator2.return) {
+                        _iterator2.return();
+                    }
+                } finally {
+                    if (_didIteratorError2) {
+                        throw _iteratorError2;
+                    }
+                }
+            }
+
+            return subCentreOptions;
         }
     }, {
         key: 'registerToActions',
@@ -82222,15 +85191,16 @@ var RegistrationStore = (function (_BaseStore) {
                         url: AppConstants.PATIENT_REGISTRATION_URL,
                         data: JSON.stringify(patientData),
                         dataType: DataType.JSON,
-                        contentType: ContentType.JSON
+                        contentType: ContentType.JSON,
+                        notifyError: true
                     };
                     ServiceManager.doPost(postData).then(function (response) {
 
                         toast.show(response, NOTIFICATION_TYPE.SUCCESS);
                         registrationStore.emitChange(AppConstants.SAVE_EVENT, response);
                     }, function (error) {
-                        toast.show(error, NOTIFICATION_TYPE.ERROR);
-                        registrationStore.emitChange(AppConstants.SAVE_EVENT, error);
+                        //toast.show(error, NOTIFICATION_TYPE.ERROR);
+                        //registrationStore.emitChange(AppConstants.SAVE_EVENT, error);
                     });
                     break;
 
@@ -82244,13 +85214,13 @@ var RegistrationStore = (function (_BaseStore) {
                     var successCount = 0;
                     var failureCount = 0;
 
-                    var _iteratorNormalCompletion = true;
-                    var _didIteratorError = false;
-                    var _iteratorError = undefined;
+                    var _iteratorNormalCompletion3 = true;
+                    var _didIteratorError3 = false;
+                    var _iteratorError3 = undefined;
 
                     try {
-                        for (var _iterator = action.data[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-                            var entry = _step.value;
+                        for (var _iterator3 = action.data[Symbol.iterator](), _step3; !(_iteratorNormalCompletion3 = (_step3 = _iterator3.next()).done); _iteratorNormalCompletion3 = true) {
+                            var entry = _step3.value;
 
                             var _patientData = registrationStore.translate(entry, RequestType.POST);
                             var _postData = {
@@ -82268,20 +85238,35 @@ var RegistrationStore = (function (_BaseStore) {
                             });
                         }
                     } catch (err) {
-                        _didIteratorError = true;
-                        _iteratorError = err;
+                        _didIteratorError3 = true;
+                        _iteratorError3 = err;
                     } finally {
                         try {
-                            if (!_iteratorNormalCompletion && _iterator.return) {
-                                _iterator.return();
+                            if (!_iteratorNormalCompletion3 && _iterator3.return) {
+                                _iterator3.return();
                             }
                         } finally {
-                            if (_didIteratorError) {
-                                throw _iteratorError;
+                            if (_didIteratorError3) {
+                                throw _iteratorError3;
                             }
                         }
                     }
 
+                    break;
+
+                case ActionType.SUBCENTER_DETAILS_FETCH:
+                    var getData = {
+                        url: AppConstants.FETCH_SUBCENTER_DETAILS,
+                        dataType: DataType.JSON,
+                        contentType: ContentType.JSON,
+                        notifyError: true
+                    };
+                    ServiceManager.doGet(getData).then(function (response) {
+                        var subCenterData = registrationStore.translateSubCenterData(response);
+                        registrationStore.emitChange(AppConstants.FETCH_SUBCENTER, subCenterData);
+                    }, function (error) {
+                        //registrationStore.emitChange(AppConstants.FETCH_EVENT, error);            	
+                    });
                     break;
                 default:
                     return;
@@ -82294,7 +85279,7 @@ var RegistrationStore = (function (_BaseStore) {
 
 exports.default = new RegistrationStore();
 
-},{"./../translators/DataTranslator":757,"./BaseStore":748}],752:[function(require,module,exports){
+},{"./../model/SubCenterModel":751,"./../translators/DataTranslator":763,"./BaseStore":754}],758:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -82352,7 +85337,7 @@ var SinglePatientStore = (function (_BaseStore) {
     }, {
         key: 'translate',
         value: function translate(data, type) {
-            var visitData = _DataTranslator2.default.translateVisitDataForSinglePatient(data);
+            var visitData = _DataTranslator2.default.translateVisitDataForSinglePatient(data, this.getSelectedPatientId('app/PatientView/patientId'));
             return visitData;
         }
     }]);
@@ -82362,7 +85347,7 @@ var SinglePatientStore = (function (_BaseStore) {
 
 exports.default = new SinglePatientStore();
 
-},{"./../translators/DataTranslator":757,"./BaseStore":748}],753:[function(require,module,exports){
+},{"./../translators/DataTranslator":763,"./BaseStore":754}],759:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -82389,7 +85374,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; } /*eslint no-unused-vars: 0*/
 
 var VisitStore = (function (_BaseStore) {
     _inherits(VisitStore, _BaseStore);
@@ -82411,7 +85396,13 @@ var VisitStore = (function (_BaseStore) {
             var data;
             if (type == RequestType.GET) {
                 var selectedVisitId = this.getSelectedVisitId(AppConstants.VISIT_URL_PATTERN);
-                data = _DataTranslator2.default.translateVisitDataForView(visitData, selectedVisitId);
+                var patientId = this.getSelectedPatientId(AppConstants.PATIENT_URL_PATTERN);
+                var visitType = Utils.parseUrl(AppConstants.VISIT_URL_PATTERN).visitType;
+                var visitFilter = {};
+                visitFilter.selectedVisitId = selectedVisitId;
+                visitFilter.patientId = patientId;
+                visitFilter.visitType = visitType;
+                data = _DataTranslator2.default.translateVisitDataForView(visitData, visitFilter);
             } else if (type == RequestType.POST) {
                 data = _DataTranslator2.default.translateVisitDataForService(visitData);
             }
@@ -82429,35 +85420,27 @@ var VisitStore = (function (_BaseStore) {
                         url: AppConstants.PATIENT_VISIT_SAVE_URL,
                         data: JSON.stringify(visitData),
                         dataType: DataType.JSON,
+                        notifyError: true,
                         contentType: ContentType.JSON
                     };
                     ServiceManager.doPost(postData).then(function (response) {
-                        visitStore.emitChange(AppConstants.SAVE_EVENT, response);
-                        toast.show(response, NOTIFICATION_TYPE.SUCCESS);
-                        visitStore.executeRules(visitData);
+
+                        var outcome = _BaseTranslator2.default.executeRules(visitData);
+                        var responseObj = {
+                            response: response,
+                            ruleOutcome: outcome
+                        };
+                        visitStore.emitChange(AppConstants.SAVE_EVENT, responseObj);
                     }, function (error) {
-                        visitStore.emitChange(AppConstants.SAVE_EVENT, error);
-                        toast.show(error, NOTIFICATION_TYPE.ERROR);
-                        visitStore.executeRules(visitData);
+                        // visitStore.emitChange(AppConstants.SAVE_EVENT, error);
+                        //toast.show(error, NOTIFICATION_TYPE.ERROR);
+                        // visitStore.executeRules(visitData);
                     });
                     break;
 
                 case ActionType.VISIT_INFO_FETCH:
-                    // console.log(visitData);
                     var patientId = this.getSelectedPatientId(AppConstants.PATIENT_URL_PATTERN);
                     this.fetchPatientVisitDetails(patientId);
-
-                    /*var getData = {
-                        url: AppConstants.PATIENT_DETAILS_URL + '1',
-                        dataType: DataType.JSON,
-                        contentType: ContentType.JSON
-                    };
-                    ServiceManager.doGet(getData).then(function(response) {
-                         var patientData = registrationStore.translate(response, RequestType.GET);
-                         registrationStore.emitChange(AppConstants.FETCH_EVENT, patientData);
-                     }, function(error) {
-                            registrationStore.emitChange(AppConstants.FETCH_EVENT, error);
-                    });*/
                     break;
                 default:
                     return;
@@ -82466,10 +85449,7 @@ var VisitStore = (function (_BaseStore) {
     }, {
         key: 'executeRules',
         value: function executeRules(visitData) {
-            var outcomes = _BaseTranslator2.default.executeRules(visitData);
-            for (var i in outcomes) {
-                toast.show(outcomes[i].text, NOTIFICATION_TYPE.WARNING);
-            }
+            _BaseTranslator2.default.executeRules(visitData);
         }
     }]);
 
@@ -82478,7 +85458,7 @@ var VisitStore = (function (_BaseStore) {
 
 exports.default = new VisitStore();
 
-},{"./../translators/BaseTranslator":756,"./../translators/DataTranslator":757,"./BaseStore":748}],754:[function(require,module,exports){
+},{"./../translators/BaseTranslator":762,"./../translators/DataTranslator":763,"./BaseStore":754}],760:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -82542,9 +85522,10 @@ var VisitSummaryStore = (function (_BaseStore) {
                     var selectedPatientId = this.getSelectedPatientId(AppConstants.PATIENT_URL_PATTERN);
                     var selectedVisitId = this.getSelectedVisitId(AppConstants.VISIT_SUMMARY_URL_PATTERN);
                     var getPatientData = {
-                        url: AppConstants.PATIENT_DETAILS_URL + selectedPatientId,
+                        url: AppConstants.PATIENT_DETAILS_URL,
                         dataType: DataType.JSON,
-                        contentType: ContentType.JSON
+                        contentType: ContentType.JSON,
+                        headers: [{ key: 'patientId', value: selectedPatientId }]
                     };
                     ServiceManager.doGet(getPatientData).then(function (response) {
                         var patientData = response;
@@ -82560,9 +85541,10 @@ var VisitSummaryStore = (function (_BaseStore) {
                     });
 
                     var getVisitData = {
-                        url: AppConstants.PATIENT_VISIT_FETCH_URL + selectedPatientId,
+                        url: AppConstants.PATIENT_VISIT_FETCH_URL,
                         dataType: DataType.JSON,
-                        contentType: ContentType.JSON
+                        contentType: ContentType.JSON,
+                        headers: [{ key: 'patientId', value: selectedPatientId }]
                     };
                     ServiceManager.doGet(getVisitData).then(function (response) {
                         var visitData = visitSummaryStore.getVisitData(selectedVisitId, response);
@@ -82615,7 +85597,7 @@ var VisitSummaryStore = (function (_BaseStore) {
 
 exports.default = new VisitSummaryStore();
 
-},{"../model/VisitSummaryModel":746,"./../translators/DataTranslator":757,"./BaseStore":748}],755:[function(require,module,exports){
+},{"../model/VisitSummaryModel":752,"./../translators/DataTranslator":763,"./BaseStore":754}],761:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -82637,6 +85619,8 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var totalList = [];
 
 var WorkListStore = (function (_BaseStore) {
     _inherits(WorkListStore, _BaseStore);
@@ -82660,42 +85644,109 @@ var WorkListStore = (function (_BaseStore) {
             var getData;
             switch (action.type) {
                 case ActionType.GET_TOTAL_WORKLIST:
+                    WorkListStore.emitChange(ActionType.GET_TOTAL_WORKLIST, {
+                        worklist: []
+                    });
                     getData = {
-                        url: '/api/worklists',
+                        url: AppConstants.PATIENT_SEARCH_URL,
                         dataType: DataType.JSON,
                         contentType: ContentType.JSON
                     };
                     ServiceManager.doGet(getData).then(function (response) {
-                        workListJSON[_AppConstants.WORKLIST_JSON] = WorkListStore.translate(response, RequestType.GET);
+
+                        workListJSON[_AppConstants.WORKLIST_JSON] = response;
                         var updatedWorklistJson = WorkListStore.getDonutParameter(workListJSON, AppConstants.TOTAL_WORKLIST);
-                        WorkListStore.emitChange(AppConstants.GET_TOTAL_WORKLIST, updatedWorklistJson);
+                        totalList = updatedWorklistJson[_AppConstants.WORKLIST_JSON];
+                        WorkListStore.emitChange(ActionType.GET_TOTAL_WORKLIST, updatedWorklistJson);
                     });
                     break;
                 case ActionType.GET_TODAYS_WORKLIST:
+                    WorkListStore.emitChange(ActionType.GET_TODAYS_WORKLIST, {
+                        worklist: []
+                    });
                     getData = {
-                        url: '/api/worklists',
+                        url: AppConstants.PATIENT_SEARCH_URL,
                         dataType: DataType.JSON,
                         contentType: ContentType.JSON
                     };
                     ServiceManager.doGet(getData).then(function (response) {
-                        workListJSON[_AppConstants.WORKLIST_JSON] = WorkListStore.translate(response, RequestType.GET);
+                        workListJSON[_AppConstants.WORKLIST_JSON] = WorkListStore.translate(response, RequestType.GET, _AppConstants.DAY_TYPE);
+                        totalList = workListJSON[_AppConstants.WORKLIST_JSON];
                         var updatedWorklistJson = WorkListStore.getDonutParameter(workListJSON, _AppConstants.DAY_TYPE);
-                        WorkListStore.emitChange(AppConstants.GET_TODAYS_WORKLIST, updatedWorklistJson);
+                        WorkListStore.emitChange(ActionType.GET_TODAYS_WORKLIST, updatedWorklistJson);
                     });
                     break;
                 case ActionType.GET_WEEKLY_WORKLIST:
+                    WorkListStore.emitChange(ActionType.GET_WEEKLY_WORKLIST, {
+                        worklist: []
+                    });
                     getData = {
-                        url: '/api/worklists',
+                        url: AppConstants.PATIENT_SEARCH_URL,
                         dataType: DataType.JSON,
                         contentType: ContentType.JSON
                     };
                     ServiceManager.doGet(getData).then(function (response) {
-                        workListJSON[_AppConstants.WORKLIST_JSON] = WorkListStore.translateWeekly(response, RequestType.GET);
+                        workListJSON[_AppConstants.WORKLIST_JSON] = WorkListStore.translate(response, RequestType.GET, _AppConstants.WEEK_TYPE);
+                        totalList = workListJSON[_AppConstants.WORKLIST_JSON];
                         var updatedWorklistJson = WorkListStore.getDonutParameter(workListJSON, _AppConstants.WEEK_TYPE);
-                        WorkListStore.emitChange(AppConstants.GET_WEEKLY_WORKLIST, updatedWorklistJson);
+                        WorkListStore.emitChange(ActionType.GET_WEEKLY_WORKLIST, updatedWorklistJson);
                     });
                     break;
+                case ActionType.PATIENT_SEARCH_ACTION:
+
+                    if (action.data.searchType === AppConstants.AUTO_SEARCH) {
+                        var updatedWorklistJson = WorkListStore.getSortedList(totalList, action.data.searchBy);
+                        updatedWorklistJson[AppConstants.SEARCH_TYPE] = AppConstants.AUTO_SEARCH;
+                        WorkListStore.emitChange(ActionType.PATIENT_SEARCH_ACTION, updatedWorklistJson);
+                    } else {
+                        var searchBy = action.data.searchBy;
+                        /* getData = {
+                             url:AppConstants.PATIENT_SEARCH_URL,
+                             dataType: DataType.JSON,
+                             contentType: ContentType.JSON,
+                             notifyError:true,
+                             headers : [{key : AppConstants.SEARCH_STRING,value : searchBy}]
+                         };*/
+                        getData = {
+                            url: 'http://ec2-52-34-194-19.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/search?searchString=' + searchBy,
+                            dataType: DataType.JSON,
+                            contentType: ContentType.JSON
+                        };
+                        ServiceManager.doGet(getData).then(function (response) {
+                            var updatedWorklistJson = WorkListStore.getSortedList(response, action.data.searchType);
+                            if (updatedWorklistJson[_AppConstants.WORKLIST_JSON].length == 0) {
+                                updatedWorklistJson[AppConstants.SEARCH_TYPE] = AppConstants.MANUAL_SEARCH;
+                                updatedWorklistJson[_AppConstants.WORKLIST_JSON] = AppConstants.NO_DATA_FOUND;
+                                WorkListStore.emitChange(ActionType.PATIENT_SEARCH_ACTION, updatedWorklistJson);
+                            } else {
+                                updatedWorklistJson[AppConstants.SEARCH_TYPE] = AppConstants.MANUAL_SEARCH;
+                                WorkListStore.emitChange(ActionType.PATIENT_SEARCH_ACTION, updatedWorklistJson);
+                            }
+                        });
+                    }
+                    break;
             }
+        }
+    }, {
+        key: 'getSortedList',
+        value: function getSortedList(searchData, searchBy) {
+            var sortedWorkList = [];
+            var updatedJson = {};
+            if (searchBy === AppConstants.MANUAL_SEARCH) {
+                sortedWorkList = searchData;
+            } else {
+                searchData.filter(function (row) {
+                    var jsonString = JSON.stringify(row).toLowerCase();
+                    if (jsonString.indexOf(searchBy.toLowerCase()) > -1) {
+                        sortedWorkList.push(row);
+                        return true;
+                    } else {
+                        return false;
+                    }
+                });
+            }
+            updatedJson[_AppConstants.WORKLIST_JSON] = sortedWorkList;
+            return updatedJson;
         }
     }, {
         key: 'getDonutParameter',
@@ -82708,11 +85759,13 @@ var WorkListStore = (function (_BaseStore) {
                 updatedJson[_AppConstants.DONUT_WEEK_VALUES] = this.getDonutData(workListData, _AppConstants.WEEK_TYPE);
                 updatedJson[_AppConstants.DONUT_WEEK_LEGENDS] = this.getDonutLegend(_AppConstants.WEEK_TYPE);
             } else {
-                updatedJson[_AppConstants.DONUT_DAY_VALUES] = this.getDonutData(workListData, _AppConstants.DAY_TYPE);
-                updatedJson[_AppConstants.DONUT_DAY_LEGENDS] = this.getDonutLegend(_AppConstants.DAY_TYPE);
-                // updatedJson[DONUT_WEEK_VALUES] = this.getDonutData(workListData,WEEK_TYPE);
-                // updatedJson[DONUT_WEEK_LEGENDS] = this.getDonutLegend(WEEK_TYPE);
+                var worklistArray = workListData[_AppConstants.WORKLIST_JSON];
+                updatedJson[_AppConstants.WORKLIST_JSON] = this.translate(worklistArray, RequestType.GET, _AppConstants.DAY_TYPE);
+                updatedJson[_AppConstants.DONUT_DAY_VALUES] = this.getDonutData(this.translate(worklistArray, '', _AppConstants.DAY_TYPE), _AppConstants.DAY_TYPE);
+                updatedJson[_AppConstants.DONUT_WEEK_VALUES] = this.getDonutData(this.translate(worklistArray, '', _AppConstants.WEEK_TYPE), _AppConstants.WEEK_TYPE);
             }
+            updatedJson[_AppConstants.DONUT_DAY_LEGENDS] = this.getDonutLegend(_AppConstants.DAY_TYPE);
+            updatedJson[_AppConstants.DONUT_WEEK_LEGENDS] = this.getDonutLegend(_AppConstants.WEEK_TYPE);
             return updatedJson;
         }
     }, {
@@ -82729,20 +85782,26 @@ var WorkListStore = (function (_BaseStore) {
     }, {
         key: 'getDonutData',
         value: function getDonutData(workListData, sortType) {
+            var worklistDataForDonut = [];
             var labelMsg = undefined;
             if (sortType == _AppConstants.WEEK_TYPE) {
-                labelMsg = 'This Week\'s Patients';
+                labelMsg = locale('thisWeekPatients');
             } else if (sortType == _AppConstants.DAY_TYPE) {
-                labelMsg = 'Today\'s Patients';
+                labelMsg = locale('todaysPatients');
+            }
+            if (typeof workListData[_AppConstants.WORKLIST_JSON] == 'undefined') {
+                worklistDataForDonut = workListData;
+            } else {
+                worklistDataForDonut = workListData[_AppConstants.WORKLIST_JSON];
             }
             var data = [{
-                value: workListData[_AppConstants.WORKLIST_JSON].length,
+                value: worklistDataForDonut.length,
                 color: '#50b6ff',
                 label: labelMsg
             }, {
-                value: this.getTotalRisk(workListData[_AppConstants.WORKLIST_JSON]),
+                value: this.getTotalRisk(worklistDataForDonut),
                 color: '#f95147',
-                label: 'High Risk'
+                label: locale('highRisk')
             }];
             return data;
         }
@@ -82756,28 +85815,7 @@ var WorkListStore = (function (_BaseStore) {
             return key;
         }
 
-        // weekly based json data grouping function
-
-    }, {
-        key: 'translateWeekly',
-        value: function translateWeekly(filterLessJson) {
-            var tempDate = [];
-            filterLessJson.filter(function (row) {
-                if (row.nextDueDate != null) {
-                    tempDate.push(row);
-                }
-            });
-            var weeklyJson = [];
-            for (var i = 0; i < tempDate.length; i++) {
-                var compareWeekStatus = this.checkInCurrentWeek(tempDate[i].nextDueDate);
-                if (compareWeekStatus) {
-                    weeklyJson.push(tempDate[i]);
-                }
-            }
-            return weeklyJson;
-        }
-
-        // function for checking wheather the date is in this week or not
+        // function for checking whether the date is in this week or not
 
     }, {
         key: 'checkInCurrentWeek',
@@ -82787,7 +85825,7 @@ var WorkListStore = (function (_BaseStore) {
             var thisYear = today.getFullYear();
             var iteratorYear = new Date(formattedDate).getFullYear();
             var day = this.getFirstSundayOfYear(thisYear);
-            var tempWeek = this.getWeek(formattedDate, day); // /iterating data week
+            var tempWeek = this.getWeek(formattedDate, day);
             var todayFormatted = this.formatter(today);
             var tempTodayFormatted = this.convertDateFormatForView(todayFormatted);
             var thisWeek = this.getWeek(tempTodayFormatted, day);
@@ -82842,23 +85880,36 @@ var WorkListStore = (function (_BaseStore) {
             }
             return weekDate;
         }
-        // daily transilater function
+        // translator function
 
     }, {
         key: 'translate',
-        value: function translate(filterLessJson) {
-            var today = new Date();
-            var todayFormatted = this.formatter(today);
-            var tempWorkListData = [];
-            filterLessJson.filter(function (row) {
-                if (row.nextDueDate === todayFormatted) {
-                    tempWorkListData.push(row);
-                    return true;
-                } else {
-                    return false;
+        value: function translate(worklistData, RequestType, sortType) {
+
+            var sortedWorkList = [];
+            if (sortType == _AppConstants.DAY_TYPE) {
+                var todayFormatted = this.formatter(new Date());
+                worklistData.forEach(function (worklistItem) {
+                    if (worklistItem.nextDueDate === todayFormatted) {
+                        sortedWorkList.push(worklistItem);
+                    }
+                });
+            } else if (sortType == _AppConstants.WEEK_TYPE) {
+                var tempWorkListData = [];
+                worklistData.forEach(function (worklistItem) {
+                    if (worklistItem.nextDueDate != null) {
+                        tempWorkListData.push(worklistItem);
+                    }
+                });
+                for (var i = 0; i < tempWorkListData.length; i++) {
+                    var compareWeekStatus = this.checkInCurrentWeek(tempWorkListData[i].nextDueDate);
+                    if (compareWeekStatus) {
+                        sortedWorkList.push(tempWorkListData[i]);
+                    }
                 }
-            });
-            return tempWorkListData;
+            }
+
+            return sortedWorkList;
         }
     }, {
         key: 'formatter',
@@ -82881,7 +85932,7 @@ var WorkListStore = (function (_BaseStore) {
 
 exports.default = new WorkListStore();
 
-},{"./../Utils/AppConstants":657,"./BaseStore":748}],756:[function(require,module,exports){
+},{"./../Utils/AppConstants":659,"./BaseStore":754}],762:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -82907,12 +85958,11 @@ var BaseTranslator = (function () {
             if (lmpDate) {
 
                 var deliveryDate = Utils.calculateEDD(lmpDate);
-
-                if (lmpDate <= toDate && toDate < lmpDate.addDays(90)) {
+                if (lmpDate <= toDate && toDate <= lmpDate.addDays(90)) {
                     trimester = 'W1-13';
-                } else if (lmpDate.addDays(90) < toDate && toDate < lmpDate.addDays(180)) {
+                } else if (lmpDate.addDays(90) < toDate && toDate <= lmpDate.addDays(180)) {
                     trimester = 'W13-27';
-                } else if (lmpDate.addDays(90) < toDate && toDate < deliveryDate) {
+                } else if (lmpDate.addDays(180) < toDate && toDate < deliveryDate) {
                     trimester = 'W28-39';
                 } else if (toDate > deliveryDate) {
                     trimester = 'postnatal';
@@ -82927,18 +85977,21 @@ var BaseTranslator = (function () {
 
             var lmpDate = Utils.convertToDate(paramLmpDate, 'dd/mm/yyyy');
             var toDate = Utils.convertToDate(paramToDate, 'dd/mm/yyyy');
+            var weeks = undefined;
 
-            var weeks = Math.round((toDate - lmpDate) / 604800000);
-
+            if (null != lmpDate) {
+                weeks = Math.round((toDate - lmpDate) / 604800000);
+            } else {
+                weeks = 0;
+            }
             return weeks;
         }
     }, {
         key: 'executeRules',
         value: function executeRules(objVisit) {
-
             var output = [];
-
-            if (objVisit.hB < 11) {
+            var bp = this.getBloodPressure(objVisit);
+            if (Number(objVisit.hB) < 11) {
 
                 if (objVisit.hB < 7) {
                     output.push({ text: 'Severe Anemia' });
@@ -82947,13 +86000,15 @@ var BaseTranslator = (function () {
                 }
             }
 
-            if (!bool(objVisit.isPregnancyRequired)) {
+            if (!bool(objVisit.isPregnancyRequired) && objVisit.visitType == 'ANC1') {
                 output.push({
                     text: 'Pregnancy wanted No: Refer to Nearest PHC that has MTP facilities'
                 });
-            } // else {
-            // show next due dates
-            // }
+            } /* else if (objVisit.visitType == 'ANC1') {
+                 output.push({
+                     text: '2nd visit - Between 14 and 26 weeks , 3rd Visit - Between 28 and 34 weeks,  4th Visit - Between 36 weeks and term (till delivery)'
+                 });
+              }*/
 
             if (objVisit.temperature >= 38 && bool(objVisit.isTooWeekToGetOutOfBed)) {
                 output.push({
@@ -82965,7 +86020,7 @@ var BaseTranslator = (function () {
                {
                 }
             */
-            if (objVisit.isPrstntVomtng) {
+            if (bool(objVisit.isPrstntVomtng)) {
                 output.push({
                     text: 'Persistant Vomitting: Refer to nearest PHC'
                 });
@@ -82976,12 +86031,11 @@ var BaseTranslator = (function () {
                     text: 'Potential Heart Disease: Refer to nearest PHC'
                 });
             }
-            /* var bp = getBloodPressure(visitData);
-             if (bp.length > 0 && bp[0] > 140 && bp[0] > 90 || objVisit.urineProteins) {
-                 output.push({
-                     text: 'Potential Hypertension: Refer to nearest PHC'
-                 });
-             }*/
+            if (bp.length > 0 && Number(bp[0]) > 140 && Number(bp[0]) > 90 || bool(objVisit.urineProteins)) {
+                output.push({
+                    text: 'Potential Hypertension: Refer to nearest PHC'
+                });
+            }
 
             // Number Foetus check
 
@@ -82998,7 +86052,7 @@ var BaseTranslator = (function () {
                 });
             }
 
-            if (bool(objVisit.isFoetalMovements)) {
+            if (objVisit.isFoetalMovements == 'No') {
                 output.push({
                     text: 'Foetal Distress: Refer to nearest FRU'
                 });
@@ -83008,7 +86062,15 @@ var BaseTranslator = (function () {
         }
     }, {
         key: 'getLastVisitData',
-        value: function getLastVisitData(allVisits) {
+        value: function getLastVisitData(allVisits, visitType) {
+            var allANCVisits = null;
+            if (visitType === 'ANC1' || visitType === 'ANC2' || visitType === 'ANC3') {
+                allANCVisits = $.grep(allVisits, function (j) {
+                    return j.visitType == 'ANC1' || j.visitType == 'ANC2' || j.visitType == 'ANC3';
+                });
+                allVisits = allANCVisits;
+            }
+
             var visitData = null;
             var maxVisitId = Math.max.apply(Math, allVisits.map(function (o) {
                 return o.visitId;
@@ -83024,7 +86086,7 @@ var BaseTranslator = (function () {
         key: 'getBloodPressure',
         value: function getBloodPressure(visitData) {
             var bp = visitData.bloodPressure;
-            return bp.split('\\');
+            return bp ? bp.split('\\') : [];
         }
     }]);
 
@@ -83033,7 +86095,7 @@ var BaseTranslator = (function () {
 
 module.exports = BaseTranslator;
 
-},{}],757:[function(require,module,exports){
+},{}],763:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -83058,6 +86120,10 @@ var _SinglePatientDataTranslator = require('./SinglePatientDataTranslator');
 
 var _SinglePatientDataTranslator2 = _interopRequireDefault(_SinglePatientDataTranslator);
 
+var _SubCenterDataTranslator = require('./SubCenterDataTranslator');
+
+var _SubCenterDataTranslator2 = _interopRequireDefault(_SubCenterDataTranslator);
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -83074,8 +86140,8 @@ var DataTranslator = (function () {
         }
     }, {
         key: 'translateVisitDataForView',
-        value: function translateVisitDataForView(source, selectedVisitId) {
-            return _VisitDataTranslator2.default.getDataModelForView(source, selectedVisitId);
+        value: function translateVisitDataForView(visitiData, visitFilter) {
+            return _VisitDataTranslator2.default.getDataModelForView(visitiData, visitFilter);
         }
     }, {
         key: 'translateRegistrationDataForService',
@@ -83099,8 +86165,13 @@ var DataTranslator = (function () {
         }
     }, {
         key: 'translateVisitDataForSinglePatient',
-        value: function translateVisitDataForSinglePatient(source) {
-            return _SinglePatientDataTranslator2.default.populateSinglePatientData(source);
+        value: function translateVisitDataForSinglePatient(source, patientId) {
+            return _SinglePatientDataTranslator2.default.populateSinglePatientData(source, patientId);
+        }
+    }, {
+        key: 'translateSubCenterDataForView',
+        value: function translateSubCenterDataForView(subCenterDataFromServer) {
+            return _SubCenterDataTranslator2.default.getSubCenterDataModelForView(subCenterDataFromServer);
         }
     }]);
 
@@ -83109,7 +86180,7 @@ var DataTranslator = (function () {
 
 module.exports = DataTranslator;
 
-},{"./ReferLetterDataTranslator":758,"./RegistrationDataTranslator":759,"./SinglePatientDataTranslator":760,"./VisitDataTranslator":761,"./VisitSummaryTranslator":762}],758:[function(require,module,exports){
+},{"./ReferLetterDataTranslator":764,"./RegistrationDataTranslator":765,"./SinglePatientDataTranslator":766,"./SubCenterDataTranslator":767,"./VisitDataTranslator":768,"./VisitSummaryTranslator":769}],764:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -83143,7 +86214,7 @@ var ReferLetterDataTranslator = (function () {
                 referredOn: '',
                 modeOfTransport: '',
                 CurrentMedication: '',
-                OnformationOnReferral: '',
+                informationOnReferral: '',
                 patientConsent: ''
 
             };
@@ -83155,7 +86226,7 @@ var ReferLetterDataTranslator = (function () {
 
 exports.default = ReferLetterDataTranslator;
 
-},{}],759:[function(require,module,exports){
+},{}],765:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -83194,6 +86265,8 @@ var RegistrationDataTranslator = (function (_BaseTranslator) {
         key: 'getDataModelForView',
         value: function getDataModelForView(obj) {
             var weekValue = obj ? this.calculateCurrentPregnancyWeek(Utils.convertToDateString(new Date()), obj.lmp) : null;
+            var pregnancyWeekText = weekValue >= 0 ? 'W' + weekValue : '';
+            var gpal = this.findGPALfromObsterics(obj);
             return {
                 id: obj ? obj.id : null,
                 name: obj ? obj.name : '',
@@ -83211,7 +86284,7 @@ var RegistrationDataTranslator = (function (_BaseTranslator) {
                 city: obj ? obj.city : '',
                 state: obj ? obj.state : '',
                 pincode: obj ? obj.pincode : '',
-                temporaryAddrSameAsPermanent: obj ? bool(obj.temporaryAddrSameAsPermanent) : '',
+                temporaryAddrSameAsPermanent: obj ? bool(obj.temporaryAddrSameAsPermanent) : true,
                 isPregrnancyWanted: obj ? bool(obj.isPregrnancyWanted) : '',
                 lmp: obj ? obj.lmp : '',
                 edd: obj ? obj.edd : '',
@@ -83219,15 +86292,15 @@ var RegistrationDataTranslator = (function (_BaseTranslator) {
                 subCentreName: obj ? obj.subCentreName : '',
                 vhnName: obj ? obj.vhnName : '',
                 bloodGroup: obj ? obj.bloodGroup : '',
-                highRiskMother: obj ? obj.highRiskMother : '',
+                highRiskMother: obj ? bool(obj.highRiskMother) : false,
                 highRiskMotherComments: obj ? obj.highRiskMotherComments : '',
                 obstetrics: obj ? obj.obstetrics : '',
-                gravida: obj ? obj.gravida : '0',
-                para: obj ? obj.para : '0',
-                liveBirth: obj ? obj.liveBirth : '0',
-                abortion: obj ? obj.abortion : '0',
+                gravida: obj ? gpal.gravida : '',
+                para: obj ? gpal.para : '',
+                liveBirth: obj ? gpal.liveBirth : '',
+                abortion: obj ? gpal.abortion : '',
                 pregnancyweekValue: weekValue ? weekValue : 0,
-                pregnancyweekText: weekValue ? 'W' + weekValue : '',
+                pregnancyweekText: pregnancyWeekText,
                 risk: ''
 
             };
@@ -83258,11 +86331,34 @@ var RegistrationDataTranslator = (function (_BaseTranslator) {
                 subCentreName: a.subCentreName,
                 vhnName: a.vhnName,
                 bloodGroup: a.bloodGroup,
-                highRiskMother: a.highRiskMother,
+                highRiskMother: str(a.highRiskMother),
                 highRiskMotherComments: a.highRiskMotherComments,
-                obstetrics: a.obstetrics
+                obstetrics: this.calculateObsterics(a)
 
             };
+        }
+    }, {
+        key: 'calculateObsterics',
+        value: function calculateObsterics(patientData) {
+            return 'G' + patientData.gravida + 'P' + patientData.para + 'A' + patientData.abortion + 'L' + patientData.liveBirth;
+        }
+    }, {
+        key: 'findGPALfromObsterics',
+        value: function findGPALfromObsterics(patientData) {
+
+            var gpal = [];
+            if (patientData) {
+                var obsterics = patientData.obstetrics;
+                var gravidaIndex = obsterics.indexOf('G');
+                var paraIndex = obsterics.indexOf('P');
+                var abortionIndex = obsterics.indexOf('A');
+                var liveBirthIndex = obsterics.indexOf('L');
+                gpal['gravida'] = obsterics.substring(gravidaIndex + 1, paraIndex);
+                gpal['para'] = obsterics.substring(paraIndex + 1, abortionIndex);
+                gpal['abortion'] = obsterics.substring(abortionIndex + 1, liveBirthIndex);
+                gpal['liveBirth'] = obsterics.substring(liveBirthIndex + 1, obsterics.length);
+            }
+            return gpal;
         }
     }]);
 
@@ -83271,7 +86367,7 @@ var RegistrationDataTranslator = (function (_BaseTranslator) {
 
 exports.default = RegistrationDataTranslator;
 
-},{"./BaseTranslator":756,"react":599}],760:[function(require,module,exports){
+},{"./BaseTranslator":762,"react":601}],766:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -83303,14 +86399,14 @@ var SinglePatientDataTranslator = (function (_BaseTranslator) {
 
     _createClass(SinglePatientDataTranslator, null, [{
         key: 'populateSinglePatientData',
-        value: function populateSinglePatientData(obj) {
+        value: function populateSinglePatientData(obj, patientId) {
 
             var visitTypes = this.populateVisitTypesModel(obj);
             var visitCount = this.computeTotalVisits(visitTypes);
             var risks = this.findPatientRisks(obj);
 
             var singlePatientData = {
-                patientId: obj && obj.length > 0 ? obj[0].patientReference : '',
+                patientId: patientId,
                 totalVisits: visitCount.totalCount,
                 ancVisits: visitCount.ancCount,
                 pncVisits: visitCount.pncCount,
@@ -83420,7 +86516,7 @@ var SinglePatientDataTranslator = (function (_BaseTranslator) {
                 visitTypes[i]['totalVisits'] = this.intToStr(visits.length);
                 for (var j in visits) {
 
-                    if (visits[j].type == 'ANC') {
+                    if (visits[j].type == 'ANC1' || visits[j].type == 'ANC2' || visits[j].type == 'ANC3') {
                         ancVisitCount++;
                     } else if (visits[j].type == 'PNC') {
                         pncVisitCount++;
@@ -83461,7 +86557,96 @@ var SinglePatientDataTranslator = (function (_BaseTranslator) {
 
 exports.default = SinglePatientDataTranslator;
 
-},{"./BaseTranslator":756}],761:[function(require,module,exports){
+},{"./BaseTranslator":762}],767:[function(require,module,exports){
+'use strict';
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+Object.defineProperty(exports, "__esModule", {
+    value: true
+});
+
+var _BaseTranslator2 = require('./BaseTranslator');
+
+var _BaseTranslator3 = _interopRequireDefault(_BaseTranslator2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var SubCenterDataTranslator = (function (_BaseTranslator) {
+    _inherits(SubCenterDataTranslator, _BaseTranslator);
+
+    function SubCenterDataTranslator() {
+        _classCallCheck(this, SubCenterDataTranslator);
+
+        return _possibleConstructorReturn(this, Object.getPrototypeOf(SubCenterDataTranslator).apply(this, arguments));
+    }
+
+    _createClass(SubCenterDataTranslator, null, [{
+        key: 'getSubCenterDataModelForView',
+        value: function getSubCenterDataModelForView(subCenterDataFromServer) {
+            var subcentreDetails = [];
+            var _iteratorNormalCompletion = true;
+            var _didIteratorError = false;
+            var _iteratorError = undefined;
+
+            try {
+                for (var _iterator = subCenterDataFromServer[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+                    var value = _step.value;
+
+                    var subCentreData = {};
+                    subCentreData['subcentreId'] = value.subCentreID;
+                    subCentreData['subcentreName'] = value.subCentreName;
+                    var vhnList = this.getVHNList(value.subCentreID, subCenterDataFromServer);
+                    subCentreData['vhnList'] = vhnList;
+                    subcentreDetails.push(subCentreData);
+                }
+            } catch (err) {
+                _didIteratorError = true;
+                _iteratorError = err;
+            } finally {
+                try {
+                    if (!_iteratorNormalCompletion && _iterator.return) {
+                        _iterator.return();
+                    }
+                } finally {
+                    if (_didIteratorError) {
+                        throw _iteratorError;
+                    }
+                }
+            }
+
+            return subcentreDetails;
+        }
+    }, {
+        key: 'getVHNList',
+        value: function getVHNList(subCentreID, subCenterDataFromServer) {
+            var vhnList = [];
+            $.grep(subCenterDataFromServer, function (j) {
+                if (j.subCentreID == subCentreID) {
+                    var vhnData = {};
+                    vhnData['id'] = j.vhnId;
+                    vhnData['firstName'] = j.vhnFirstName;
+                    vhnData['lastName'] = j.vhnLastName;
+                    vhnData['middleName'] = j.vhnMiddleName;
+                    vhnList.push(vhnData);
+                }
+            });
+            return vhnList;
+        }
+    }]);
+
+    return SubCenterDataTranslator;
+})(_BaseTranslator3.default);
+
+exports.default = SubCenterDataTranslator;
+
+},{"./BaseTranslator":762}],768:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -83489,204 +86674,237 @@ var VisitDataTranslator = (function (_BaseTranslator) {
 
     _createClass(VisitDataTranslator, null, [{
         key: 'getDataModelForView',
-        value: function getDataModelForView(allVisits, selectedVisitId) {
+        value: function getDataModelForView(allVisits, visitFilter) {
             var visitData = null;
-            if (selectedVisitId != -1) {
+            if (visitFilter.selectedVisitId != -1) {
                 visitData = $.grep(allVisits, function (j) {
-                    return j.visitId == selectedVisitId;
+                    return j.visitId == visitFilter.selectedVisitId;
                 })[0];
             } else {
-                visitData = this.getLastVisitData(allVisits);
-                delete visitData['visitId'];
+                visitData = this.getLastVisitData(allVisits, visitFilter.visitType);
+                if (visitData) {
+                    visitData.visitId = -1; // set the Visit Id of pre-populated visit to -1
+                    visitData.enteredBy = '';
+                }
             }
-            visitData['visitNumber'] = visitData['visitNumber'] + 1;
+            var risks = visitData ? this.executeRules(visitData) : [];
             var visitInfo = {
-                visitType: visitData.visitType,
-                visitStartDate: visitData.visitStartDate,
-                lastUpdatedDate: visitData.lastUpdatedDate,
-                enteredBy: visitData.enteredBy,
-                patientId: visitData.patientReference,
-                visitNumber: visitData.visitNumber,
+                visitId: visitData ? visitData.visitId : -1,
+                visitType: visitFilter.visitType,
+                visitStartDate: visitData == null || visitData.visitId == -1 ? Utils.convertToDateString(new Date()) : visitData.visitStartDate,
+                lastUpdatedDate: visitData ? visitData.lastUpdatedDate : '',
+                enteredBy: visitData ? visitData.enteredBy : '',
+                patientId: visitFilter.patientId,
+                visitNumber: visitData ? visitData.visitNumber + 1 : 1,
+                risks: risks,
+                isRiskOpen: risks.length > 0 ? true : false,
                 AbdominalExamination: {
-                    InspectationOfScars: visitData.abdominalFindings,
-                    FundalHeightInCMS: visitData.fundalHeight,
-                    FundalHeightInWeeks: visitData.fundalHeightWeeks,
-                    FoetalLie: visitData.foetalLie,
-                    Foetalpresentation: visitData.foetalPresentation,
-                    FHS: visitData.foetalHeartRate,
-                    SingleVsMultiplePregnancy: visitData.singleVsMultiplePrgncy,
-                    FoetalMovements: bool(visitData.isFoetalMovements),
-                    gestationalAge: this.calculateCurrentPregnancyWeek(visitData.visitStartDate, visitData.lMPDate)
+                    InspectationOfScars: visitData ? visitData.abdominalFindings : '',
+                    FundalHeightInCMS: visitData ? visitData.fundalHeight : 0,
+                    FundalHeightInWeeks: visitData ? visitData.fundalHeightWeeks : 0,
+                    FoetalLie: visitData ? visitData.foetalLie : '',
+                    Foetalpresentation: visitData ? visitData.foetalPresentation : '',
+                    FHS: visitData ? visitData.foetalHeartRate : '',
+                    SingleVsMultiplePregnancy: visitData ? visitData.singleVsMultiplePrgncy : '',
+                    FoetalMovements: visitData ? visitData.isFoetalMovements : '',
+                    gestationalAge: visitData ? this.calculateCurrentPregnancyWeek(visitData.visitStartDate, visitData.lMPDate) : 1
                 },
 
                 Allergies: {
-                    isDrug: bool(visitData.isDrugAllergies),
-                    isFood: bool(visitData.isFoodAllergies),
-                    isEnv: bool(visitData.isEnvironmentalAllergies),
-                    drugAllergyDetail: visitData.drugAllergiesText,
-                    foodAllergyDetail: visitData.foodAllergiesText,
-                    envAllergyDetail: visitData.environmentalAllergiesText
+                    isDrug: visitData ? bool(visitData.isDrugAllergies) : false,
+                    isFood: visitData ? bool(visitData.isFoodAllergies) : false,
+                    isEnv: visitData ? bool(visitData.isEnvironmentalAllergies) : false,
+                    drugAllergyDetail: visitData ? visitData.drugAllergiesText : '',
+                    foodAllergyDetail: visitData ? visitData.foodAllergiesText : '',
+                    envAllergyDetail: visitData ? visitData.environmentalAllergiesText : ''
                 },
                 BreastExamination: {
                     LeftBreast: {
-                        Normal: bool(visitData.isNormal_Left),
-                        RetractedNipple: bool(visitData.isRetractedNipple_Left),
-                        Nodule: bool(visitData.isNodule_Left),
-                        Lump: bool(visitData.isLump_Left),
-                        Scar: bool(visitData.isScar_Left)
+                        Normal: visitData ? bool(visitData.isNormal_Left) : false,
+                        RetractedNipple: visitData ? bool(visitData.isRetractedNipple_Left) : false,
+                        Nodule: visitData ? bool(visitData.isNodule_Left) : false,
+                        Lump: visitData ? bool(visitData.isLump_Left) : false,
+                        Scar: visitData ? bool(visitData.isScar_Left) : false
                     },
                     RightBreast: {
-                        Normal: bool(visitData.isNormal_Right),
-                        RetractedNipple: bool(visitData.isRetractedNipple_Right),
-                        Nodule: bool(visitData.isNodule_Right),
-                        Lump: bool(visitData.isLump_Right),
-                        Scar: bool(visitData.isScar_Right)
+                        Normal: visitData ? bool(visitData.isNormal_Right) : false,
+                        RetractedNipple: visitData ? bool(visitData.isRetractedNipple_Right) : false,
+                        Nodule: visitData ? bool(visitData.isNodule_Right) : false,
+                        Lump: visitData ? bool(visitData.isLump_Right) : false,
+                        Scar: visitData ? bool(visitData.isScar_Right) : false
                     }
 
                 },
                 CurrentIllnessHistory: {
-                    Nausea: bool(visitData.isNausea),
-                    Vomiting: bool(visitData.isVomits),
-                    Heartburn: bool(visitData.isHeartburn),
-                    Constipation: bool(visitData.isConstipation),
-                    IncreasedFrequencyOfUrination: bool(visitData.isUrintnFrqncyIncrsed),
-                    Fever: bool(visitData.isFever),
-                    PersistentVomiting: bool(visitData.isPrstntVomtng),
-                    AbnormalVaginalDischarge_itching: bool(visitData.isAbnrmlVaginlDischrgItchng),
-                    PalpitationsEasyFatigability: bool(visitData.isPalpitations),
-                    Breathlessness: bool(visitData.isBreathlessness),
-                    GeneralisedSwellingOfTheBody_PuffinessOfTheFace: bool(visitData.isBodySwelling),
-                    SevereHeadacheAndBlurringOfVision: bool(visitData.isSevereHeadacheVisionBlur),
-                    PassingSmallerAmountsOfUrineAndBurningSensationDuringMicturition: bool(visitData.isUrnPasngOrBurngSenstnDurngMctrton),
-                    VaginalBleeding: bool(visitData.isVaginalBleedng),
-                    LeakingOfWateryFluidPerVaginum_PV: bool(visitData.isFluidLeakngFrmVagina)
+                    Nausea: visitData ? bool(visitData.isNausea) : false,
+                    Vomiting: visitData ? bool(visitData.isVomits) : false,
+                    Heartburn: visitData ? bool(visitData.isHeartburn) : false,
+                    Constipation: visitData ? bool(visitData.isConstipation) : false,
+                    IncreasedFrequencyOfUrination: visitData ? bool(visitData.isUrintnFrqncyIncrsed) : false,
+                    Fever: visitData ? bool(visitData.isFever) : false,
+                    PersistentVomiting: visitData ? bool(visitData.isPrstntVomtng) : false,
+                    AbnormalVaginalDischarge_itching: visitData ? bool(visitData.isAbnrmlVaginlDischrgItchng) : false,
+                    PalpitationsEasyFatigability: visitData ? bool(visitData.isPalpitations) : false,
+                    Breathlessness: visitData ? bool(visitData.isBreathlessness) : false,
+                    GeneralisedSwellingOfTheBody_PuffinessOfTheFace: visitData ? bool(visitData.isBodySwelling) : false,
+                    SevereHeadacheAndBlurringOfVision: visitData ? bool(visitData.isSevereHeadacheVisionBlur) : false,
+                    PassingSmallerAmountsOfUrineAndBurningSensationDuringMicturition: visitData ? bool(visitData.isUrnPasngOrBurngSenstnDurngMctrton) : false,
+                    VaginalBleeding: visitData ? bool(visitData.isVaginalBleedng) : false,
+                    LeakingOfWateryFluidPerVaginum_PV: visitData ? bool(visitData.isFluidLeakngFrmVagina) : false,
+                    foetalMoments: visitData ? visitData.foetalMoments : '',
+                    foetalMomentsCountPer12Hrs: visitData ? visitData.foetalMomentsCountPer12Hrs : 0
                 },
                 CurrentPregnancy: {
-                    PregnancyWanted: bool(visitData.isPregnancyRequired),
-                    LMP: visitData.lMPDate,
-                    EDD: visitData.eDDDate,
-                    EDD_USG: visitData.eDDByUSGDate
+                    PregnancyWanted: visitData ? bool(visitData.isPregnancyRequired) : false,
+                    LMP: visitData ? visitData.lMPDate : '',
+                    EDD: visitData ? visitData.eDDDate : '',
+                    EDD_USG: visitData ? visitData.eDDByUSGDate : '',
+                    quickeningDate: visitData ? visitData.quickeningDate : ''
                 },
                 FamilyHistory: {
-                    Highbloodpressurehypertension: bool(visitData.isHighBldPresrFamHist),
-                    Diabetes: bool(visitData.isDiabetesFamHist),
-                    Tuberculosis: bool(visitData.isTuberculosis),
-                    TwinsinimmediateFamily: bool(visitData.isTwinsInImdtFmly),
-                    CongeniatlMalfomationsinimmediatefamily: bool(visitData.isCongenitalMalformationInImdtFmly)
+                    Highbloodpressurehypertension: visitData ? bool(visitData.isHighBldPresrFamHist) : false,
+                    Diabetes: visitData ? bool(visitData.isDiabetesFamHist) : false,
+                    Tuberculosis: visitData ? bool(visitData.isTuberculosis) : false,
+                    TwinsinimmediateFamily: visitData ? bool(visitData.isTwinsInImdtFmly) : false,
+                    CongeniatlMalfomationsinimmediatefamily: visitData ? bool(visitData.isCongenitalMalformationInImdtFmly) : false
                 },
                 GeneralExamination: {
-                    Height: visitData.height,
-                    Weight: visitData.weight,
-                    Pallor: bool(visitData.isPallor),
-                    Jaundice: bool(visitData.isJaundiceGeneralExamintn),
-                    Pulse: bool(visitData.isPulse),
-                    RespiratoryRate: visitData.respiratoryRate,
-                    Oedema: bool(visitData.isOedema),
-                    BloodPressure: visitData.bloodPressure,
-                    TemperatureInFarenheit: visitData.temperature,
-                    TooWeak: bool(visitData.isTooWeekToGetOutOfBed)
+                    Height: visitData ? visitData.height : 0,
+                    Weight: visitData ? visitData.weight : 0,
+                    Pallor: visitData ? bool(visitData.isPallor) : false,
+                    Jaundice: visitData ? bool(visitData.isJaundiceGeneralExamintn) : false,
+                    Pulse: visitData ? bool(visitData.isPulse) : false,
+                    RespiratoryRate: visitData ? visitData.respiratoryRate : 0,
+                    Oedema: visitData ? bool(visitData.isOedema) : false,
+                    BloodPressure: visitData ? visitData.bloodPressure : '',
+                    TemperatureInFarenheit: visitData ? visitData.temperature : 0,
+                    TooWeak: visitData ? bool(visitData.isTooWeekToGetOutOfBed) : false
                 },
                 HabbitsSocialHistory: {
-                    Tobacco: bool(visitData.isTobacco),
-                    Smoking: bool(visitData.isSmoking),
-                    Drugs: bool(visitData.isDrugs),
-                    Alcohol: bool(visitData.isAlcohol)
+                    Tobacco: visitData ? bool(visitData.isTobacco) : false,
+                    Smoking: visitData ? bool(visitData.isSmoking) : false,
+                    Drugs: visitData ? bool(visitData.isDrugs) : false,
+                    Alcohol: visitData ? bool(visitData.isAlcohol) : false
                 },
                 MenstrualHistory: {
-                    Regularity: bool(visitData.regularity),
-                    Frequencyinnumberofdays: visitData.daysFreqncyNo,
-                    Numberofdaysofbleed: visitData.bleedDaysNo,
-                    AgeatMenarche: visitData.menarcheAge,
-                    PainassociatedwithPeriods: bool(visitData.isPainInPeriods)
+                    Regularity: visitData ? bool(visitData.regularity) : false,
+                    Frequencyinnumberofdays: visitData ? visitData.daysFreqncyNo : 0,
+                    Numberofdaysofbleed: visitData ? visitData.bleedDaysNo : 0,
+                    AgeatMenarche: visitData ? visitData.menarcheAge : 0,
+                    PainassociatedwithPeriods: visitData ? bool(visitData.isPainInPeriods) : false
                 },
                 ObstetricHistory: {
-                    Gravid: visitData.gravida,
-                    Para: visitData.para,
-                    LiveBirths: visitData.liveBirths,
-                    RecurrentEarlyAbortion: bool(visitData.isRecurrentAbortions),
-                    Post_abortionComplications: bool(visitData.isPostAbrtnComplcatns),
-                    Hypertension_preeclampsia_eclampsia: bool(visitData.isHypertension),
-                    AntePartumHaemorrhage_APH: bool(visitData.isAntepartumHaemorrhage),
-                    Breech_TransversePresentation: bool(visitData.isBreechOrTransversePresentation),
-                    ObstructedLabour_IncludingDystocia: bool(visitData.isObstructedLabour),
-                    PerinealInjuries_tears: bool(visitData.isPerinealInjuriesOrTears),
-                    ExcessiveBleedingAfterDelivery: bool(visitData.isExcessBleedngAftrDelvry),
-                    PuerperalSepsis: bool(visitData.isPuerperalSepsis),
-                    BloodTransfusionDuringPreviousPregnancies: bool(visitData.isBldTrnsfusnDurngPrvsPrgnces),
-                    StillbirthOrNeonatalLoss: bool(visitData.isStlBirthOrNeontlLoss),
-                    ThreeOrMoreSpontaneousConsecutiveAbortions: bool(visitData.isMoreCnsctveAbortns),
-                    ObstructedLabour: bool(visitData.isObstructedLabour),
-                    PrematureBirths_twins_multiplePregnancies: bool(visitData.isPrematrBrthsTwnsOrMltplPrgncs),
-                    WeightOfThePreviousBaby: bool(visitData.isWeightPrvsBaby4500gmOrMore),
-                    AdmissionFoHypertensionOrPreEclampsia_eclampsiaInThePreviousPregnancy: bool(visitData.isHyprtnsnOrEclpsaInThePrvsPrgncy),
-                    SurgeryOnTheReproductiveTract: bool(visitData.isSurgryOnTheReprdctvTrct),
-                    CongenitalAnomaly: bool(visitData.isCongenitalAnomalies),
-                    TreatmentForInfertility: bool(visitData.isTreatmentForInfertility),
-                    SpinalDeformitiesSuchAs_Acoliosis_kyphosis_polio: bool(visitData.isSpinalDeformities),
-                    Rh_negative_inThePreviousPregnancy: bool(visitData.isRhNgtvPrvsPrgncy)
+                    Gravid: visitData ? visitData.gravida : 0,
+                    Para: visitData ? visitData.para : 0,
+                    LiveBirths: visitData ? visitData.liveBirths : 0,
+                    RecurrentEarlyAbortion: visitData ? bool(visitData.isRecurrentAbortions) : false,
+                    Post_abortionComplications: visitData ? bool(visitData.isPostAbrtnComplcatns) : false,
+                    Hypertension_preeclampsia_eclampsia: visitData ? bool(visitData.isHypertension) : false,
+                    AntePartumHaemorrhage_APH: visitData ? bool(visitData.isAntepartumHaemorrhage) : false,
+                    Breech_TransversePresentation: visitData ? bool(visitData.isBreechOrTransversePresentation) : false,
+                    ObstructedLabour_IncludingDystocia: visitData ? bool(visitData.isObstructedLabour) : false,
+                    PerinealInjuries_tears: visitData ? bool(visitData.isPerinealInjuriesOrTears) : false,
+                    ExcessiveBleedingAfterDelivery: visitData ? bool(visitData.isExcessBleedngAftrDelvry) : false,
+                    PuerperalSepsis: visitData ? bool(visitData.isPuerperalSepsis) : false,
+                    BloodTransfusionDuringPreviousPregnancies: visitData ? bool(visitData.isBldTrnsfusnDurngPrvsPrgnces) : false,
+                    StillbirthOrNeonatalLoss: visitData ? bool(visitData.isStlBirthOrNeontlLoss) : false,
+                    ThreeOrMoreSpontaneousConsecutiveAbortions: visitData ? bool(visitData.isMoreCnsctveAbortns) : false,
+                    ObstructedLabour: visitData ? bool(visitData.isObstructedLabour) : false,
+                    PrematureBirths_twins_multiplePregnancies: visitData ? bool(visitData.isPrematrBrthsTwnsOrMltplPrgncs) : false,
+                    WeightOfThePreviousBaby: visitData ? bool(visitData.isWeightPrvsBaby4500gmOrMore) : false,
+                    AdmissionFoHypertensionOrPreEclampsia_eclampsiaInThePreviousPregnancy: visitData ? bool(visitData.isHyprtnsnOrEclpsaInThePrvsPrgncy) : false,
+                    SurgeryOnTheReproductiveTract: visitData ? bool(visitData.isSurgryOnTheReprdctvTrct) : false,
+                    CongenitalAnomaly: visitData ? bool(visitData.isCongenitalAnomalies) : false,
+                    TreatmentForInfertility: visitData ? bool(visitData.isTreatmentForInfertility) : false,
+                    SpinalDeformitiesSuchAs_Acoliosis_kyphosis_polio: visitData ? bool(visitData.isSpinalDeformities) : false,
+                    Rh_negative_inThePreviousPregnancy: visitData ? bool(visitData.isRhNgtvPrvsPrgncy) : false,
+                    Pregnancies: visitData ? bool(visitData.Pregnancies) : false,
+                    abortions: visitData ? visitData.abortions : 0
                 },
                 PastMedicalHistory: {
-                    HighBloodPressure_hypertension: bool(visitData.isHighBldPrssre),
-                    BP_OnMedication: bool(visitData.isHighBldPrssreOnMedication),
-                    Diabetes: bool(visitData.isDiabetes),
-                    Diabetes_OnMedication: bool(visitData.isDiabetesOnMedication),
-                    Breathlessness_on_exertion_palpitations_HeartDisease: bool(visitData.isBreathlessnessMedHist),
-                    Breathlessness_OnMedication: bool(visitData.isBreathlessnessMedHistOnMedication),
-                    ChronicCough_bloodInSputum_prolongedFever_tuberculosis: bool(visitData.isChrncCoughBldInTheSputmProlongdFevr),
-                    RenalDisease: bool(visitData.isRenalDisease),
-                    Renaldisease_OnMedication: bool(visitData.isRenalDiseaseOnMedication),
-                    Convulsions_epilepsy: bool(visitData.isConvulsns),
-                    Convulsions_OnMedication: bool(visitData.isConvulsnsOnMedication),
-                    Attacksofbreathlessness_asthma: bool(visitData.isAttcksOfBrthlessnssOrAsthma),
-                    Asthama_OnMedication: bool(visitData.isAttcksOfBrthlessnssOrAsthmaOnMedication),
-                    Jaundice: bool(visitData.isJaundice),
-                    Jaundice_OnMedication: bool(visitData.isJaundiceOnMedication),
-                    Malaria: bool(visitData.isMalaria),
-                    Malaria_OnMedication: bool(visitData.isMalariaOnMedication),
-                    ReproductiveTractInfection_RTI: bool(visitData.isReprdctvTrctInfectn),
-                    RTI_OnMedication: bool(visitData.isReprdctvTrctInfectnOnMedication),
-                    SexuallyTransmittedInfection_STI_and_HIV_AIDS: bool(visitData.isSTIOrHIV),
-                    STI_AIDS_OnMedication: bool(visitData.isSTIOrHIVOnMedication)
+                    HighBloodPressure_hypertension: visitData ? bool(visitData.isHighBldPrssre) : false,
+                    BP_OnMedication: visitData ? bool(visitData.isHighBldPrssreOnMedication) : false,
+                    Diabetes: visitData ? bool(visitData.isDiabetes) : false,
+                    Diabetes_OnMedication: visitData ? bool(visitData.isDiabetesOnMedication) : false,
+                    Breathlessness_on_exertion_palpitations_HeartDisease: visitData ? bool(visitData.isBreathlessnessMedHist) : false,
+                    Breathlessness_OnMedication: visitData ? bool(visitData.isBreathlessnessMedHistOnMedication) : false,
+                    ChronicCough_bloodInSputum_prolongedFever_tuberculosis: visitData ? bool(visitData.isChrncCoughBldInTheSputmProlongdFevr) : false,
+                    chronicOnMedication: visitData ? bool(isChrncCoughBldInTheSputmProlongdFevrOnMedication) : false,
+                    RenalDisease: visitData ? bool(visitData.isRenalDisease) : false,
+                    Renaldisease_OnMedication: visitData ? bool(visitData.isRenalDiseaseOnMedication) : false,
+                    Convulsions_epilepsy: visitData ? bool(visitData.isConvulsns) : false,
+                    Convulsions_OnMedication: visitData ? bool(visitData.isConvulsnsOnMedication) : false,
+                    Attacksofbreathlessness_asthma: visitData ? bool(visitData.isAttcksOfBrthlessnssOrAsthma) : false,
+                    Asthama_OnMedication: visitData ? bool(visitData.isAttcksOfBrthlessnssOrAsthmaOnMedication) : false,
+                    Jaundice: visitData ? bool(visitData.isJaundice) : false,
+                    Jaundice_OnMedication: visitData ? bool(visitData.isJaundiceOnMedication) : false,
+                    Malaria: visitData ? bool(visitData.isMalaria) : false,
+                    Malaria_OnMedication: visitData ? bool(visitData.isMalariaOnMedication) : false,
+                    ReproductiveTractInfection_RTI: visitData ? bool(visitData.isReprdctvTrctInfectn) : false,
+                    RTI_OnMedication: visitData ? bool(visitData.isReprdctvTrctInfectnOnMedication) : false,
+                    SexuallyTransmittedInfection_STI_and_HIV_AIDS: visitData ? bool(visitData.isSTIOrHIV) : false,
+                    STI_AIDS_OnMedication: visitData ? bool(visitData.isSTIOrHIVOnMedication) : false
                 },
                 SystemicExamination: {
-                    IsCardiovascularySystem: bool(visitData.cardiovascularySystem),
-                    IsNervousSystem: bool(visitData.nervousSystem),
-                    IsDigestiveSystem: bool(visitData.diagestiveSystem),
-                    IsMusculoskeletalSystem: bool(visitData.musculoskeletalSystem),
-                    CardiovascularySystem_Details: visitData.cardiovascularySystemNote,
-                    NervousSystem_Details: visitData.nervousSystemNote,
-                    DigestiveSystem_Details: visitData.diagestiveSystemNote,
-                    MusculoskeltalSystem_Details: visitData.musculoskeletalSystemNote
+                    IsCardiovascularySystem: visitData ? bool(visitData.cardiovascularySystem) : true,
+                    IsNervousSystem: visitData ? bool(visitData.nervousSystem) : true,
+                    IsDigestiveSystem: visitData ? bool(visitData.diagestiveSystem) : true,
+                    IsMusculoskeletalSystem: visitData ? bool(visitData.musculoskeletalSystem) : true,
+                    CardiovascularySystem_Details: visitData ? visitData.cardiovascularySystemNote : '',
+                    NervousSystem_Details: visitData ? visitData.nervousSystemNote : '',
+                    DigestiveSystem_Details: visitData ? visitData.diagestiveSystemNote : '',
+                    MusculoskeltalSystem_Details: visitData ? visitData.musculoskeletalSystemNote : ''
                 },
                 LabOrder: {
-                    BloodGroup_including_RhFactor: bool(visitData.isBldGrpIncluRhFact),
-                    VDRL_RPR: bool(visitData.isVdrlOrRpr),
-                    HIV_testing: bool(visitData.isHivTesting),
-                    Rapid_Malaria_Test: bool(visitData.isRapidMalariaTest),
-                    BloodSugar: bool(visitData.isBloodSugar),
-                    HbsAg: bool(visitData.isHbsAg),
-                    CBC_with_ESR: bool(visitData.isCBCWithESR),
-                    PeripheralSmear: bool(visitData.isPeripheralSmear)
+                    BloodGroup_including_RhFactor: visitData ? bool(visitData.isBldGrpIncluRhFact) : false,
+                    VDRL_RPR: visitData ? bool(visitData.isVdrlOrRpr) : false,
+                    HIV_testing: visitData ? bool(visitData.isHivTesting) : false,
+                    Rapid_Malaria_Test: visitData ? bool(visitData.isRapidMalariaTest) : false,
+                    BloodSugar: visitData ? bool(visitData.isBloodSugar) : false,
+                    HbsAg: visitData ? bool(visitData.isHbsAg) : false,
+                    CBC_with_ESR: visitData ? bool(visitData.isCBCWithESR) : false,
+                    PeripheralSmear: visitData ? bool(visitData.isPeripheralSmear) : false,
+                    recommendAnomalyScan: visitData ? bool(visitData.isAnomalyScan) : false,
+                    GCT: visitData ? bool(visitData.isGCT) : false,
+                    HbRepeat: visitData ? bool(visitData.ishbRepeat) : false,
+                    BloodSugarRepeat: visitData ? bool(visitData.isbloodSugarRepeat) : false
                 },
                 LabResults: {
-                    UPT: visitData.uPT,
-                    Hb: visitData.hB,
-                    UrineSugar: visitData.urineSugar,
-                    UrineProteins: visitData.urineProteins,
-                    RapidMalariaTest: visitData.rapidMalariaTest
+                    UPT: visitData ? visitData.uPT : '',
+                    Hb: visitData ? visitData.hB : 0,
+                    UrineSugar: visitData ? bool(visitData.urineSugar) : false,
+                    UrineProteins: visitData ? bool(visitData.urineProteins) : false,
+                    RapidMalariaTest: visitData ? visitData.rapidMalariaTest : '',
+                    USG: visitData ? bool(visitData.uSG) : false
                 },
                 MedicalPrescriptions: {
-                    Inj_TT_IM: bool(visitData.injTT0_5mlIM),
-                    FolicAcidSuppliment_IFA: bool(visitData.folicAcidSupplimentIFA),
-                    Counselling: bool(visitData.counsellingDiet),
-                    Issue_MaternalChildProtectionCard: bool(visitData.issueMaternal_ChildProtectionCard),
-                    JSYCard: bool(visitData.jSYCard),
-                    BPLCard: bool(visitData.bPLCard),
-                    RecordPossibleLocationOfDelivery: visitData.possibleLocationofDelivery,
-                    injTT0_5mlIMDate: visitData.injTT0_5mlIMDate
+                    Inj_TT_IM: visitData ? bool(visitData.injTT0_5mlIM) : false,
+                    Counselling: visitData ? bool(visitData.counsellingDiet) : false,
+                    Issue_MaternalChildProtectionCard: visitData ? bool(visitData.issueMaternal_ChildProtectionCard) : false,
+                    JSYCard: visitData ? bool(visitData.jSYCard) : false,
+                    BPLCard: visitData ? bool(visitData.bPLCard) : false,
+                    RecordPossibleLocationOfDelivery: visitData ? visitData.possibleLocationofDelivery : '',
+                    injTT0_5mlIMDate: visitData ? visitData.injTT0_5mlIMDate : '',
+                    Albendazole: visitData ? bool(visitData.albendazoledispensed) : false,
+                    Albendazole_Date: visitData ? visitData.albendazoledispensedDate : '',
+                    IFA_Tablets_Dispensed: visitData ? bool(visitData.iFATabletsDispensed) : false,
+                    IFA_Tablets_Dispensed_Date: visitData ? visitData.iFATabletsDispensedDate : '',
+                    folicAcidSuppliment_IFA: visitData ? bool(visitData.folicAcidTabletsDispensed) : false,
+                    folicAcidSupplimentIFADate: visitData ? visitData.folicAcidTabletsDate : '',
+                    iFATabletsDispensedQuantity: visitData ? visitData.folicAcidTabletsQuantity : 0,
+                    albendazoledispensedQuantity: visitData ? visitData.albendazoledispensedQuantity : 0,
+                    folicAcidTabletsQuantity: visitData ? visitData.folicAcidTabletsQuantity : 0,
+                    counsellingDietDate: visitData ? visitData.counsellingDietDate : '',
+                    domesticViolenceDate: visitData ? visitData.domesticViolenceDate : '',
+                    impOfANCDate: visitData ? visitData.impOfANCDate : '',
+                    domesticViolence: visitData ? bool(visitData.domesticViolence) : false,
+                    impOfANC: visitData ? bool(visitData.impOfANC) : false,
+                    sexDuringPregnancy: visitData ? bool(visitData.sexDuringPregnancy) : false,
+                    sexDuringPregnancyDate: visitData ? visitData.sexDuringPregnancyDate : ''
                 },
                 Comments: {
-                    GeneralComments: visitData.comments
+                    GeneralComments: '',
+                    previousVisitComments: visitData ? visitData.comments : ''
                 }
             };
 
@@ -83695,15 +86913,14 @@ var VisitDataTranslator = (function (_BaseTranslator) {
     }, {
         key: 'getDataModelForService',
         value: function getDataModelForService(visitData) {
-
             var visitInfo = {
 
                 visitType: visitData.visitType,
                 visitStartDate: visitData.visitStartDate,
-                lastUpdatedDate: visitData.lastUpdatedDate,
+                lastUpdatedDate: Utils.convertToDateString(new Date()),
                 enteredBy: visitData.enteredBy,
                 patientReference: visitData.patientId,
-                visitNumber: visitData.visitNumber + 2,
+                visitNumber: visitData.visitNumber + 1,
                 isPregnancyRequired: str(visitData.CurrentPregnancy.PregnancyWanted, ''),
                 lMPDate: visitData.CurrentPregnancy.LMP,
                 eDDDate: visitData.CurrentPregnancy.EDD,
@@ -83711,9 +86928,9 @@ var VisitDataTranslator = (function (_BaseTranslator) {
                 cardiovascularySystem: str(visitData.SystemicExamination.IsCardiovascularySystem, 'Normality'),
                 cardiovascularySystemNote: visitData.SystemicExamination.CardiovascularySystem_Details,
                 nervousSystem: str(visitData.SystemicExamination.IsNervousSystem, 'Normality'),
-                nervousSystemNote: visitData.SystemicExamination.NormalNervousSystem_Details,
+                nervousSystemNote: visitData.SystemicExamination.NervousSystem_Details,
                 diagestiveSystem: str(visitData.SystemicExamination.IsDigestiveSystem, 'Normality'),
-                diagestiveSystemNote: '', //visitData.SystemicExamination.DigestiveSystem_Details,
+                diagestiveSystemNote: visitData.SystemicExamination.DigestiveSystem_Details,
                 musculoskeletalSystem: str(visitData.SystemicExamination.IsMusculoskeletalSystem, 'Normality'),
                 musculoskeletalSystemNote: visitData.SystemicExamination.MusculoskeltalSystem_Details,
                 isHighBldPrssre: str(visitData.PastMedicalHistory.HighBloodPressure_hypertension, ''),
@@ -83762,7 +86979,7 @@ var VisitDataTranslator = (function (_BaseTranslator) {
                 isSpinalDeformities: str(visitData.ObstetricHistory.SpinalDeformitiesSuchAs_Acoliosis_kyphosis_polio, ''),
                 isRhNgtvPrvsPrgncy: str(visitData.ObstetricHistory.Rh_negative_inThePreviousPregnancy, ''),
                 isRecurrentAbortions: str(visitData.ObstetricHistory.RecurrentEarlyAbortion, ''),
-                recurrentAbortionsCount: '12',
+                recurrentAbortionsCount: 12,
                 regularity: str(visitData.MenstrualHistory.Regularity, 'Regularity'),
                 daysFreqncyNo: visitData.MenstrualHistory.Frequencyinnumberofdays,
                 bleedDaysNo: visitData.MenstrualHistory.Numberofdaysofbleed,
@@ -83827,7 +87044,7 @@ var VisitDataTranslator = (function (_BaseTranslator) {
                 foetalPresentation: visitData.AbdominalExamination.Foetalpresentation,
                 foetalHeartRate: visitData.AbdominalExamination.FHS,
                 singleVsMultiplePrgncy: visitData.AbdominalExamination.SingleVsMultiplePregnancy,
-                isFoetalMovements: str(visitData.AbdominalExamination.FoetalMovements, ''),
+                isFoetalMovements: visitData.AbdominalExamination.FoetalMovements,
                 isBldGrpIncluRhFact: str(visitData.LabOrder.BloodGroup_including_RhFactor, ''),
                 isVdrlOrRpr: str(visitData.LabOrder.VDRL_RPR),
                 isHivTesting: str(visitData.LabOrder.HIV_testing),
@@ -83837,24 +87054,24 @@ var VisitDataTranslator = (function (_BaseTranslator) {
                 isCBCWithESR: str(visitData.LabOrder.CBC_with_ESR),
                 isPeripheralSmear: str(visitData.LabOrder.PeripheralSmear),
                 uPT: visitData.LabResults.UPT,
-                hB: visitData.LabResults.Hb,
-                urineSugar: visitData.LabResults.UrineSugar,
-                urineProteins: visitData.LabResults.UrineProteins,
+                hB: Number(visitData.LabResults.Hb),
+                urineSugar: str(visitData.LabResults.UrineSugar, ''),
+                urineProteins: str(visitData.LabResults.UrineProteins, ''),
                 rapidMalariaTest: visitData.LabResults.RapidMalariaTest,
                 injTT0_5mlIM: str(visitData.MedicalPrescriptions.Inj_TT_IM, ''),
-                folicAcidSupplimentIFA: str(visitData.MedicalPrescriptions.FolicAcidSuppliment_IFA, ''),
+                folicAcidSupplimentIFA: str(visitData.MedicalPrescriptions.folicAcidSuppliment_IFA, ''),
                 counsellingDiet: str(visitData.MedicalPrescriptions.Counselling, ''),
                 issueMaternal_ChildProtectionCard: str(visitData.MedicalPrescriptions.Issue_MaternalChildProtectionCard, ''),
                 jSYCard: str(visitData.MedicalPrescriptions.JSYCard, ''),
                 bPLCard: str(visitData.MedicalPrescriptions.BPLCard, ''),
                 possibleLocationofDelivery: visitData.MedicalPrescriptions.RecordPossibleLocationOfDelivery,
                 injTT0_5mlIMDate: visitData.MedicalPrescriptions.injTT0_5mlIMDate,
-                comments: visitData.Comments.GeneralComments,
-                quickeningDate: '10/10/1993',
+                comments: visitData.Comments.previousVisitComments,
+                quickeningDate: visitData.CurrentPregnancy.quickeningDate,
                 foetalMomentsCountPer12Hrs: 12,
-                isFoetalMoments: 'No',
+                isFoetalMoments: visitData.CurrentIllnessHistory.foetalMoments,
                 folicAcidSupplimentIFADate: '12/12/1990',
-                counsellingDietDate: '12/12/1990',
+                counsellingDietDate: visitData.MedicalPrescriptions.counsellingDietDate,
                 impOfANCDate: '12/12/1990',
                 domesticViolenceDate: '12/12/1990',
                 sexDuringPregnancyDate: '12/12/1990',
@@ -83865,11 +87082,29 @@ var VisitDataTranslator = (function (_BaseTranslator) {
                 weekInfo: '',
                 status: 'Done',
                 isHb: '',
-                isAnomalyScan: '',
-                isGCT: '',
+                isAnomalyScan: str(visitData.LabOrder.recommendAnomalyScan),
+                isGCT: str(visitData.LabOrder.GCT),
                 impOfANC: '',
-                domesticViolence: ''
+                domesticViolence: '',
+                albendazoledispensed: str(visitData.MedicalPrescriptions.Albendazole, ''),
+                albendazoledispensedDate: visitData.MedicalPrescriptions.Albendazole_Date,
+                albendazoledispensedQuantity: visitData.MedicalPrescriptions.albendazoledispensedQuantity,
+                iFATabletsDispensed: str(visitData.MedicalPrescriptions.IFA_Tablets_Dispensed, ''),
+                iFATabletsDispensedDate: visitData.MedicalPrescriptions.IFA_Tablets_Dispensed_Date,
+                iFATabletsDispensedQuantity: visitData.MedicalPrescriptions.iFATabletsDispensedQuantity,
+                folicAcidTabletsDispensed: str(visitData.MedicalPrescriptions.folicAcidSuppliment_IFA, ''),
+                folicAcidTabletsDate: visitData.MedicalPrescriptions.folicAcidSupplimentIFADate,
+                folicAcidTabletsQuantity: visitData.MedicalPrescriptions.folicAcidTabletsQuantity,
+                uSG: visitData.LabResults.USG,
+                ishbRepeat: str(visitData.LabOrder.HbRepeat, ''),
+                isbloodSugarRepeat: str(visitData.LabOrder.BloodSugarRepeat, ''),
+                abortions: visitData.ObstetricHistory.abortions,
+                visitId: visitData.visitId
+
             };
+            if (visitInfo.visitId == -1) {
+                delete visitInfo['visitId'];
+            }
 
             return visitInfo;
         }
@@ -83880,7 +87115,7 @@ var VisitDataTranslator = (function (_BaseTranslator) {
 
 module.exports = VisitDataTranslator;
 
-},{"./BaseTranslator":756}],762:[function(require,module,exports){
+},{"./BaseTranslator":762}],769:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -83889,21 +87124,33 @@ Object.defineProperty(exports, "__esModule", {
     value: true
 });
 
+var _BaseTranslator2 = require('./BaseTranslator');
+
+var _BaseTranslator3 = _interopRequireDefault(_BaseTranslator2);
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var VisitSummaryTranslator = (function () {
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+var VisitSummaryTranslator = (function (_BaseTranslator) {
+    _inherits(VisitSummaryTranslator, _BaseTranslator);
+
     function VisitSummaryTranslator() {
         _classCallCheck(this, VisitSummaryTranslator);
+
+        return _possibleConstructorReturn(this, Object.getPrototypeOf(VisitSummaryTranslator).apply(this, arguments));
     }
 
-    _createClass(VisitSummaryTranslator, [{
-        key: 'calculateAge',
-        value: function calculateAge() {
-            return 2;
-        }
-    }], [{
+    _createClass(VisitSummaryTranslator, null, [{
         key: 'populateVisitSummaryData',
         value: function populateVisitSummaryData(resp) {
+            var weekValue = resp ? this.calculateCurrentPregnancyWeek(Utils.convertToDateString(new Date()), resp.lmp) : -1;
+            var pregnancyStatus = resp ? this.calculatePregnancyStatus(weekValue) : null;
+
             var patientData = resp.patientData;
             var visitSummaryData = resp.visitData;
             return {
@@ -83917,7 +87164,7 @@ var VisitSummaryTranslator = (function () {
                 patAge: patientData ? Utils.findAge(patientData.dOB) : '',
                 patcontactNumber: patientData ? patientData.emergencyContactPhn : '',
                 patBG: patientData ? patientData.bloodGroup : '',
-                patPregnancyStatus: patientData ? patientData.isPregrnancyWanted : '',
+                patPregnancyStatus: patientData ? pregnancyStatus : '',
                 patObstetrics: patientData ? patientData.obstetrics : '',
                 patRisk: patientData ? patientData.highRiskMotherComments : '',
                 isFood: visitSummaryData ? visitSummaryData.isFoodAllergies : '',
@@ -83938,16 +87185,32 @@ var VisitSummaryTranslator = (function () {
 
             };
         }
+    }, {
+        key: 'calculatePregnancyStatus',
+        value: function calculatePregnancyStatus(weekValue) {
+            var trimester = null;
+
+            if (weekValue > -1 && weekValue < 13) {
+                trimester = 'W1-12';
+            } else if (weekValue > 12 && weekValue < 28) {
+                trimester = 'W13-27';
+            } else if (weekValue > 27 && weekValue < 41) {
+                trimester = 'W28-40';
+            } else if (weekValue > 40) {
+                trimester = 'postnatal';
+            }
+            return trimester;
+        }
     }]);
 
     return VisitSummaryTranslator;
-})();
+})(_BaseTranslator3.default);
 
 exports.default = VisitSummaryTranslator;
 
-},{}],763:[function(require,module,exports){
-arguments[4][657][0].apply(exports,arguments)
-},{"dup":657}],764:[function(require,module,exports){
+},{"./BaseTranslator":762}],770:[function(require,module,exports){
+arguments[4][659][0].apply(exports,arguments)
+},{"dup":659}],771:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })(); /*eslint no-unused-vars: 0*/
@@ -84072,7 +87335,7 @@ var AppUtils = (function () {
     }, {
         key: 'findAge',
         value: function findAge(birthDate) {
-            Utils.convertToDate(birthDate, 'dd/mm/yyyy');
+            birthDate = Utils.convertToDate(birthDate, 'dd/mm/yyyy');
             var today = new Date();
             var dob = new Date(birthDate);
             var age = today.getFullYear() - dob.getFullYear();
@@ -84147,7 +87410,7 @@ var AppUtils = (function () {
 
 exports.AppUtils = AppUtils;
 
-},{"./ServiceManager":767}],765:[function(require,module,exports){
+},{"./ServiceManager":774}],772:[function(require,module,exports){
 'use strict';
 
 var _AppAction = require('../actions/AppAction');
@@ -84202,7 +87465,7 @@ Date.prototype.addDays = function (number) {
     return date;
 };
 
-},{"../actions/AppAction":658,"./AppConstants":763,"./AppUtils":764,"./ServiceManager":767,"./framework/LocalizerManager":769,"jquery":124}],766:[function(require,module,exports){
+},{"../actions/AppAction":660,"./AppConstants":770,"./AppUtils":771,"./ServiceManager":774,"./framework/LocalizerManager":776,"jquery":124}],773:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -84259,7 +87522,7 @@ var NotificationManager = (function (_React$Component) {
 
 module.exports = NotificationManager;
 
-},{"../components/layout/notification/ToasterCreator":668,"react":599}],767:[function(require,module,exports){
+},{"../components/layout/notification/ToasterCreator":671,"react":601}],774:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -84417,9 +87680,9 @@ var ServiceManager = (function () {
 
 module.exports = ServiceManager;
 
-},{}],768:[function(require,module,exports){
-arguments[4][631][0].apply(exports,arguments)
-},{"dup":631}],769:[function(require,module,exports){
+},{}],775:[function(require,module,exports){
+arguments[4][633][0].apply(exports,arguments)
+},{"dup":633}],776:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })(); /**
@@ -84471,4 +87734,4 @@ var LocalizerManager = (function () {
 
 exports.default = LocalizerManager;
 
-},{"../../config/resources/resource":725,"./Localizer":768}]},{},[744]);
+},{"../../config/resources/resource":729,"./Localizer":775}]},{},[749]);
