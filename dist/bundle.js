@@ -87003,7 +87003,7 @@ var WorkListStore = (function (_BaseStore) {
                     } else {
                         var searchBy = action.data.searchBy;
                         getData = {
-                            url: AppConstants.PATIENT_MANUAL_SEARCH_URL,
+                            url: '/api/getWorkList',
                             dataType: DataType.JSON,
                             contentType: ContentType.JSON,
                             headers: [{ key: 'searchString', value: searchBy }]
@@ -88856,14 +88856,14 @@ var ServiceManager = (function () {
 
         /**
         * This function is to send a GET request to the specified URL
-        * 
+        *
         * @param - obj - json object
         * 			sample : {"url":"http://sampleUurl.for.getData/sampleGet"
         *				 		, "headers":[{ "key":"key1" , "value":"value1" },{ "key":"key2" , "value":"value2" }]
         *			 			, "dataType":"json"
         *						, "notifyError":false,
         *			 			, "timeout":2000};
-        *			 
+        *
         * @param - returns response data in case sucess,
         * 			returns error in case of error and notifyError is set FALSE
         * 			handles error in case of error and notifyError is set TRUE
@@ -88875,9 +88875,10 @@ var ServiceManager = (function () {
             var dataType = obj.dataTypa;
             var timeout = obj.timeout;
             var contentType = obj.contentType;
+            console.log('obj: ' + JSON.stringify(obj));
 
             var promise = new Promise(function (resolve, reject) {
-                // console.log('Inside ServiceManager : function PromisedGet'); 
+                // console.log('Inside ServiceManager : function PromisedGet');
 
                 if (null == obj.timeout) {
                     timeout = 60000;
@@ -88899,6 +88900,7 @@ var ServiceManager = (function () {
                     contentType: contentType,
                     timeout: timeout,
                     success: function success(jsondata) {
+                        console.log('jsondata: ' + JSON.stringify(jsondata));
                         resolve(jsondata);
                     },
                     error: function error(msg) {
@@ -88906,26 +88908,26 @@ var ServiceManager = (function () {
                             // console.log('notifyError ');
                             ServiceManager.handleError(msg.status + ' : ' + msg.responseText);
                         } else {
-                            // console.log('rejecting error , w/o notify' + JSON.stringify(msg));   
+                            // console.log('rejecting error , w/o notify' + JSON.stringify(msg));
                             reject(JSON.stringify(msg));
                         }
                     }
                 });
             });
-            // console.log("pronise" + promise)                                  
+            // console.log("pronise" + promise)
             return promise;
         }
 
         /**
         * This function is to send a POST request to the specified URL
-        * 
+        *
         * @param - obj - json object
         * 			sample : {"url":"http://sampleUurl.for.postData/samplePost"
         *				 		, "headers":[{ "key":"key1" , "value":"value1" },{ "key":"key2" , "value":"value2" }]
         *				 		, "data":[{ "data1":"one" , "data2":"two" },{ "data1":"three" , "data2":"four" }]
         *				 		, "dataType":"json"
         *				 		, "notifyError":false};
-        *			 
+        *
         * @param - returns response data in case success,
         * 			returns error  in case of error and notifyError is set FALSE
         * 			handles error in case of error and notifyError is set TRUE
@@ -88944,7 +88946,7 @@ var ServiceManager = (function () {
             var contentType = obj.contentType;
 
             var promise = new Promise(function (resolve, reject) {
-                // console.log('Inside ServiceManager : function PromisedGet'); 
+                // console.log('Inside ServiceManager : function PromisedGet');
 
                 if (null == obj.timeout) {
                     timeout = 60000;
@@ -88972,7 +88974,7 @@ var ServiceManager = (function () {
                         if (notifyError) {
                             ServiceManager.handleError(msg.status + ' : ' + msg.responseText);
                         } else {
-                            // console.log('rejecting error , w/o notify' + JSON.stringify(msg));   
+                            // console.log('rejecting error , w/o notify' + JSON.stringify(msg));
                             reject(JSON.stringify(msg));
                         }
                     },
