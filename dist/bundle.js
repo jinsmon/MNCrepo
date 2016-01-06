@@ -87008,7 +87008,6 @@ var WorkListStore = (function (_BaseStore) {
                             contentType: ContentType.JSON,
                             headers: [{ key: 'searchString', value: searchBy }]
                         };
-                        console.log('url: ' + JSON.stringify(getData.url));
                         ServiceManager.doGet(getData).then(function (response) {
                             var updatedWorklistJson = WorkListStore.getSortedList(response, action.data.searchType);
                             if (updatedWorklistJson[_AppConstants.WORKLIST_JSON].length == 0) {
