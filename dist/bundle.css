@@ -1403,7 +1403,7 @@ input::-webkit-inner-spin-button {
 
 input[type="checkbox"] {
   display: none; }
-  input[type="checkbox"] ~ label::before {
+  input[type="checkbox"] ~ label::before, input[type="checkbox"] ~ span::before {
     border-radius: 3px;
     padding: 1px 0px 0px 4px;
     content: "\a0 ";
@@ -1423,12 +1423,12 @@ input[type="checkbox"] {
     cursor: pointer;
     border: solid 1px #cfcfcf; }
 
-input[type="checkbox"]:checked ~ label::before {
+input[type="checkbox"]:checked ~ label::before, input[type="checkbox"]:checked ~ span::before {
   content: "\f00c";
   color: #FFFFFF;
   background: #3AAFDA; }
 
-input[type=checkbox]:checked + label:after {
+input[type=checkbox]:checked + label:after, input[type=checkbox]:checked + span:after {
   -ms-filter: "progid:DXImageTransform.Microsoft.Alpha(Opacity=100)";
   filter: alpha(opacity=100);
   opacity: 1; }
@@ -1750,6 +1750,33 @@ body {
   width: 300px;
   height: 154px; }
 
+input[type="checkbox"] {
+  display: none; }
+  input[type="checkbox"] ~ label::before {
+    border-radius: 3px;
+    padding: 1px 0px 0px 4px;
+    content: "\a0 ";
+    display: inline-block;
+    font-family: FontAwesome;
+    font-size: 106%;
+    line-height: 21px;
+    margin: 0 0.5em 0 0;
+    overflow: visible;
+    position: relative;
+    text-indent: -0.1em;
+    top: 0.05em;
+    width: 20px;
+    height: 20px;
+    color: #FFF;
+    background: #FFF;
+    cursor: pointer;
+    border: solid 1px #cfcfcf;
+    opacity: 1; }
+
+input[type="checkbox"]:checked ~ label::before {
+  content: "\f00c";
+  color: #3AAFDA;
+  background: #FFFFFF; }
 
 /* Custom code*/
 /* Top main navigation Starts here*/
