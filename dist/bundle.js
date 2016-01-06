@@ -83060,6 +83060,7 @@ var WorklistView = (function (_React$Component) {
             }
             if (data.args[_AppConstants.SORT_TYPE] == _AppConstants.DAY_TYPE) {
                 this.setState({ tabActive: 1 });
+                console.log("Active tab");
             }
             if (data.args[_AppConstants.SORT_TYPE] == _AppConstants.WEEK_TYPE) {
                 this.setState({ tabActive: 2 });
