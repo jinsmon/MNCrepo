@@ -87003,7 +87003,7 @@ var WorkListStore = (function (_BaseStore) {
                     } else {
                         var searchBy = action.data.searchBy;
                         getData = {
-                            url: '/api/getWorkList',
+                            url: '/api/worklists',
                             dataType: DataType.JSON,
                             contentType: ContentType.JSON,
                             headers: [{ key: 'searchString', value: searchBy }]
@@ -88900,7 +88900,6 @@ var ServiceManager = (function () {
                     contentType: contentType,
                     timeout: timeout,
                     success: function success(jsondata) {
-                        console.log('jsondata: ' + JSON.stringify(jsondata));
                         resolve(jsondata);
                     },
                     error: function error(msg) {
