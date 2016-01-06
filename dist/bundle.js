@@ -71197,9 +71197,9 @@ var PATIENT_VISIT_SAVE_URL = '/api/saveVisit'; //'http://ec2-52-10-19-65.us-west
 var PATIENT_VISIT_FETCH_URL = '/api/getVisits'; //'http://ec2-52-10-19-65.us-west-2.compute.amazonaws.com/FHIRServer/patientVisit/searchVisits?patientReference=';
 var PATIENT_DETAILS_URL = '/api/getPatientDetail'; //'http://ec2-52-10-19-65.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/searchByID?id=';
 var FETCH_SUBCENTER_DETAILS = '/api/getSubCenterDetails';
-var PATIENT_SEARCH_URL = '/api/worklists'; //'http://ec2-52-10-19-65.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/search';
-//const PATIENT_SEARCH_URL = 'http://ec2-52-34-194-19.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/search';
+var PATIENT_SEARCH_URL = '/api/worklists'; //'http://ec2-52-10-19-65.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/search'
 var REGISTRATION_URL_PATTERN = 'Developer/Registration/RegistrationId';
+
 var VISIT_SUMMARY_URL_PATTERN = 'app/Patient/patientId/VisitSummary/visitId';
 var VISIT_URL_PATTERN = 'app/Patient/patientId/Visit/visitType/visitId';
 var PATIENT_URL_PATTERN = 'app/Patient/patientId';
@@ -71209,6 +71209,7 @@ var FETCH_EVENT = 'fetch';
 var WORKLIST_JSON = 'worklist';
 var WEEK_TYPE = 'week';
 var DAY_TYPE = 'day';
+var SORT_TYPE = 'SORT_TYPE';
 var TOTAL_WORKLIST = 'TOTAL_WORKLIST';
 var RISK_PARAM = 'yes';
 var DONUT_DAY_VALUES = 'DAY_VALUE';
@@ -71324,6 +71325,7 @@ module.exports = {
     ROUTE_PATH: ROUTE_PATH,
     WEEK_TYPE: WEEK_TYPE,
     DAY_TYPE: DAY_TYPE,
+    SORT_TYPE: SORT_TYPE,
     TOTAL_WORKLIST: TOTAL_WORKLIST,
     RISK_PARAM: RISK_PARAM,
     WORKLIST_JSON: WORKLIST_JSON,
@@ -73580,10 +73582,6 @@ var _DropDown = require('./../../controls/DropDown');
 
 var _DropDown2 = _interopRequireDefault(_DropDown);
 
-var _RadioButton = require('./../../controls/RadioButton');
-
-var _RadioButton2 = _interopRequireDefault(_RadioButton);
-
 var _server = require('react-dom/server');
 
 var _server2 = _interopRequireDefault(_server);
@@ -73610,34 +73608,61 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
 
 //import jspdf from 'jspdf-browserify';
 
-var layoutBtn = {
-    left: '24%',
+var StyleHeader = {
+    media: 'print',
+    backgroundColor: '#CCCCCC',
+    border: '1px solid black',
+    marginTop: '3px',
+    paddingLeft: '30px',
+    paddingRight: '30px',
     'font-family': 'GEInspira',
     fontWeight: '700'
 };
-var divStyle = {
-    'paddingBottom': '24px',
-    'borderBottom': 'solid 2px #ECEBEB'
+
+var patientSubHead = {
+    marginTop: '20px',
+    'font-family': 'GEInspira',
+    fontWeight: '700'
 };
-var imgSpec = {};
+var contentSpacing = { paddingTop: '40px' };
+var textColor = { color: '#0000A3' };
 
-var Referral = (function (_ControlBase) {
-    _inherits(Referral, _ControlBase);
+var labelStyle = {
+    float: 'left',
+    marginLeft: '10px'
 
-    function Referral() {
-        _classCallCheck(this, Referral);
+};
+var wrapperStyle = { marginTop: '30px' };
+var radioStyle = { float: 'right' };
 
-        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(Referral).call(this));
+var layoutBtn = {
+    left: '38%',
+    'font-family': 'GEInspira',
+    fontWeight: '700'
+};
+var dropStyle = {
+    marginLeft: '38%',
+    width: '30%'
+};
+
+var ReferralLetter = (function (_ControlBase) {
+    _inherits(ReferralLetter, _ControlBase);
+
+    function ReferralLetter() {
+        _classCallCheck(this, ReferralLetter);
+
+        var _this = _possibleConstructorReturn(this, Object.getPrototypeOf(ReferralLetter).call(this));
 
         _this.state = { patientData: {} };
         _ReferLetterStore2.default.addChangeListener(AppConstants.FETCH_EVENT, _this.notifyPatientFetch.bind(_this));
         AppAction.executeAction(ActionType.REFER_LETTER_DATA_FETCH, null);
+
         _VisitSummaryStore2.default.addChangeListener(AppConstants.FETCH_EVENT, _this.retrieveVisitData.bind(_this));
         AppAction.executeAction(ActionType.VISIT_SUMMARY_FETCH, null);
         return _this;
     }
 
-    _createClass(Referral, [{
+    _createClass(ReferralLetter, [{
         key: 'notifyPatientFetch',
         value: function notifyPatientFetch(data) {
             this.setState({ patientData: data.args });
@@ -73669,120 +73694,267 @@ var Referral = (function (_ControlBase) {
             doc.output('dataurlnewwindow');*/
         }
     }, {
-        key: 'childRender',
-        value: function childRender() {
-
-            var labelClass = 'col-xs-12 col-lg-2 col-md-2 alignLeft';
-            var wrapperClass = 'col-xs-12 col-lg-2 col-md-2';
-
-            var Transports = [{
-                value: 'Select Mode Of Transport',
-                text: locale('Selmode')
-            }, {
-                value: 'Ambulance',
-                text: 'Ambulance'
-            }, {
-                value: '108',
-                text: '108'
-            }, {
-                value: 'others',
-                text: 'others'
-            }];
-
+        key: 'render',
+        value: function render() {
             return _react2.default.createElement(
                 'div',
-                { style: divStyle },
+                null,
                 _react2.default.createElement(
-                    'form',
-                    { className: 'wrapperStyle custom_row form-horizontal' },
+                    'div',
+                    { style: patientSubHead },
+                    locale('PATIENTINFORMATION')
+                ),
+                _react2.default.createElement(
+                    'div',
+                    { className: 'col-lg-12', style: StyleHeader },
                     _react2.default.createElement(
-                        _reactBootstrap.Row,
-                        null,
+                        'div',
+                        { className: 'row' },
                         _react2.default.createElement(
-                            _reactBootstrap.Col,
-                            { xs: 8 },
-                            _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', label: locale('ReferredTo'), className: 'editable', labelClassName: 'col-xs-12 col-lg-3 col-md-3 alignLeft',
-                                wrapperClassName: 'col-xs-12 col-lg-3 col-md-3', valueLink: this.linkState(this.state.patientData, 'referredTo') })
+                            'div',
+                            { className: 'col-md-2' },
+                            locale('Name'),
+                            ': ',
+                            _react2.default.createElement(
+                                'span',
+                                { style: textColor },
+                                this.state.patientData.name
+                            )
+                        ),
+                        _react2.default.createElement(
+                            'div',
+                            { className: 'col-md-3' },
+                            locale('SpouseName'),
+                            ': ',
+                            _react2.default.createElement(
+                                'span',
+                                { style: textColor },
+                                this.state.patientData.spouseName
+                            )
+                        ),
+                        _react2.default.createElement(
+                            'div',
+                            { className: 'col-md-2' },
+                            locale('Age'),
+                            ': ',
+                            _react2.default.createElement(
+                                'span',
+                                { style: textColor },
+                                this.state.patientData.age
+                            )
+                        ),
+                        _react2.default.createElement(
+                            'div',
+                            { className: 'col-md-3' },
+                            locale('ContactNo'),
+                            ': ',
+                            _react2.default.createElement(
+                                'span',
+                                { style: textColor },
+                                this.state.patientData.emergencyContactPhn
+                            ),
+                            ' '
+                        ),
+                        _react2.default.createElement(
+                            'div',
+                            { className: 'col-md-2' },
+                            locale('BloodGroup'),
+                            ': ',
+                            _react2.default.createElement(
+                                'span',
+                                { style: textColor },
+                                this.state.patientData.bloodGroup
+                            )
                         )
                     ),
                     _react2.default.createElement(
-                        _reactBootstrap.Row,
-                        null,
+                        'div',
+                        { className: 'row', style: contentSpacing },
                         _react2.default.createElement(
-                            _reactBootstrap.Col,
-                            { xs: 12 },
-                            _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', label: locale('RefferedOn'), className: 'editable', labelClassName: labelClass,
-                                wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.patientData, 'referredOn') })
-                        )
-                    ),
-                    _react2.default.createElement(
-                        _reactBootstrap.Row,
-                        null,
+                            'div',
+                            { className: 'col-md-2' },
+                            locale('PatientID'),
+                            ': ',
+                            _react2.default.createElement(
+                                'span',
+                                { style: textColor },
+                                this.state.patientData.patientId
+                            )
+                        ),
                         _react2.default.createElement(
-                            _reactBootstrap.Col,
-                            { xs: 12 },
-                            _react2.default.createElement(_reactBootstrap.Input, { type: 'textarea', label: locale('Reason'), className: 'editable', placeholder: locale('EnterReason'), labelClassName: labelClass,
-                                wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.patientData, 'reasonForReferral') })
-                        )
-                    ),
-                    _react2.default.createElement(
-                        _reactBootstrap.Row,
-                        null,
+                            'div',
+                            { className: 'col-md-3' },
+                            locale('PICMEID'),
+                            ': ',
+                            _react2.default.createElement(
+                                'span',
+                                { style: textColor },
+                                this.state.patientData.picmeID
+                            )
+                        ),
                         _react2.default.createElement(
-                            _reactBootstrap.Col,
-                            { xs: 12 },
-                            _react2.default.createElement(_DropDown2.default, { label: locale('ModeOfTransport'), className: 'editable', placeholder: locale('ModeOfTransport'), labelClassName: labelClass,
-                                options: Transports, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context, 'modeOfTransport') })
-                        )
-                    ),
-                    _react2.default.createElement(
-                        _reactBootstrap.Row,
-                        null,
+                            'div',
+                            { className: 'col-md-2' },
+                            locale('SubCenterName'),
+                            ': ',
+                            _react2.default.createElement(
+                                'span',
+                                { style: textColor },
+                                this.state.patientData.subCentreName
+                            ),
+                            'r'
+                        ),
                         _react2.default.createElement(
-                            _reactBootstrap.Col,
-                            { xs: 12 },
-                            _react2.default.createElement(_reactBootstrap.Input, { type: 'textarea', label: locale('CurrentMedication'), className: 'editable', placeholder: locale('EnterCurrentMedication'), labelClassName: labelClass,
-                                wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.patientData, 'CurrentMedication') })
-                        )
-                    ),
-                    _react2.default.createElement(
-                        _reactBootstrap.Row,
-                        null,
-                        _react2.default.createElement(
-                            _reactBootstrap.Col,
-                            { xs: 12 },
-                            _react2.default.createElement(_RadioButton2.default, { label: locale('InformationOnReferral'),
-                                labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MenstrualHistory, 'InformationOnReferral', this.valueChanged), name: 'InformationOnReferral', trueText: 'Yes', falseText: 'No' })
-                        )
-                    ),
-                    _react2.default.createElement(
-                        _reactBootstrap.Row,
-                        null,
-                        _react2.default.createElement(
-                            _reactBootstrap.Col,
-                            { xs: 12 },
-                            _react2.default.createElement(_RadioButton2.default, { label: locale('PatientConsentObtained'),
-                                labelClassName: labelClass, wrapperClassName: wrapperClass, valueLink: this.linkState(this.state.context.MenstrualHistory, 'PatientConsentObtained', this.valueChanged), name: 'PatientConsentObtained', trueText: 'Yes', falseText: 'No' })
+                            'div',
+                            { className: 'col-md-3' },
+                            locale('PHCName'),
+                            ': ',
+                            _react2.default.createElement(
+                                'span',
+                                { style: textColor },
+                                this.state.patientData.phcName
+                            ),
+                            ' '
                         )
                     )
                 ),
-                _react2.default.createElement('br', null),
                 _react2.default.createElement(
-                    _reactBootstrap.Row,
-                    null,
+                    'div',
+                    { className: 'wrapper', style: wrapperStyle },
                     _react2.default.createElement(
-                        _reactBootstrap.Col,
-                        { xs: 6, lg: 4, md: 6, className: 'col-lg-offset-2 col-md-offset-2 col-xs-offset-2' },
+                        'form',
+                        null,
                         _react2.default.createElement(
-                            'button',
-                            { type: 'button', className: 'saveHeaderBtn btnCommon btn btn-sm btn-default col-xs-12 col-lg-2 col-lg-md-4', onClick: this.exportToPdf.bind(this) },
-                            locale('Print')
+                            _reactBootstrap.Row,
+                            null,
+                            _react2.default.createElement(
+                                _reactBootstrap.Col,
+                                { xs: 6, style: { marginTop: '1%' } },
+                                _react2.default.createElement(_reactBootstrap.Input, { type: 'textbox', label: locale('ReferredTo'), className: 'editable', placeholder: locale('PleaseEenter'), labelClassName: 'col-xs-3 marginMinus',
+                                    wrapperClassName: 'col-xs-5', valueLink: this.linkState(this.state.patientData, 'referredTo') }),
+                                _react2.default.createElement(
+                                    'div',
+                                    { className: 'referral' },
+                                    _react2.default.createElement(_reactBootstrap.Input, { type: 'textarea', label: locale('ReasonForReferral'), className: 'editable', placeholder: locale('PleaseEnterTheReason'), labelClassName: 'col-xs-3 marginMinus',
+                                        wrapperClassName: 'col-xs-5', valueLink: this.linkState(this.state.patientData, 'reasonForReferral') }),
+                                    '  '
+                                )
+                            ),
+                            _react2.default.createElement(
+                                _reactBootstrap.Col,
+                                { xs: 4 },
+                                _react2.default.createElement(_DatePicker2.default, { placeholder: 'DD/MM/YY', className: 'editable', label: locale('RefferedOn'), labelClassName: 'col-xs-4 marginMinus',
+                                    wrapperClassName: 'col-xs-5', valueLink: this.linkState(this.state.patientData, 'referredOn') }),
+                                _react2.default.createElement(
+                                    'div',
+                                    { className: 'referral' },
+                                    _react2.default.createElement(
+                                        'label',
+                                        { style: labelStyle },
+                                        locale('ModeOfTransport')
+                                    ),
+                                    _react2.default.createElement(_DropDown2.default, { options: [{
+                                            text: '107',
+                                            value: '107'
+                                        }, {
+                                            text: '108',
+                                            value: '108'
+                                        }, {
+                                            text: 'Ambulance',
+                                            value: 'Ambulance'
+                                        }],
+                                        valueLink: this.linkState(this.state.patientData, 'modeOfTransport') })
+                                ),
+                                _react2.default.createElement(
+                                    'div',
+                                    { className: 'referral' },
+                                    _react2.default.createElement(_reactBootstrap.Input, { type: 'textarea', label: locale('CurrentMedication'), className: 'editable', placeholder: locale('PleaseEenter'), labelClassName: 'col-xs-5 marginMinus',
+                                        wrapperClassName: 'col-xs-7', valueLink: this.linkState(this.state.patientData, 'CurrentMedication') }),
+                                    '   '
+                                )
+                            )
                         ),
-                        '    ',
                         _react2.default.createElement(
-                            'button',
-                            { type: 'button', className: 'cancelHeaderBtn btnCommon btn btn-sm btn-default col-xs-12 col-lg-2 col-lg-md-4' },
-                            locale('Export')
+                            _reactBootstrap.Row,
+                            null,
+                            _react2.default.createElement(
+                                _reactBootstrap.Col,
+                                { xs: 4 },
+                                _react2.default.createElement(
+                                    'label',
+                                    null,
+                                    locale('Information_on_Referral_provided_to_institution_referred')
+                                ),
+                                _react2.default.createElement(
+                                    'div',
+                                    { 'class': 'btn-group', 'data-toggle': 'buttons', style: radioStyle },
+                                    _react2.default.createElement(
+                                        'label',
+                                        { 'class': 'btn btn-default', wrapperClassName: 'col-xs-5' },
+                                        _react2.default.createElement('input', { type: 'radio', id: 'q156', checked: 'true', name: 'radio', value: 'Yes' }),
+                                        ' ',
+                                        locale('Yes')
+                                    ),
+                                    '    ',
+                                    _react2.default.createElement(
+                                        'label',
+                                        { 'class': 'btn btn-default' },
+                                        _react2.default.createElement('input', { type: 'radio', id: 'q157', name: 'radio', value: 'No' }),
+                                        ' ',
+                                        locale('No')
+                                    )
+                                ),
+                                _react2.default.createElement('br', null),
+                                _react2.default.createElement('br', null),
+                                _react2.default.createElement('br', null),
+                                _react2.default.createElement('br', null),
+                                _react2.default.createElement(
+                                    'label',
+                                    null,
+                                    locale('PatientConsentObtained')
+                                ),
+                                _react2.default.createElement(
+                                    'div',
+                                    { 'class': 'btn-group', 'data-toggle': 'buttons', style: radioStyle },
+                                    _react2.default.createElement(
+                                        'label',
+                                        { 'class': 'btn btn-default', wrapperClassName: 'col-xs-5' },
+                                        _react2.default.createElement('input', { type: 'radio', name: 'radioPatient', value: 'Yes' }),
+                                        ' ',
+                                        locale('Yes')
+                                    ),
+                                    '    ',
+                                    _react2.default.createElement(
+                                        'label',
+                                        { 'class': 'btn btn-default' },
+                                        _react2.default.createElement('input', { type: 'radio', name: 'radioPatient', checked: 'true', value: 'No' }),
+                                        ' ',
+                                        locale('No')
+                                    )
+                                )
+                            )
+                        ),
+                        _react2.default.createElement('br', null),
+                        _react2.default.createElement('br', null),
+                        _react2.default.createElement('br', null),
+                        _react2.default.createElement(
+                            _reactBootstrap.Row,
+                            null,
+                            _react2.default.createElement(
+                                _reactBootstrap.Col,
+                                { xs: 4, style: layoutBtn },
+                                _react2.default.createElement(
+                                    'button',
+                                    { type: 'button', className: 'btn-success', onClick: this.exportToPdf.bind(this) },
+                                    locale('Print_Export_to_PDF')
+                                ),
+                                '    ',
+                                _react2.default.createElement(
+                                    'button',
+                                    { type: 'button', className: 'btn-warning' },
+                                    locale('Cancel')
+                                )
+                            )
                         )
                     )
                 )
@@ -73790,12 +73962,12 @@ var Referral = (function (_ControlBase) {
         }
     }]);
 
-    return Referral;
+    return ReferralLetter;
 })(_ControlBase3.default);
 
-exports.default = Referral;
+exports.default = ReferralLetter;
 
-},{"../../stores/ReferLetterStore":777,"../../stores/VisitSummaryStore":781,"./../../controls/ControlBase":755,"./../../controls/DatePicker":758,"./../../controls/DropDown":759,"./../../controls/RadioButton":765,"./../login/AuthenticatedComponent":694,"./../visit-summary/VisitSummary":711,"./ReferralPrint.js":698,"react":621,"react-bootstrap":376,"react-dom/server":390}],698:[function(require,module,exports){
+},{"../../stores/ReferLetterStore":777,"../../stores/VisitSummaryStore":781,"./../../controls/ControlBase":755,"./../../controls/DatePicker":758,"./../../controls/DropDown":759,"./../login/AuthenticatedComponent":694,"./../visit-summary/VisitSummary":711,"./ReferralPrint.js":698,"react":621,"react-bootstrap":376,"react-dom/server":390}],698:[function(require,module,exports){
 'use strict';
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
@@ -80296,7 +80468,7 @@ var VisitInfo = (function (_ControlBase) {
                 newData = this.state.visitData;
                 return _react2.default.createElement(
                     'div',
-                    { className: 'visitContainerResponsive' },
+                    null,
                     _react2.default.createElement(_menu2.default, { options: data.options, callback: this.testCallBack.bind(this) }),
                     _react2.default.createElement(
                         'div',
@@ -80759,9 +80931,7 @@ var DonutChart = (function (_React$Component) {
           _react2.default.createElement(
             'label',
             { style: highRiskLabel },
-            ' ',
-            this.state.data[1].value.length == 1 ? '0' + this.state.data[1].value : this.state.data[1].value,
-            '   '
+            this.state.data[1].value
           ),
           _react2.default.createElement(
             'label',
@@ -81278,15 +81448,20 @@ var WorklistView = (function (_React$Component) {
             if (typeof data.args[_AppConstants.DONUT_WEEK_VALUES] !== 'undefined') {
                 this.state.donutWeekKeys = data.args[_AppConstants.DONUT_WEEK_LEGENDS];
             }
+            if (data.args[_AppConstants.SORT_TYPE] == _AppConstants.DAY_TYPE) {
+                this.setState({ tabActive: 1 });
+            }
+            if (data.args[_AppConstants.SORT_TYPE] == _AppConstants.WEEK_TYPE) {
+                this.setState({ tabActive: 2 });
+            }
             this.forceUpdate();
         }
     }, {
         key: 'closeTab',
         value: function closeTab() {
+            this.setState({ tabActive: 4 });
             this.setState({ showTab: false });
-            AppAction.executeAction(ActionType.GET_TOTAL_WORKLIST, null);
             AppAction.executeAction(ActionType.GET_TODAYS_WORKLIST, null);
-            this.setState({ tabActive: 1 });
         }
     }, {
         key: 'paginationEvent',
@@ -81985,7 +82160,7 @@ var PregnancyRisk = (function (_React$Component) {
     _createClass(PregnancyRisk, [{
         key: 'isRisk',
         value: function isRisk(risk) {
-            if (risk.toLowerCase() == AppConstants.RISK_PARAM) {
+            if (risk == 'B-' || risk == 'yes') {
                 return true;
             }
             return false;
@@ -82629,7 +82804,8 @@ var Tabs = (function (_React$Component) {
                 var closeButtonStyle = {
                     background: 'url(./worklist/close_icon.png) no-repeat scroll 0px 0px',
                     paddingLeft: '22px',
-                    opacity: '0.5'
+                    opacity: '0.5',
+                    paddingTop: '2px'
                 };
                 var closeStyle = {
                     border: 'none',
@@ -82882,15 +83058,20 @@ var WorklistView = (function (_React$Component) {
             if (typeof data.args[_AppConstants.DONUT_WEEK_VALUES] !== 'undefined') {
                 this.state.donutWeekKeys = data.args[_AppConstants.DONUT_WEEK_LEGENDS];
             }
+            if (data.args[_AppConstants.SORT_TYPE] == _AppConstants.DAY_TYPE) {
+                this.setState({ tabActive: 1 });
+            }
+            if (data.args[_AppConstants.SORT_TYPE] == _AppConstants.WEEK_TYPE) {
+                this.setState({ tabActive: 2 });
+            }
             this.forceUpdate();
         }
     }, {
         key: 'closeTab',
         value: function closeTab() {
+            this.setState({ tabActive: 4 });
             this.setState({ showTab: false });
-            AppAction.executeAction(ActionType.GET_TOTAL_WORKLIST, null);
             AppAction.executeAction(ActionType.GET_TODAYS_WORKLIST, null);
-            this.setState({ tabActive: 1 });
         }
     }, {
         key: 'paginationEvent',
@@ -83640,24 +83821,18 @@ module.exports = {
    Referral_Letter: 'Referral Letter',
    PatientID: 'Patient ID',
    SubCenterName: 'Sub center Name',
-   ReferredTo: 'Referred to',
-   RefferedOn: 'Reffered on',
-   ReasonForReferral: 'Reason For Referral',
-   ModeOfTransport: 'Mode of transport',
-   Information_on_Referral_provided_to_institution_referred: 'Information on Referral provided to institution referred',
-   CurrentMedication: 'Current Medication',
-   PatientConsentObtained: 'Patient Consent Obtained',
+   ReferredTo: 'Referred To',
+   RefferedOn: 'Reffered on:',
+   ReasonForReferral: 'Reason For Referral:',
+   ModeOfTransport: 'Mode of Transport:',
+   Information_on_Referral_provided_to_institution_referred: 'Information on Referral provided to institution referred:',
+   CurrentMedication: 'Current Medication:',
+   PatientConsentObtained: 'Patient Consent Obtained:',
    Print_Export_to_PDF: 'Print ( Export to PDF)',
    Cancel: 'Cancel',
    PleaseEenter: 'Please enter',
    PleaseEnterTheReason: 'Please enter the reason',
    PATIENTINFORMATION: 'PATIENT INFORMATION',
-   Reason: 'Reason',
-   InformationOnReferral: 'Information on referral provided',
-   Selmode: 'Select Mode of Transport',
-   EnterCurrentMedication: 'Enter current medication',
-   EnterReason: 'Enter Reason',
-   Export: 'Export',
 
    /*Visit Summary */
    VisitSummary: 'Visit Summary',
@@ -86999,13 +87174,19 @@ var WorkListStore = (function (_BaseStore) {
                         WorkListStore.emitChange(ActionType.PATIENT_SEARCH_ACTION, updatedWorklistJson);
                     } else {
                         var searchBy = action.data.searchBy;
+                        /* getData = {
+                             url:AppConstants.PATIENT_SEARCH_URL,
+                             dataType: DataType.JSON,
+                             contentType: ContentType.JSON,
+                             notifyError:true,
+                             headers : [{key : AppConstants.SEARCH_STRING,value : searchBy}]
+                         };*/
                         getData = {
-                            url: AppConstants.PATIENT_SEARCH_URL + '?searchString=' + searchBy,
+                            url: 'http://ec2-52-34-194-19.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/search?searchString=' + searchBy,
                             dataType: DataType.JSON,
                             contentType: ContentType.JSON
                         };
                         ServiceManager.doGet(getData).then(function (response) {
-                            console.log('Manual search1: ' + JSON.stringify(response));
                             var updatedWorklistJson = WorkListStore.getSortedList(response, action.data.searchType);
                             if (updatedWorklistJson[_AppConstants.WORKLIST_JSON].length == 0) {
                                 updatedWorklistJson[AppConstants.SEARCH_TYPE] = AppConstants.MANUAL_SEARCH;
@@ -87029,12 +87210,7 @@ var WorkListStore = (function (_BaseStore) {
                 sortedWorkList = searchData;
             } else {
                 searchData.filter(function (row) {
-                    var formattedRow = {};
-                    var filterPattern = ['id', 'name', 'spouseName', 'emergencyContactPhn', 'nextDueDate', 'subCentreID', 'subCentreName', 'vhnName'];
-                    filterPattern.forEach(function (pattern) {
-                        formattedRow[pattern] = row[pattern];
-                    });
-                    var jsonString = JSON.stringify(formattedRow).toLowerCase();
+                    var jsonString = JSON.stringify(row).toLowerCase();
                     if (jsonString.indexOf(searchBy.toLowerCase()) > -1) {
                         sortedWorkList.push(row);
                         return true;
@@ -87047,25 +87223,17 @@ var WorkListStore = (function (_BaseStore) {
             return updatedJson;
         }
     }, {
-        key: 'getFormattedSearchList',
-        value: function getFormattedSearchList(row) {
-            var formattedRow = {};
-            var filterPattern = ['id', 'name', 'spouseName', 'emergencyContactPhn', 'nextDueDate', 'subCentreID', 'subCentreName', 'vhnName'];
-            filterPattern.forEach(function (pattern) {
-                formattedRow[pattern] = row[pattern];
-            });
-            return formattedRow;
-        }
-    }, {
         key: 'getDonutParameter',
         value: function getDonutParameter(workListData, sortType) {
             var updatedJson = workListData;
             if (sortType == _AppConstants.DAY_TYPE) {
                 updatedJson[_AppConstants.DONUT_DAY_VALUES] = this.getDonutData(workListData, _AppConstants.DAY_TYPE);
                 updatedJson[_AppConstants.DONUT_DAY_LEGENDS] = this.getDonutLegend(_AppConstants.DAY_TYPE);
+                updatedJson[_AppConstants.SORT_TYPE] = _AppConstants.DAY_TYPE;
             } else if (sortType == _AppConstants.WEEK_TYPE) {
                 updatedJson[_AppConstants.DONUT_WEEK_VALUES] = this.getDonutData(workListData, _AppConstants.WEEK_TYPE);
                 updatedJson[_AppConstants.DONUT_WEEK_LEGENDS] = this.getDonutLegend(_AppConstants.WEEK_TYPE);
+                updatedJson[_AppConstants.SORT_TYPE] = _AppConstants.WEEK_TYPE;
             } else {
                 var worklistArray = workListData[_AppConstants.WORKLIST_JSON];
                 updatedJson[_AppConstants.WORKLIST_JSON] = this.translate(worklistArray, RequestType.GET, _AppConstants.DAY_TYPE);
@@ -87081,7 +87249,7 @@ var WorkListStore = (function (_BaseStore) {
         value: function getTotalRisk(workListData) {
             var riskCount = 0;
             workListData.forEach(function (riskObject) {
-                if (riskObject.highRiskMother.toLowerCase() == AppConstants.RISK_PARAM) {
+                if (riskObject.highRiskMother == _AppConstants.RISK_PARAM) {
                     riskCount = riskCount + 1;
                 }
             });
@@ -87102,7 +87270,6 @@ var WorkListStore = (function (_BaseStore) {
             } else {
                 worklistDataForDonut = workListData[_AppConstants.WORKLIST_JSON];
             }
-
             var data = [{
                 value: worklistDataForDonut.length,
                 color: '#50b6ff',
@@ -87984,7 +88151,6 @@ var VisitDataTranslator = (function (_BaseTranslator) {
     _createClass(VisitDataTranslator, null, [{
         key: 'getDataModelForView',
         value: function getDataModelForView(allVisits, visitFilter) {
-
             var visitData = null;
             if (visitFilter.selectedVisitId != -1) {
                 visitData = $.grep(allVisits, function (j) {
@@ -87997,7 +88163,6 @@ var VisitDataTranslator = (function (_BaseTranslator) {
                     visitData.enteredBy = '';
                 }
             }
-
             var risks = visitData ? this.executeRules(visitData) : [];
             var visitInfo = {
                 visitId: visitData ? visitData.visitId : -1,
@@ -88140,7 +88305,7 @@ var VisitDataTranslator = (function (_BaseTranslator) {
                     Breathlessness_on_exertion_palpitations_HeartDisease: visitData ? bool(visitData.isBreathlessnessMedHist) : false,
                     Breathlessness_OnMedication: visitData ? bool(visitData.isBreathlessnessMedHistOnMedication) : false,
                     ChronicCough_bloodInSputum_prolongedFever_tuberculosis: visitData ? bool(visitData.isChrncCoughBldInTheSputmProlongdFevr) : false,
-                    chronicOnMedication: visitData ? bool(visitData.isChrncCoughBldInTheSputmProlongdFevrOnMedication) : false,
+                    chronicOnMedication: visitData ? bool(isChrncCoughBldInTheSputmProlongdFevrOnMedication) : false,
                     RenalDisease: visitData ? bool(visitData.isRenalDisease) : false,
                     Renaldisease_OnMedication: visitData ? bool(visitData.isRenalDiseaseOnMedication) : false,
                     Convulsions_epilepsy: visitData ? bool(visitData.isConvulsns) : false,
@@ -88876,7 +89041,7 @@ var ServiceManager = (function () {
                 // console.log('Inside ServiceManager : function PromisedGet'); 
 
                 if (null == obj.timeout) {
-                    timeout = 60000;
+                    timeout = 5000;
                 }
                 // //console.log('timeout '+timeout);
 
@@ -88943,7 +89108,7 @@ var ServiceManager = (function () {
                 // console.log('Inside ServiceManager : function PromisedGet'); 
 
                 if (null == obj.timeout) {
-                    timeout = 60000;
+                    timeout = 5000;
                 }
 
                 $.ajax({
