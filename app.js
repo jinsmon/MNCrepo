@@ -14,24 +14,81 @@ app.use(bodyParser.json());
 
 app.use(express.static(__dirname + '/dist/'));
 
+//var proxyUrl = 'http://' + '<username>' + ':' + '<password>' + '@' + 'cis-india-pitc-bangalorez.proxy.corporate.ge.com:' + 80;
+//var proxyUrl='https_proxy=http://http-proxy.health.ge.com:88';
+//request = request.defaults({proxy: proxyUrl});
+
+
 app.get('/', function(req, res) {
     res.sendFile(path.join(__dirname + '/dist/index.html'));
 }
 );
 
 app.get('/api/worklists', function(req, res, next) {
-    var url = 'http://ec2-52-34-194-19.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/search';
-    request(url, function(error, response, body) {
+	var options = '';
+	console.log('francis1 '); 
+	var datas = JSON.stringify(req.body);
+    var searchString = req.headers['searchString'];
+	console.log('francis2 '+searchString); 
+	 if(typeof req.headers['searchString'] !== 'undefined') {
+	  options = {
+        uri: 'http://ec2-52-34-194-19.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/search?searchString=' + searchString,
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        },
+        body: datas
+    };
+	 }
+	 else
+	 {
+		 options = {
+        uri: 'http://ec2-52-34-194-19.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/search',
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        },
+        body: datas
+        };
+	 }
+	
+	 request(options, function(error, response, body) {
         if (error) {
-            console.log('get worklist');
             next(error);
         }
         if (!error && response.statusCode == 200) {
-            // console.log(body); // Show the HTML for the Google homepage.
             res.json(JSON.parse(body));
-        } 
+        }
     });
+
 });
+	
+  
+app.get('/api/getVisits', function(req, res, next) {
+   var datas = JSON.stringify(req.body);
+    var patientId = req.headers['patientid'];
+    var options = {
+        uri: 'http://ec2-52-34-194-19.us-west-2.compute.amazonaws.com/FHIRServer/patientVisit/searchVisits?patientReference=' + patientId,
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        },
+        body: datas
+    };
+
+    request(options, function(error, response, body) {
+        if (error) {
+            next(error);
+        }
+        if (!error && response.statusCode == 200) {
+            res.json(JSON.parse(body));
+        }
+    });
+
+});
+
+
+
 
 app.post('/api/registerPatient', function(req, res, next) {
     var datas = JSON.stringify(req.body);
@@ -79,8 +136,7 @@ app.post('/api/saveVisit', function(req, res, next) {
 });
 
 app.get('/api/getVisits', function(req, res, next) {
-
-    var datas = JSON.stringify(req.body);
+   var datas = JSON.stringify(req.body);
     var patientId = req.headers['patientid'];
     var options = {
         uri: 'http://ec2-52-34-194-19.us-west-2.compute.amazonaws.com/FHIRServer/patientVisit/searchVisits?patientReference=' + patientId,
@@ -99,14 +155,15 @@ app.get('/api/getVisits', function(req, res, next) {
             res.json(JSON.parse(body));
         }
     });
+
 });
 
 app.get('/api/getPatientDetail', function(req, res, next) {
 
     var datas = JSON.stringify(req.body);
-    var patientId = req.headers['patientid'];
+   var patientId = req.headers['patientid'];
     var options = {
-        uri: 'http://ec2-52-34-194-19.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/searchByID?id=' + patientId,
+    	uri: 'http://ec2-52-34-194-19.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/searchByID?id='+patientId,
         method: 'GET',
         headers: {
             'Content-Type': 'application/json; charset=utf-8'
@@ -122,6 +179,7 @@ app.get('/api/getPatientDetail', function(req, res, next) {
             res.json(JSON.parse(body));
         }
     });
+    var patientData = {}
 });
 
 app.get('/api/getSubCenterDetails', function(req, res, next) {
