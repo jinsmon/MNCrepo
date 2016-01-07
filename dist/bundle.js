@@ -87005,7 +87005,7 @@ var WorkListStore = (function (_BaseStore) {
                         WorkListStore.emitChange(ActionType.PATIENT_SEARCH_ACTION, updatedWorklistJson);
                     } else {
                         var searchBy = action.data.searchBy;
-                        console.log('francis3 ' + searchString);
+                        console.log('francis3 ' + searchBy);
                         var getData1 = {
                             url: AppConstants.PATIENT_SEARCH_URL,
                             dataType: DataType.JSON,
