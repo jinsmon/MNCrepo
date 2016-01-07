@@ -71198,8 +71198,8 @@ var PATIENT_VISIT_FETCH_URL = '/api/getVisits'; //'http://ec2-52-10-19-65.us-wes
 var PATIENT_DETAILS_URL = '/api/getPatientDetail'; //'http://ec2-52-10-19-65.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/searchByID?id=';
 var FETCH_SUBCENTER_DETAILS = '/api/getSubCenterDetails';
 var PATIENT_MANUAL_SEARCH_URL = '/api/getWorkList';
-//const PATIENT_SEARCH_URL = '/api/worklists'; //'http://ec2-52-10-19-65.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/search';
-var PATIENT_SEARCH_URL = 'http://ec2-52-34-194-19.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/search';
+var PATIENT_SEARCH_URL = '/api/worklists'; //'http://ec2-52-10-19-65.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/search';
+//const PATIENT_SEARCH_URL = 'http://ec2-52-34-194-19.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/search';
 var REGISTRATION_URL_PATTERN = 'Developer/Registration/RegistrationId';
 var VISIT_SUMMARY_URL_PATTERN = 'app/Patient/patientId/VisitSummary/visitId';
 var VISIT_URL_PATTERN = 'app/Patient/patientId/Visit/visitType/visitId';
