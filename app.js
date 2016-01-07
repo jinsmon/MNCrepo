@@ -26,11 +26,9 @@ app.get('/', function(req, res) {
 
 app.get('/api/worklists', function(req, res, next) {
 	var options = '';
-	console.log('francis1 '); 
 	var datas = JSON.stringify(req.body);
-    var searchString = req.headers['searchString'];
-	console.log('francis2 '+searchString); 
-	 if(typeof req.headers['searchString'] !== 'undefined') {
+    var searchString = req.headers['searchstring'];
+	if(typeof req.headers['searchstring'] !== 'undefined') {
 	  options = {
         uri: 'http://ec2-52-34-194-19.us-west-2.compute.amazonaws.com/FHIRServer/patientRegistration/search?searchString=' + searchString,
         method: 'GET',
@@ -63,31 +61,7 @@ app.get('/api/worklists', function(req, res, next) {
 
 });
 	
-  
-app.get('/api/getVisits', function(req, res, next) {
-   var datas = JSON.stringify(req.body);
-    var patientId = req.headers['patientid'];
-    var options = {
-        uri: 'http://ec2-52-34-194-19.us-west-2.compute.amazonaws.com/FHIRServer/patientVisit/searchVisits?patientReference=' + patientId,
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json; charset=utf-8'
-        },
-        body: datas
-    };
-
-    request(options, function(error, response, body) {
-        if (error) {
-            next(error);
-        }
-        if (!error && response.statusCode == 200) {
-            res.json(JSON.parse(body));
-        }
-    });
-
-});
-
-
+ 
 
 
 app.post('/api/registerPatient', function(req, res, next) {
