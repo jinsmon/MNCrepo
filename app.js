@@ -48,6 +48,32 @@ app.get('/api/worklists', function(req, res, next) {
     });
 });
 
+app.post('/api/proxyUrl', function(req, res, next) {
+    // var patientData = req.body;	
+    let url = req.headers.url;
+    var uri = FHIR_DOMAIN_URL + url;
+
+
+    var datas = JSON.stringify(req.body);
+    var options = {
+        uri: uri,
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+        },
+        body: datas
+    };
+
+    request(options, function(error, response, body) {
+        if (error) {
+            next(error);
+        } else {
+            res.send(response);
+        }
+    });
+
+});
+
 app.get('/api/getWorklists', function(req, res, next) {
     var options = '';
     var datas = JSON.stringify(req.body);
