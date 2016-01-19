@@ -561,10 +561,9 @@ ul.dropdown-menu.dropdown-menu-right {
   .menubar ul {
     display: block;
     top: 16%; }
-  .visitContainerResponsive > .menubar + div {
-    position: relative;
-    margin-top: -28%;
-    padding-top: 5%; }
+  .menubar + div {
+    position: absolute;
+    margin-top: 8%; }
   .menubar .burger {
     display: none; } }
 
@@ -617,8 +616,8 @@ ul.dropdown-menu.dropdown-menu-right {
     display: block;
     width: 0;
     height: 0;
-    border-top: 30px solid transparent;
-    border-bottom: 30px solid transparent;
+    border-top: 31px solid transparent;
+    border-bottom: 31px solid transparent;
     position: absolute;
     top: 50%;
     margin-top: -31px;
@@ -679,9 +678,6 @@ ul.dropdown-menu.dropdown-menu-right {
     margin-top: -31px;
     border-top: 31px solid transparent;
     border-bottom: 30px solid transparent; }
-
-a.btn:active, a.btn:focus {
-  box-shadow: none !important; }
 
 .breadcrumbSelect {
   background-color: #76d31a !important; }
@@ -744,7 +740,7 @@ a.btn.trimisterBtn.breadcrumbSelect {
 .tabs-menu-item a {
   display: block;
   padding: 0 40px;
-  height: 47px;
+  height: 50px;
   line-height: 50px;
   border-bottom: 0;
   color: #373737;
@@ -766,7 +762,7 @@ a.btn.trimisterBtn.breadcrumbSelect {
   font-size: 15px;
   font-family: GEInspira;
   font-weight: bold;
-  height: 52px;
+  height: 54px;
   margin-top: -4px; }
 
 .btnGroup button {
@@ -803,7 +799,7 @@ svg .c3-chart-arcs-title {
   margin-right: -15px; }
 
 .headerSection > div {
-  height: 41px;
+  height: 43px;
   padding: 4px 10px; }
 
 .headerOffSet_eight {
@@ -826,19 +822,17 @@ svg .c3-chart-arcs-title {
   vertical-align: middle !important;
   padding: 0px; }
 
-.fixedDiv {
+.dataTable thead th div {
   position: absolute;
   padding: 13px 8px;
   top: 0;
   border: none;
-  height: 47px;
+  height: 55px;
   background-color: #f5f5f5;
-  border-left: 1px #ddd;
-  border-top: 1px solid #ddd;
-  z-index: 9999; }
+  border-left: 1px #ddd; }
 
 .dataTable thead tr {
-  height: 47px; }
+  height: 55px; }
 
 .dataTable thead {
   background-color: #E9E9E9;
@@ -889,12 +883,6 @@ svg .c3-chart-arcs-title {
   .worklistHeaderButton .worklistHeaderButton:hover {
     background: #e6e6e6; }
 
-#week_legend {
-  margin-top: 16px; }
-
-#day_legend {
-  margin-top: 16px; }
-
 @media (max-width: 650px) {
   .chart .col-md-4 {
     height: 180px; } }
@@ -939,7 +927,7 @@ svg .c3-chart-arcs-title {
 
 @media (max-width: 600px) {
   .serachFilter {
-    width: 26% !important;
+    width: 27% !important;
     margin-right: 0px !important; } }
 
 @media (max-width: 605px) {
@@ -954,24 +942,6 @@ svg .c3-chart-arcs-title {
 @media (max-width: 605px) {
   .tabs-menu-item > a > i {
     padding: 4px 11px !important; } }
-
-@media (max-width: 780px) {
-  .pieChart {
-    width: 212px;
-    padding-top: 1px; } }
-
-@media (min-width: 500px) and (max-width: 660px) {
-  .chart-legend > ul {
-    padding-top: 48px; } }
-
-@media (min-width: 985px) and (max-width: 1200px) {
-  .chart-legend > ul {
-    padding-top: 48px;
-    padding-left: 78px; } }
-
-@media (max-width: 500px) {
-  .chart-legend > ul {
-    margin-top: 0px; } }
 
 .chart {
   height: 190px; }
@@ -1069,13 +1039,12 @@ body {
   border-right: solid 1px #CFCFCF;
   height: 343px; }
 
-.required::after {
-  content: "\2605";
+.required {
   color: red;
-  font-size: 10px;
-  bottom: 7px;
-  position: relative;
-  left: 2px; }
+  font-weight: 900;
+  font-size: larger;
+  padding-right: 2px;
+  float: left; }
 
 .controlLabel {
   text-align: right; }
@@ -1093,16 +1062,10 @@ body {
   font-family: GEInspira;
   src: url("../fonts/ge-inspira.ttf"); }
 
-.a, .btn-default {
-  outline: none !important; }
-
 .positionFixed {
   position: fixed;
   z-index: 999;
   width: 100%; }
-
-.topMargin {
-  margin-top: 5%; }
 
 .seperator {
   height: 3px;
@@ -1114,8 +1077,7 @@ body {
   font-size: 15px;
   padding: 1% 5% 5% 5%;
   box-shadow: 0px 5px 5px 0px #E5E6E7;
-  font-family: GEInspira;
-  margin-bottom: 4px; }
+  font-family: GEInspira; }
 
 input[type=checkbox] {
   background: green;
@@ -1152,7 +1114,7 @@ input::-webkit-inner-spin-button {
 
 .form-control::-webkit-input-placeholder {
   font-size: 15px;
-  color: #D5D5D5; }
+  color: #373737; }
 
 .labelPaddingControl {
   padding-top: 18px; }
@@ -1319,8 +1281,7 @@ input::-webkit-inner-spin-button {
   border-radius: 5px; }
 
 .Panel_custom_head > .panel-heading > .panel-title {
-  width: 101%;
-  margin-left: -5px; }
+  width: 101%; }
 
 .Panel_custom_head > .panel-heading > .panel-title > a {
   padding-right: 1392px;
@@ -1371,17 +1332,6 @@ input::-webkit-inner-spin-button {
   float: right;
   margin: 7px;
   padding: 2px 10px; }
-
-.SaveEditRegBtn {
-  float: right;
-  margin: 7px;
-  padding: 2px 10px;
-  background: #1AA5DE;
-  border-radius: 20px;
-  padding: 2px 20px;
-  color: #D6E6F6;
-  font-size: 14px;
-  border: 1px solid #d2d2d2; }
 
 .trimisterBtn {
   border: 4px solid #f5f5f5;
@@ -1731,36 +1681,7 @@ input[type="radio"]:checked + label::before, input[type="radio"]:checked + span:
   margin-top: -0.5%;
   font-family: GEInspira; }
 
-.wrapperStyleReferral {
-  color: #1c1c1c;
-  font-size: 15px;
-  padding: 0% 1.1% 0.1% 1.1%;
-  margin-left: 1%;
-  margin-right: .5%;
-  margin-top: -0.5%;
-  font-family: GEInspira;
-  border: 2px solid #B9E3FF; }
-
-.wrapperStyleReg {
-  color: #1c1c1c;
-  font-size: 15px;
-  padding: 2% 1.1% 0.1% 1.1%;
-  border: 2px solid #B9E3FF;
-  margin-top: -0.5%;
-  font-family: GEInspira; }
-
-.visitIndicatorVisit {
-  margin-top: -2%; }
-
-.buttonsForVisit {
-  float: right;
-  padding-top: .5%; }
-
 /*Media query starts here*/
-@media (max-width: 1450px) {
-  .buttonsForVisit {
-    width: 20%; } }
-
 @media (min-width: 100px) and (max-width: 762px) {
   .SPContainer {
     top: 31%;
@@ -1768,10 +1689,8 @@ input[type="radio"]:checked + label::before, input[type="radio"]:checked + span:
 
 @media (max-width: 1000px) {
   .SPContainer {
-    top: 20%;
+    top: 13%;
     position: relative; }
-  .patient-banner {
-    padding-bottom: 4%; }
   .SPContainer > .menubar {
     margin-top: -11%; }
   .SPContainer > .menubar > ul > li#menuOption0 {
@@ -1808,39 +1727,22 @@ input[type="radio"]:checked + label::before, input[type="radio"]:checked + span:
     left: 21.5%;
     width: 76%; } }
 
-@media (min-width: 768px) {
-  .borderRightDivider {
-    height: 146px !important; } }
-
-@media (min-width: 768px) {
-  .buttonsForVisit {
-    margin-top: -3% !important;
-    width: 25%; } }
-
-@media (max-width: 768px) {
-  .buttonsForVisit {
-    margin-top: -1% !important;
-    width: 25%; } }
-
-@media (min-width: 768px) {
-  .secondSection {
-    border-right: none !important; } }
-
 @media (max-width: 1000px) {
   .visitInnerContentArea {
-    margin-top: 2% !important;
-    position: relative;
+    display: block;
+    margin-top: 90%;
+    position: absolute;
     width: 100%; } }
 
 @media (max-width: 1000px) {
   .visitInnerContentArea {
     left: 0px;
-    top: 1%; }
+    top: -11%; }
   .visitContainerResponsive > .menubar {
     width: 100%;
-    position: relative;
+    position: absolute;
     z-index: 100;
-    margin-top: 14%; }
+    top: 29%; }
   .visitContainerResponsive > .menubar > ul > li#menuOption0 {
     width: 30.3%; }
   .visitContainerResponsive > .menubar > ul > li#menuOption1 {
@@ -1863,13 +1765,8 @@ input[type="radio"]:checked + label::before, input[type="radio"]:checked + span:
     float: left;
     margin-top: -8.5%;
     border-right: 4px solid #F5F5F5; }
-  .visitContainerResponsive > .menubar > ul > li#menuOption6 {
-    width: 30.9%;
-    float: right;
-    margin-right: 69%;
-    border-right: 4px solid #F5F5F5; }
   .visitContainerResponsive > div > .wholeVisitIndicator {
-    margin-top: 24%; } }
+    margin-top: 31%; } }
 
 /*Media query ends here*/
 /*PopupContent starts here*/
@@ -2001,50 +1898,11 @@ input[type="radio"]:checked + label::before, input[type="radio"]:checked + span:
 
 .summaryAvatar {
   width: 110px;
-  height: 125px;
-  object-fit: contain; }
+  height: 125px; }
 
 /*Visit Summray ends here*/
 .boldLabel span {
   font-weight: 700; }
-
-.progress {
-  position: relative; }
-
-.progress span {
-  position: absolute;
-  display: block;
-  width: 100%;
-  color: black;
-  font-family: GEInspiraBold;
-  font-weight: 700; }
-
-.TriStateTable {
-  border-collapse: collapse;
-  border-radius: 4px;
-  border-style: hidden;
-  box-shadow: 0 0 0 1px #CBCBCB; }
-
-.TriStateTable td {
-  border: 1px solid #CBCBCB;
-  padding: 5px; }
-
-.TriStateTable tr td:nth-child(1) {
-  color: #FFF;
-  border-top-left-radius: 4px;
-  border-bottom-left-radius: 4px;
-  padding-left: 9px;
-  padding-right: 7px; }
-
-.TriStateTable tr td:nth-child(2) {
-  padding-left: 8px; }
-
-.TriStateTable tr td:nth-child(3) {
-  color: #FFF;
-  border-top-right-radius: 4px;
-  border-bottom-right-radius: 4px;
-  padding-left: 6px;
-  padding-right: 7px; }
 
 /** The Magic **/
 .btn-breadcrumb .btn {
@@ -2055,8 +1913,8 @@ input[type="radio"]:checked + label::before, input[type="radio"]:checked + span:
     display: block;
     width: 0;
     height: 0;
-    border-top: 30px solid transparent;
-    border-bottom: 30px solid transparent;
+    border-top: 31px solid transparent;
+    border-bottom: 31px solid transparent;
     position: absolute;
     top: 50%;
     margin-top: -31px;
@@ -2117,9 +1975,6 @@ input[type="radio"]:checked + label::before, input[type="radio"]:checked + span:
     margin-top: -31px;
     border-top: 31px solid transparent;
     border-bottom: 30px solid transparent; }
-
-a.btn:active, a.btn:focus {
-  box-shadow: none !important; }
 
 .breadcrumbSelect {
   background-color: #76d31a !important; }
@@ -2266,8 +2121,8 @@ input[type="checkbox"] {
 
 input[type="checkbox"]:checked ~ label::before {
   content: "\f00c";
-  color: #FFFFFF;
-  background: #3AAFDA; }
+  color: #3AAFDA;
+  background: #FFFFFF; }
 
 body {
   background: #f5f6f7; }
@@ -2397,10 +2252,9 @@ ul.dropdown-menu.dropdown-menu-right {
   .menubar ul {
     display: block;
     top: 16%; }
-  .visitContainerResponsive > .menubar + div {
-    position: relative;
-    margin-top: -28%;
-    padding-top: 5%; }
+  .menubar + div {
+    position: absolute;
+    margin-top: 8%; }
   .menubar .burger {
     display: none; } }
 
@@ -2497,8 +2351,7 @@ ul.dropdown-menu.dropdown-menu-right {
 .patient-avatar {
   width: 110px;
   height: 125px;
-  padding: 7px 0px 6px 0px;
-  object-fit: contain; }
+  padding: 7px 0px 6px 0px; }
 
 .divider {
   border-right: solid 2px;
@@ -2591,7 +2444,7 @@ ul.dropdown-menu.dropdown-menu-right {
 .tabs-menu-item a {
   display: block;
   padding: 0 40px;
-  height: 47px;
+  height: 50px;
   line-height: 50px;
   border-bottom: 0;
   color: #373737;
@@ -2613,7 +2466,7 @@ ul.dropdown-menu.dropdown-menu-right {
   font-size: 15px;
   font-family: GEInspira;
   font-weight: bold;
-  height: 52px;
+  height: 54px;
   margin-top: -4px; }
 
 .toast-title {
@@ -2885,7 +2738,7 @@ svg .c3-chart-arcs-title {
   margin-right: -15px; }
 
 .headerSection > div {
-  height: 41px;
+  height: 43px;
   padding: 4px 10px; }
 
 .headerOffSet_eight {
@@ -2908,18 +2761,17 @@ svg .c3-chart-arcs-title {
   vertical-align: middle !important;
   padding: 0px; }
 
-.fixedDiv {
+.dataTable thead th div {
   position: absolute;
   padding: 13px 8px;
   top: 0;
   border: none;
-  height: 47px;
+  height: 55px;
   background-color: #f5f5f5;
-  border-left: 1px #ddd;
-  border-top: 1px solid #ddd; }
+  border-left: 1px #ddd; }
 
 .dataTable thead tr {
-  height: 47px; }
+  height: 55px; }
 
 .dataTable thead {
   background-color: #E9E9E9;
@@ -2970,11 +2822,6 @@ svg .c3-chart-arcs-title {
   .worklistHeaderButton .worklistHeaderButton:hover {
     background: #e6e6e6; }
 
-#week_legend {
-  margin-left: 19px;
-  margin-top: 16px;
-  color: #4a4a4a; }
-
 @media (max-width: 650px) {
   .chart .col-md-4 {
     height: 180px; } }
@@ -3019,7 +2866,7 @@ svg .c3-chart-arcs-title {
 
 @media (max-width: 600px) {
   .serachFilter {
-    width: 26% !important;
+    width: 27% !important;
     margin-right: 0px !important; } }
 
 @media (max-width: 605px) {
@@ -3034,21 +2881,3 @@ svg .c3-chart-arcs-title {
 @media (max-width: 605px) {
   .tabs-menu-item > a > i {
     padding: 4px 11px !important; } }
-
-@media (max-width: 780px) {
-  .pieChart {
-    width: 212px;
-    padding-top: 1px; } }
-
-@media (max-width: 660px) {
-  .chart-legend > ul {
-    padding-top: 48px; } }
-
-@media (max-width: 515px) {
-  .chart-legend > ul {
-    padding-top: 0px;
-    padding-left: 15px; } }
-
-@media (max-width: 515px) {
-  #week_legend {
-    margin-top: 0px; } }
